@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Web Client ID depuis Google Cloud Console (type "Web application").
+        C'est le même que dans Supabase > Authentication > Providers > Google > Client IDs.
+        Requis par google_sign_in pour obtenir un ID token valide côté serveur.
+    -->
+    <string name="default_web_client_id">285628608077-ds4a8oeveus9k00g9q55cgnubgtsvdmq.apps.googleusercontent.com</string>
+    <string name="task_list_widget_description">Affiche vos tâches du jour sur l\'écran d\'accueil</string>
+    <string name="add_task_widget_description">Ajouter rapidement une tâche depuis l\'écran d\'accueil</string>
+</resources>

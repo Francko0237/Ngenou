@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <external-files-path name="alarm_sounds_external" path="Music/" />
+    <files-path name="alarm_sounds_internal" path="." />
+    <cache-path name="alarm_sounds_cache" path="." />
+    <external-path name="external_root" path="." />
+</paths>

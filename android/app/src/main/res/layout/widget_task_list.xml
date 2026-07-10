@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NOTE: RemoteViews n'accepte pas android:padding sur la vue racine
+     (ignoré/crashe sur certains API). On encapsule dans un FrameLayout. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background">
+
+    <LinearLayout
+        android:id="@+id/widget_root"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingLeft="14dp"
+        android:paddingRight="14dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp">
+
+        <!-- En-tete -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="6dp">
+
+            <TextView
+                android:id="@+id/widget_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Mes taches"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/widget_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0/0"
+                android:textColor="#B3FFFFFF"
+                android:textSize="12sp" />
+
+            <ImageView
+                android:id="@+id/widget_add_button"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:padding="6dp"
+                android:layout_marginLeft="8dp"
+                android:src="@drawable/ic_widget_add"
+                android:contentDescription="Ajouter une tache" />
+        </LinearLayout>
+
+        <!-- Date -->
+        <TextView
+            android:id="@+id/widget_date"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Aujourd'hui"
+            android:textColor="#B3FFFFFF"
+            android:textSize="11sp"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Separateur -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#33FFFFFF"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Tache 1 -->
+        <LinearLayout
+            android:id="@+id/task_row_1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="5dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/task_bullet_1"
+                android:layout_width="10dp"
+                android:layout_height="wrap_content"
+                android:text="&#8226;"
+                android:textColor="#AAAAFF"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/task_title_1"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginLeft="6dp"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/task_time_1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#B3FFFFFF"
+                android:textSize="10sp"
+                android:layout_marginLeft="4dp" />
+        </LinearLayout>
+
+        <!-- Tache 2 -->
+        <LinearLayout
+            android:id="@+id/task_row_2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="5dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/task_bullet_2"
+                android:layout_width="10dp"
+                android:layout_height="wrap_content"
+                android:text="&#8226;"
+                android:textColor="#AAAAFF"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/task_title_2"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginLeft="6dp"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/task_time_2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#B3FFFFFF"
+                android:textSize="10sp"
+                android:layout_marginLeft="4dp" />
+        </LinearLayout>
+
+        <!-- Tache 3 -->
+        <LinearLayout
+            android:id="@+id/task_row_3"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="5dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/task_bullet_3"
+                android:layout_width="10dp"
+                android:layout_height="wrap_content"
+                android:text="&#8226;"
+                android:textColor="#AAAAFF"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/task_title_3"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginLeft="6dp"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/task_time_3"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#B3FFFFFF"
+                android:textSize="10sp"
+                android:layout_marginLeft="4dp" />
+        </LinearLayout>
+
+        <!-- Message aucune tache (pas d'emoji, encode en entite XML) -->
+        <TextView
+            android:id="@+id/widget_empty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Aucune tache aujourd'hui !"
+            android:textColor="#B3FFFFFF"
+            android:textSize="12sp"
+            android:gravity="center"
+            android:layout_marginTop="6dp"
+            android:visibility="gone" />
+
+        <!-- Plus de taches -->
+        <TextView
+            android:id="@+id/widget_more"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#B3FFFFFF"
+            android:textSize="10sp"
+            android:gravity="end"
+            android:visibility="gone" />
+
+    </LinearLayout>
+</FrameLayout>

@@ -1,0 +1,24 @@
+Examen National Du Brevet De Technicien Supérieur - Session 2021
+
+Spécialité/Option : GL - IIA - TEL - RS
+Epreuve écrite : MATHEMATIQUES
+Crédit. : 3 ‘ Durée : 4 heures
+
+Partie À : ANALYSE 8 pts
+Exercice1  4pts
+On s'intéresse à la fonction fdéfinie sur R par f(x) = —2(x + 2)e-*.
+
+1) Calculer f(-1) et en donner une valeur approchée à 10-°près. Apt
+2) Justifier que f(x) = 2(x+1)e"* où f'est la fonction dérivée de /. 4pt
+3) "En déduire les variations de la fonctionf. 1pt
+
+4) Dans le repère orthogonal ci-dessous trois courbes C, C et C; ont été
+représentées. L'une de ces courbes représente la fonction f, une autre
+représente sa dérivée et une troisième représente sa dérivée seconde. Par une
+justification claire, identifier les courbes C, , C et Cp 1pt
+
+EXERCICE 2 4pts
+
+On considère l'équation différentielle (E) : Y" + 2y" + Sy = 2x +3.
+
+18
