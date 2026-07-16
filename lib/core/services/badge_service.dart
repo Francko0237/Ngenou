@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../database/database_helper.dart';
 import '../models/badge.dart';
 import '../widgets/badge_unlocked_dialog.dart';
@@ -150,19 +149,12 @@ class BadgeService {
   }
 
   /// Vérifie si de nouveaux badges ont été débloqués et affiche les popups.
-  Future<List<AppBadge>> checkAndUnlock(BuildContext context) async {
+  /// La protection contre les doublons repose uniquement sur [isBadgeUnlocked]
+  /// qui interroge la base SQLite : si un badge est déjà en base avec
+  /// unlocked_at non null, on passe — aucun popup ne s'affiche.
+  Future<List<AppBadge>> checkAndUnlock(BuildContext context, {Set<String>? categories}) async {
     final db = DatabaseHelper.instance;
     final List<AppBadge> newlyUnlocked = [];
-
-    // ── Migration silencieuse (premier appel) ────────────────────────────
-    // Si des conditions sont déjà satisfaites (activité préexistante),
-    // on les marque en base SANS afficher de dialog pour éviter la cascade.
-    final prefs = await SharedPreferences.getInstance();
-    final migrationDone = prefs.getBool('badge_migration_v1') ?? false;
-    if (!migrationDone) {
-      await _runSilentMigration(db);
-      await prefs.setBool('badge_migration_v1', true);
-    }
 
     // Récupérer les stats globales
     final streak = await db.getDefiStreak();
@@ -177,6 +169,11 @@ class BadgeService {
     final hour = now.hour;
 
     for (final baseBadge in defaultBadges) {
+      // Filtrer par catégorie si demandé
+      if (categories != null && !categories.contains(baseBadge.category)) {
+        continue;
+      }
+
       final isUnlocked = await db.isBadgeUnlocked(baseBadge.id);
       if (isUnlocked) continue;
 
@@ -255,75 +252,4 @@ class BadgeService {
     return newlyUnlocked;
   }
 
-  /// Migration silencieuse — marque en base tous les badges dont la condition
-  /// est déjà satisfaite, SANS afficher de dialog.
-  /// Appelée une seule fois (clé badge_migration_v1 dans SharedPreferences).
-  Future<void> _runSilentMigration(DatabaseHelper db) async {
-    final streak = await db.getDefiStreak();
-    final completedNotions = await db.getCompletedNotionsCount();
-    final customCourses = await db.getCustomCoursesCount();
-    final projects = await db.getProjectsCount();
-    final solvedAlgos = await db.countSolvedAlgos();
-    final perfectDefi = await db.hasPerfectDefi();
-    final perfectScore = await db.hasPerfectMatiereScore();
-    final now = DateTime.now();
-    // Date fictive dans le passé pour les badges "déjà mérités"
-    final pastDate = now.subtract(const Duration(days: 1));
-
-    for (final badge in defaultBadges) {
-      final isUnlocked = await db.isBadgeUnlocked(badge.id);
-      if (isUnlocked) continue;
-
-      bool conditionMet = false;
-      switch (badge.id) {
-        case 'first_defi':
-          conditionMet = streak >= 1;
-          break;
-        case 'defi_streak_3':
-          conditionMet = streak >= 3;
-          break;
-        case 'defi_streak_7':
-          conditionMet = streak >= 7;
-          break;
-        case 'defi_streak_30':
-          conditionMet = streak >= 30;
-          break;
-        case 'perfect_defi':
-          conditionMet = perfectDefi;
-          break;
-        case 'first_notion':
-          conditionMet = completedNotions >= 1;
-          break;
-        case 'notions_5':
-          conditionMet = completedNotions >= 5;
-          break;
-        case 'notions_20':
-          conditionMet = completedNotions >= 20;
-          break;
-        case 'first_algo':
-          conditionMet = solvedAlgos >= 1;
-          break;
-        case 'algo_5':
-          conditionMet = solvedAlgos >= 5;
-          break;
-        case 'perfect_score':
-          conditionMet = perfectScore;
-          break;
-        case 'first_course':
-          conditionMet = customCourses >= 1;
-          break;
-        case 'first_project':
-          conditionMet = projects >= 1;
-          break;
-        // early_bird / night_owl : basés sur l'heure actuelle, pas de migration
-        default:
-          conditionMet = false;
-      }
-
-      if (conditionMet) {
-        // Enregistrer avec une date dans le passé — badge "déjà mérité"
-        await db.unlockBadgeSilent(badge.id, badge, pastDate);
-      }
-    }
-  }
 }

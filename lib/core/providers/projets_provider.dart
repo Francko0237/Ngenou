@@ -66,14 +66,16 @@ class ProjetsProvider with ChangeNotifier {
 
   // ─── CRUD ────────────────────────────────────────────────────────────────────
 
-  Future<void> createProjet(Projet projet) async {
+  Future<void> createProjet(Projet projet, {bool triggerBadges = true}) async {
     await _db.insertProjet(projet);
     _projets.add(projet);
     notifyListeners();
 
-    final context = rootNavigatorKey.currentContext;
-    if (context != null && context.mounted) {
-      Future.microtask(() => BadgeService.instance.checkAndUnlock(context));
+    if (triggerBadges) {
+      final context = rootNavigatorKey.currentContext;
+      if (context != null && context.mounted) {
+        Future.microtask(() => BadgeService.instance.checkAndUnlock(context));
+      }
     }
   }
 

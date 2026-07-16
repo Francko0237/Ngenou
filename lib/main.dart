@@ -19,12 +19,29 @@ import 'core/providers/defis_provider.dart';
 import 'core/services/supabase_credentials.dart';
 import 'core/services/connectivity_service.dart';
 import 'core/services/sync_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SupabaseCredentials.init();
 
-  // Initialise le service de widgets natifs (bureau Android/iOS)
+  // ── Réinitialisation unique des badges (migration silencieuse supprimée) ──
+  // Efface les badges qui ont été marqués silencieusement par l'ancienne
+  // logique de migration. Ils seront re-débloqués correctement avec popup
+  // la prochaine fois que l'utilisateur effectuera l'action correspondante.
+  final prefs = await SharedPreferences.getInstance();
+  final badgeResetDone = prefs.getBool('badge_reset_v2') ?? false;
+  if (!badgeResetDone) {
+    try {
+      final db = DatabaseHelper.instance;
+      final sqlDb = await db.database;
+      await sqlDb.delete('badges');
+    } catch (e) {
+      debugPrint('Badge reset error (non-fatal): $e');
+    }
+    await prefs.setBool('badge_reset_v2', true);
+    await prefs.remove('badge_migration_v1'); // nettoyage ancienne clé
+  }
   await HomeWidgetService.instance.init();
 
   // Démarrer la synchronisation périodique (toutes les 2 minutes quand connecté)

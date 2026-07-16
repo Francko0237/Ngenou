@@ -13,6 +13,7 @@ import '../../core/services/deep_seek_service.dart';
 import '../../core/services/quota_guard.dart';
 import '../../core/utils/error_formatter.dart';
 import '../../core/utils/duration_utils.dart';
+import '../../core/services/badge_service.dart';
 
 class CreateProjectWizardPage extends StatefulWidget {
   const CreateProjectWizardPage({super.key});
@@ -148,7 +149,7 @@ class _CreateProjectWizardPageState extends State<CreateProjectWizardPage> {
       matiereIds: const [],
       dateCreation: DateTime.now(),
     );
-    await context.read<ProjetsProvider>().createProjet(projet);
+    await context.read<ProjetsProvider>().createProjet(projet, triggerBadges: false);
     _createdProjetId = projetId;
     _goToStep(2);
 
@@ -190,6 +191,7 @@ class _CreateProjectWizardPageState extends State<CreateProjectWizardPage> {
         final pkg = validation.package!;
         final err = await context.read<CustomCoursesProvider>().importCourse(
           pkg,
+          triggerBadges: false,
         );
         if (err != null) continue;
 
@@ -212,7 +214,16 @@ class _CreateProjectWizardPageState extends State<CreateProjectWizardPage> {
       }
     }
 
-    if (mounted) setState(() => _isGeneratingCourses = false);
+    if (mounted) {
+      setState(() => _isGeneratingCourses = false);
+      // Déclenche une unique vérification de badges (ex: premier projet/cours) à la fin.
+      final ctx = context;
+      Future.microtask(() {
+        if (ctx.mounted) {
+          BadgeService.instance.checkAndUnlock(ctx);
+        }
+      });
+    }
   }
 
   // ─── BUILD ──────────────────────────────────────────────────────────────────

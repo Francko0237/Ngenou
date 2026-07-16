@@ -83,11 +83,20 @@ class _ExercicePageState extends State<ExercicePage> {
         if (mounted) {
           // Naviguer vers les résultats EN PREMIER
           context.push('/resultat', extra: score);
-          // Les badges s'afficheront par-dessus la page résultat (meilleure UX)
+          // Badges d'apprentissage uniquement — pas les badges de création cours/projet
           Future.delayed(const Duration(milliseconds: 400), () {
             final ctx = rootNavigatorKey.currentContext;
             if (ctx != null && ctx.mounted) {
-              BadgeService.instance.checkAndUnlock(ctx);
+              BadgeService.instance.checkAndUnlock(
+                ctx,
+                categories: {
+                  'learning',
+                  'excellence',
+                  'algo',
+                  'streak',
+                  'activity',
+                },
+              );
             }
           });
         }

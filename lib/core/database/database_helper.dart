@@ -1164,6 +1164,7 @@ class DatabaseHelper {
       'badges',
       columns: ['id'],
       where: 'id = ? AND unlocked_at IS NOT NULL AND is_deleted = 0',
+      whereArgs: [badgeId],
       limit: 1,
     );
     return rows.isNotEmpty;
@@ -1322,11 +1323,13 @@ class DatabaseHelper {
       'taches_revision',
       'defis_quotidiens_sessions',
       'tchat_ia_messages',
-      'badges',
+      // 'badges' intentionnellement exclu — restaurés depuis Supabase à la reconnexion
     ];
     for (final table in tables) {
       await db.delete(table);
     }
+    // Vider aussi les badges locaux (seront re-synchronisés depuis Supabase)
+    await db.delete('badges');
     await _ensureManualSchedule(db);
   }
 }
