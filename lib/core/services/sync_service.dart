@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../database/database_helper.dart';
 import 'auth_service.dart';
@@ -90,8 +91,7 @@ class SyncService extends ChangeNotifier {
         useIdDistant: true,
       );
       await _syncTable('tchat_ia_messages', 'id', userId, useIdDistant: true);
-
-      // Replanifier toutes les alarmes après la sync des tâches.
+      await _syncBadges(userId);
       try {
         final pending = await DatabaseHelper.instance.getAllPendingTasks();
         await ScheduleNotificationService.rescheduleAll(pending);
@@ -421,6 +421,116 @@ class SyncService extends ChangeNotifier {
           .eq('is_deleted', true);
     } catch (e) {
       debugPrint('Erreur purge distante table $tableName : $e');
+    }
+  }
+
+  // ── Sync spéciale pour badges (PK composite id + user_id) ───────────────
+
+  Future<void> _syncBadges(String userId) async {
+    final db = await DatabaseHelper.instance.database;
+
+    // PUSH : envoyer les badges non synchronisés
+    final unsyncedRows = await db.query('badges', where: 'is_synced = 0');
+    for (final row in unsyncedRows) {
+      final map = Map<String, dynamic>.from(row);
+      map['user_id'] = userId;
+      map.remove('is_synced');
+      map.remove('id_distant');
+
+      if (map['updated_at'] == null || (map['updated_at'] as String).isEmpty) {
+        map['updated_at'] = _nowUtc();
+      }
+
+      // Convertir is_deleted de int à bool pour Supabase
+      if (map['is_deleted'] is int) {
+        map['is_deleted'] = map['is_deleted'] == 1;
+      }
+
+      final badgeId = row['id'] as String;
+      try {
+        await _client
+            .from('badges')
+            .upsert(map, onConflict: 'id,user_id')
+            .select();
+        await db.update(
+          'badges',
+          {'is_synced': 1},
+          where: 'id = ?',
+          whereArgs: [badgeId],
+        );
+      } catch (e) {
+        debugPrint('Erreur push badge $badgeId : $e');
+      }
+    }
+
+    // PULL : récupérer les badges distants
+    try {
+      final List<dynamic> remoteBadges = await _client
+          .from('badges')
+          .select()
+          .eq('user_id', userId);
+
+      for (final remote in remoteBadges) {
+        final badgeId = remote['id'] as String;
+        final localRows = await db.query(
+          'badges',
+          where: 'id = ?',
+          whereArgs: [badgeId],
+        );
+
+        final isDeleted = remote['is_deleted'];
+        final deleted = isDeleted == true || isDeleted == 1;
+
+        if (localRows.isEmpty) {
+          if (!deleted) {
+            final toInsert = Map<String, dynamic>.from(remote);
+            toInsert['is_synced'] = 1;
+            toInsert['is_deleted'] = deleted ? 1 : 0;
+            toInsert.remove('user_id');
+            try {
+              await db.insert(
+                'badges',
+                toInsert,
+                conflictAlgorithm: ConflictAlgorithm.replace,
+              );
+            } catch (e) {
+              debugPrint('Erreur insert pull badge $badgeId : $e');
+            }
+          }
+        } else {
+          final local = localRows.first;
+          if (local['is_synced'] == 0) continue;
+
+          final localUpdated = _parseTs(local['updated_at']?.toString());
+          final remoteUpdated = _parseTs(remote['updated_at']?.toString());
+
+          if (remoteUpdated.isAfter(localUpdated)) {
+            final toUpdate = Map<String, dynamic>.from(remote);
+            toUpdate['is_synced'] = 1;
+            toUpdate['is_deleted'] = deleted ? 1 : 0;
+            toUpdate.remove('user_id');
+            try {
+              await db.update(
+                'badges',
+                toUpdate,
+                where: 'id = ?',
+                whereArgs: [badgeId],
+              );
+            } catch (e) {
+              debugPrint('Erreur update pull badge $badgeId : $e');
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Erreur pull badges : $e');
+    }
+
+    // PURGE locale des badges supprimés synchronisés
+    try {
+      await db.delete('badges', where: 'is_deleted = 1 AND is_synced = 1');
+    } catch (e) {
+      debugPrint('Erreur purge badges : $e');
     }
   }
 }

@@ -9,6 +9,7 @@ import '../models/study_schedule.dart';
 import '../models/study_task.dart';
 import '../models/task_priority.dart';
 import '../models/daily_challenge.dart';
+import '../models/badge.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -28,7 +29,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 11,
+      version: 12,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -173,6 +174,23 @@ class DatabaseHelper {
         )
       ''');
       }
+    }
+    if (oldVersion < 12) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS badges (
+          id TEXT PRIMARY KEY,
+          nom TEXT NOT NULL,
+          description TEXT NOT NULL,
+          icone TEXT NOT NULL,
+          category TEXT NOT NULL,
+          condition_desc TEXT NOT NULL,
+          unlocked_at TEXT,
+          id_distant TEXT,
+          updated_at TEXT,
+          is_synced INTEGER NOT NULL DEFAULT 0,
+          is_deleted INTEGER NOT NULL DEFAULT 0
+        )
+      ''');
     }
   }
 
@@ -351,6 +369,22 @@ class DatabaseHelper {
         is_deleted INTEGER NOT NULL DEFAULT 0
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS badges (
+        id TEXT PRIMARY KEY,
+        nom TEXT NOT NULL,
+        description TEXT NOT NULL,
+        icone TEXT NOT NULL,
+        category TEXT NOT NULL,
+        condition_desc TEXT NOT NULL,
+        unlocked_at TEXT,
+        id_distant TEXT,
+        updated_at TEXT,
+        is_synced INTEGER NOT NULL DEFAULT 0,
+        is_deleted INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
   }
 
   Future<void> ensureManualScheduleExists() async {
@@ -392,6 +426,28 @@ class DatabaseHelper {
       return result.first['moyenne'] as double;
     }
     return 0.0;
+  }
+
+  Future<List<Score>> getScoresByMatiere(String matiereId) async {
+    final db = await instance.database;
+    final result = await db.query(
+      'scores',
+      where: 'matiere_id = ? AND is_deleted = 0',
+      whereArgs: [matiereId],
+      orderBy: 'date_tentative ASC',
+    );
+    return result.map((json) => Score.fromMap(json)).toList();
+  }
+
+  Future<List<Score>> getAllRecentScores(int limit) async {
+    final db = await instance.database;
+    final result = await db.query(
+      'scores',
+      where: 'is_deleted = 0',
+      orderBy: 'date_tentative DESC',
+      limit: limit,
+    );
+    return result.map((json) => Score.fromMap(json)).toList();
   }
 
   Future<void> upsertProgression(Progression p) async {
@@ -1078,6 +1134,180 @@ class DatabaseHelper {
     return histories;
   }
 
+  // ─── Badges Helper Methods ───────────────────────────────────────────────
+
+  Future<void> insertOrUpdateBadge(AppBadge badge) async {
+    final db = await database;
+    final map = Map<String, dynamic>.from(badge.toMap());
+    map['updated_at'] = DateTime.now().toIso8601String();
+    map['is_synced'] = 0;
+    map['is_deleted'] = 0;
+    await db.insert(
+      'badges',
+      map,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<AppBadge>> getUnlockedBadges() async {
+    final db = await database;
+    final rows = await db.query(
+      'badges',
+      where: 'unlocked_at IS NOT NULL AND is_deleted = 0',
+    );
+    return rows.map((r) => AppBadge.fromMap(r)).toList();
+  }
+
+  Future<bool> isBadgeUnlocked(String badgeId) async {
+    final db = await database;
+    final rows = await db.query(
+      'badges',
+      columns: ['id'],
+      where: 'id = ? AND unlocked_at IS NOT NULL AND is_deleted = 0',
+      limit: 1,
+    );
+    return rows.isNotEmpty;
+  }
+
+  Future<void> unlockBadge(String badgeId, AppBadge baseBadge) async {
+    final db = await database;
+    final now = DateTime.now().toIso8601String();
+    final map = baseBadge.copyWith(unlockedAt: DateTime.parse(now)).toMap();
+    map['updated_at'] = now;
+    map['is_synced'] = 0;
+    map['is_deleted'] = 0;
+    await db.insert(
+      'badges',
+      map,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  /// Débloque un badge silencieusement avec une date personnalisée (migration).
+  Future<void> unlockBadgeSilent(
+    String badgeId,
+    AppBadge baseBadge,
+    DateTime unlockedAt,
+  ) async {
+    final db = await database;
+    final map = baseBadge.copyWith(unlockedAt: unlockedAt).toMap();
+    map['updated_at'] = unlockedAt.toIso8601String();
+    map['is_synced'] = 0;
+    map['is_deleted'] = 0;
+    await db.insert(
+      'badges',
+      map,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<int> getDefiStreak() async {
+    final db = await database;
+    final rows = await db.query(
+      'defis_quotidiens_sessions',
+      columns: ['date'],
+      where: 'completed = 1 AND is_deleted = 0',
+      orderBy: 'date DESC',
+    );
+    if (rows.isEmpty) return 0;
+
+    final dates = rows.map((r) => DateTime.parse(r['date'] as String)).toList();
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+
+    final firstCompletedDate = DateTime(
+      dates.first.year,
+      dates.first.month,
+      dates.first.day,
+    );
+    final difference = todayDate.difference(firstCompletedDate).inDays;
+
+    if (difference > 1) {
+      return 0; // Streak broken
+    }
+
+    int streak = 1;
+    for (int i = 0; i < dates.length - 1; i++) {
+      final current = DateTime(dates[i].year, dates[i].month, dates[i].day);
+      final next = DateTime(
+        dates[i + 1].year,
+        dates[i + 1].month,
+        dates[i + 1].day,
+      );
+      final diff = current.difference(next).inDays;
+      if (diff == 1) {
+        streak++;
+      } else if (diff > 1) {
+        break; // Streak ends
+      }
+    }
+    return streak;
+  }
+
+  Future<int> getCompletedNotionsCount() async {
+    final db = await database;
+    final result = await db.rawQuery(
+      "SELECT COUNT(*) as count FROM progression WHERE statut = 'termine' AND is_deleted = 0",
+    );
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  Future<int> getCustomCoursesCount() async {
+    final db = await database;
+    final result = await db.rawQuery(
+      "SELECT COUNT(*) as count FROM cours_personnalises WHERE is_deleted = 0",
+    );
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  Future<int> getProjectsCount() async {
+    final db = await database;
+    final result = await db.rawQuery(
+      "SELECT COUNT(*) as count FROM projets WHERE is_deleted = 0",
+    );
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  Future<int> countSolvedAlgos() async {
+    final db = await database;
+    final rows = await db.query(
+      'defis_quotidiens_sessions',
+      columns: ['challenges_json'],
+      where: 'is_deleted = 0',
+    );
+    int count = 0;
+    for (final row in rows) {
+      try {
+        final jsonStr = row['challenges_json'] as String;
+        final list = jsonDecode(jsonStr) as List;
+        for (final c in list) {
+          if (c['type'] == 'algo' && c['isSolved'] == true) {
+            count++;
+          }
+        }
+      } catch (e) {
+        print("Error parsing challenges json: $e");
+      }
+    }
+    return count;
+  }
+
+  Future<bool> hasPerfectDefi() async {
+    final db = await database;
+    final result = await db.rawQuery(
+      "SELECT COUNT(*) as count FROM defis_quotidiens_sessions WHERE score = total AND total > 0 AND completed = 1 AND is_deleted = 0",
+    );
+    return (Sqflite.firstIntValue(result) ?? 0) > 0;
+  }
+
+  Future<bool> hasPerfectMatiereScore() async {
+    final db = await database;
+    final result = await db.rawQuery(
+      "SELECT COUNT(*) as count FROM progression WHERE nb_exercices_reussis = nb_exercices_total AND nb_exercices_total > 0 AND statut = 'termine' AND is_deleted = 0",
+    );
+    return (Sqflite.firstIntValue(result) ?? 0) > 0;
+  }
+
   // Purge complète de la base de données locale (lors de la déconnexion)
   Future<void> clearLocalData() async {
     final db = await database;
@@ -1092,6 +1322,7 @@ class DatabaseHelper {
       'taches_revision',
       'defis_quotidiens_sessions',
       'tchat_ia_messages',
+      'badges',
     ];
     for (final table in tables) {
       await db.delete(table);

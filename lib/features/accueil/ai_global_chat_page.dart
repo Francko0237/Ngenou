@@ -66,14 +66,15 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
     final loaded = await AiTutorHistoryService.loadHistory('global_chat');
     if (mounted) {
       setState(() {
-        _globalMessages
-            .clear(); // vider avant de recharger — évite les doublons
+        _globalMessages.clear();
         _globalMessages.addAll(loaded);
         _isInitLoadingGlobal = false;
       });
-      // Sauter directement tout en bas à la fin du rendu initial (qui est 0.0)
+      // Deux frames pour laisser le ListView se construire avant de sauter en bas
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _jumpToBottom();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _jumpToBottom();
+        });
       });
     }
   }
@@ -420,16 +421,50 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
     return completer.future;
   }
 
-  // Indique si le bouton "descendre" doit être visible
+  // ── Gestion du scroll ───────────────────────────────────────────────────
+  // Liste inversée : 0.0 = bas (dernier message visible)
+
   bool _showScrollDown = false;
-  // Indique si le texte de saisie est long
   bool _isLongInput = false;
-  // True quand l'utilisateur fait défiler manuellement — suspend l'auto-scroll
   bool _userIsScrolling = false;
 
   bool _isNearBottom() {
     if (!_scroll.hasClients) return true;
-    return _scroll.position.pixels <= 40;
+    return _scroll.position.pixels <= 60;
+  }
+
+  void _onScrollChanged() {
+    final nearBottom = _isNearBottom();
+    final shouldShow = !nearBottom;
+    if (shouldShow != _showScrollDown) {
+      setState(() => _showScrollDown = shouldShow);
+    }
+    // Réactiver l'auto-scroll dès retour au bas
+    if (nearBottom) _userIsScrolling = false;
+  }
+
+  void _scrollToBottomFast() {
+    if (!_scroll.hasClients) return;
+    if (_scroll.position.userScrollDirection != ScrollDirection.idle) {
+      _userIsScrolling = true;
+      return;
+    }
+    if (_userIsScrolling) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_userIsScrolling && _scroll.hasClients) {
+        _scroll.jumpTo(0.0);
+      }
+    });
+  }
+
+  void _scrollToBottom({bool force = false}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scroll.hasClients) return;
+      if (force || !_userIsScrolling) {
+        if (force) _userIsScrolling = false;
+        _scroll.jumpTo(0.0);
+      }
+    });
   }
 
   void _showAttachmentOptions() {
@@ -490,57 +525,6 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
     if (isLong != _isLongInput) {
       setState(() => _isLongInput = isLong);
     }
-  }
-
-  void _onScrollChanged() {
-    final shouldShow = !_isNearBottom();
-    if (shouldShow != _showScrollDown) {
-      setState(() => _showScrollDown = shouldShow);
-    }
-    // Si on revient près du bas (pixels <= 45), on réactive l'auto-scroll
-    if (_scroll.hasClients) {
-      if (_scroll.position.pixels <= 45) {
-        _userIsScrolling = false;
-      }
-    }
-  }
-
-  /// Scroll instantané (pendant animation typewriter) — pas de délai de transition.
-  /// Ne scrolle PAS si l'utilisateur est en train de remonter pour lire.
-  void _scrollToBottomFast() {
-    if (!_scroll.hasClients) return;
-    // Si l'utilisateur touche l'écran pour scroller (geste actif détecté par la physique de Flutter)
-    if (_scroll.position.userScrollDirection != ScrollDirection.idle) {
-      _userIsScrolling = true;
-      return;
-    }
-    if (_userIsScrolling) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_userIsScrolling) {
-        return; // Sécurité si l'user commence à scroller entre-temps
-      }
-      if (_scroll.hasClients) {
-        _scroll.jumpTo(0.0);
-      }
-    });
-  }
-
-  /// Scroll fluide (navigation normale)
-  void _scrollToBottom({bool force = false}) {
-    if (!_scroll.hasClients) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scroll.hasClients && (force || _isNearBottom())) {
-        _scroll.animateTo(
-          0.0,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        ).then((_) {
-          if (force && mounted && _scroll.hasClients) {
-            _scroll.jumpTo(0.0);
-          }
-        });
-      }
-    });
   }
 
   @override
@@ -711,11 +695,11 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
                   : NotificationListener<ScrollNotification>(
                       onNotification: (notification) {
                         if (notification is UserScrollNotification) {
-                          // Dès que l'utilisateur touche pour scroller : suspend l'auto-scroll
+                          // L'utilisateur scrolle manuellement → suspend l'auto-scroll
                           _userIsScrolling = true;
                         } else if (notification is ScrollEndNotification) {
-                          // Le scroll s'arrête — si on est près du bas (0.0), on réactive l'auto-scroll
-                          if (_scroll.position.pixels <= 45) {
+                          // Fin du scroll — si on est au bas, réactiver l'auto-scroll
+                          if (_isNearBottom()) {
                             _userIsScrolling = false;
                           }
                         }

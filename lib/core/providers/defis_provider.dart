@@ -7,6 +7,8 @@ import '../services/deep_seek_service.dart';
 import '../utils/error_formatter.dart';
 import '../../modules/modules_registry.dart';
 import '../services/home_widget_service.dart';
+import '../../app.dart';
+import '../services/badge_service.dart';
 
 class DefisProvider with ChangeNotifier {
   final DatabaseHelper _db = DatabaseHelper.instance;
@@ -250,6 +252,13 @@ RÈGLE CRITIQUE pour codeInitial :
     }
 
     notifyListeners();
+
+    if (allCompleted) {
+      final context = rootNavigatorKey.currentContext;
+      if (context != null && context.mounted) {
+        Future.microtask(() => BadgeService.instance.checkAndUnlock(context));
+      }
+    }
   }
 
   /// Nettoie les balises markdown ```json et autres résidus du texte retourné par l'IA.
