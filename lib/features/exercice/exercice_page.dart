@@ -5,7 +5,9 @@ import '../../core/models/exercice.dart';
 import '../../core/models/score.dart';
 import '../../core/providers/progression_provider.dart';
 import '../../core/database/database_helper.dart';
+import '../../core/services/badge_service.dart';
 import '../../modules/modules_registry.dart';
+import '../../app.dart';
 import 'widgets/qcm_widget.dart';
 import 'widgets/editeur_widget.dart';
 
@@ -35,10 +37,14 @@ class _ExercicePageState extends State<ExercicePage> {
   @override
   void initState() {
     super.initState();
-    _exercices = ModulesRegistry.getExercicesByNotion(widget.matiereId, widget.notionId)
-        .where((e) => e.type != TypeExercice.qro)
-        .toList();
-    _currentIndex = widget.index.clamp(0, _exercices.isNotEmpty ? _exercices.length - 1 : 0);
+    _exercices = ModulesRegistry.getExercicesByNotion(
+      widget.matiereId,
+      widget.notionId,
+    ).where((e) => e.type != TypeExercice.qro).toList();
+    _currentIndex = widget.index.clamp(
+      0,
+      _exercices.isNotEmpty ? _exercices.length - 1 : 0,
+    );
     _score = widget.currentScore;
   }
 
@@ -46,10 +52,10 @@ class _ExercicePageState extends State<ExercicePage> {
     if (success) _score++;
 
     await context.read<ProgressionProvider>().saveTestResult(
-          widget.matiereId,
-          widget.notionId,
-          success,
-        );
+      widget.matiereId,
+      widget.notionId,
+      success,
+    );
 
     if (_currentIndex < _exercices.length - 1) {
       setState(() => _currentIndex++);
@@ -68,7 +74,23 @@ class _ExercicePageState extends State<ExercicePage> {
       );
       await DatabaseHelper.instance.insertScore(score);
       if (mounted) {
-        context.push('/resultat', extra: score);
+        // Charger la progression sans notifier — évite les rebuilds et badges
+        // prématurés qui bloqueraient la navigation vers /resultat
+        await context.read<ProgressionProvider>().loadProgression(
+          widget.matiereId,
+          notify: false,
+        );
+        if (mounted) {
+          // Naviguer vers les résultats EN PREMIER
+          context.push('/resultat', extra: score);
+          // Les badges s'afficheront par-dessus la page résultat (meilleure UX)
+          Future.delayed(const Duration(milliseconds: 400), () {
+            final ctx = rootNavigatorKey.currentContext;
+            if (ctx != null && ctx.mounted) {
+              BadgeService.instance.checkAndUnlock(ctx);
+            }
+          });
+        }
       }
     }
   }
@@ -87,7 +109,9 @@ class _ExercicePageState extends State<ExercicePage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF5F7FA),
+      backgroundColor: isDark
+          ? const Color(0xFF121212)
+          : const Color(0xFFF5F7FA),
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.transparent,

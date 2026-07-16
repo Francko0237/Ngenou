@@ -3,6 +3,8 @@ import '../database/database_helper.dart';
 import '../models/custom_course_package.dart';
 import '../../modules/custom_course_module.dart';
 import '../../modules/modules_registry.dart';
+import '../../app.dart';
+import '../services/badge_service.dart';
 
 class CustomCoursesProvider with ChangeNotifier {
   final DatabaseHelper _db = DatabaseHelper.instance;
@@ -34,6 +36,12 @@ class CustomCoursesProvider with ChangeNotifier {
     _modules.add(module);
     ModulesRegistry.registerCustomModule(module);
     notifyListeners();
+
+    final context = rootNavigatorKey.currentContext;
+    if (context != null && context.mounted) {
+      Future.microtask(() => BadgeService.instance.checkAndUnlock(context));
+    }
+
     return null;
   }
 

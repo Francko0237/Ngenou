@@ -195,6 +195,8 @@ class _CreateProjectWizardPageState extends State<CreateProjectWizardPage> {
 
         await context.read<ProgressionProvider>().loadProgression(
           pkg.matiere.id,
+          notify:
+              false, // pas de badge/notification pendant la génération batch
         );
         await context.read<ProjetsProvider>().addMatiereToProjet(
           projetId,

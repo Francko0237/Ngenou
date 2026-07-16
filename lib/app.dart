@@ -31,6 +31,7 @@ import 'features/planning/widgets/task_alarm_dialog.dart';
 import 'features/tasks/tasks_hub_page.dart';
 import 'features/splash/splash_screen.dart';
 import 'features/splash/brand_setup_page.dart';
+import 'features/splash/onboarding_page.dart';
 import 'features/auth/login_page.dart';
 import 'core/services/auth_service.dart';
 
@@ -371,22 +372,23 @@ class _NgenouAppShell extends StatefulWidget {
 }
 
 class _NgenouAppShellState extends State<_NgenouAppShell> {
-  // Démarre à true pour couvrir l'accueil dès le premier frame.
-  // Passe à false seulement si toutes les permissions sont accordées.
-  bool _showBrandSetup = true;
+  // false par défaut — on n'affiche rien tant que le check async n'est pas terminé.
+  bool _showBrandSetup = false;
+  bool _showOnboarding = false;
+  // Devient true quand _initOverlays() a fini : empêche tout flash avant de savoir
+  // quel overlay afficher (ou aucun).
+  bool _overlayReady = false;
   StreamSubscription<AuthState>? _authSub;
 
   @override
   void initState() {
     super.initState();
-    _checkBrandSetup();
+    _initOverlays();
 
-    // Re-vérifier les permissions après chaque connexion.
-    // Utile quand l'utilisateur se connecte depuis la LoginPage —
-    // la BrandSetupPage peut avoir été ignorée au démarrage.
+    // Re-vérifier les overlays après chaque connexion.
     _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((state) {
       if (state.event == AuthChangeEvent.signedIn) {
-        _checkBrandSetup();
+        _checkOnboardingThenBrandSetup();
       }
     });
   }
@@ -397,9 +399,45 @@ class _NgenouAppShellState extends State<_NgenouAppShell> {
     super.dispose();
   }
 
+  Future<void> _initOverlays() async {
+    // Vérifier d'abord l'onboarding — mais seulement si l'utilisateur
+    // est déjà connecté. Un nouvel utilisateur verra l'onboarding
+    // après sa première connexion via le listener _authSub.
+    if (AuthService.isAuthenticated) {
+      final needsOnboarding = await shouldShowOnboarding();
+      if (needsOnboarding) {
+        if (mounted)
+          setState(() {
+            _showOnboarding = true;
+            _overlayReady = true;
+          });
+        return;
+      }
+    }
+    final showBrand = await shouldShowBrandSetup();
+    if (!mounted) return;
+    await WidgetsBinding.instance.endOfFrame;
+    if (mounted)
+      setState(() {
+        _showBrandSetup = showBrand;
+        _overlayReady = true;
+      });
+  }
+
   Future<void> _checkBrandSetup() async {
     final show = await shouldShowBrandSetup();
     if (mounted) setState(() => _showBrandSetup = show);
+  }
+
+  /// Vérifie l'onboarding en priorité, puis les permissions.
+  /// Appelé après chaque connexion réussie.
+  Future<void> _checkOnboardingThenBrandSetup() async {
+    final needsOnboarding = await shouldShowOnboarding();
+    if (needsOnboarding) {
+      if (mounted) setState(() => _showOnboarding = true);
+      return;
+    }
+    await _checkBrandSetup();
   }
 
   @override
@@ -419,16 +457,58 @@ class _NgenouAppShellState extends State<_NgenouAppShell> {
         return Stack(
           children: [
             content,
-            if (_showBrandSetup)
+            // Couverture neutre pendant le check async (prévient tout flash)
+            // Reste présente mais avec fondu de sortie une fois _overlayReady
+            _LoadingCover(visible: !_overlayReady),
+            // Permissions Android (après onboarding)
+            if (_overlayReady && !_showOnboarding && _showBrandSetup)
               Directionality(
                 textDirection: TextDirection.ltr,
                 child: BrandSetupPage(
                   onDone: () => setState(() => _showBrandSetup = false),
                 ),
               ),
+            // Onboarding guidé (prioritaire, premier lancement uniquement)
+            if (_overlayReady && _showOnboarding)
+              Directionality(
+                textDirection: TextDirection.ltr,
+                child: OnboardingPage(
+                  onDone: () async {
+                    setState(() => _showOnboarding = false);
+                    // Vérifier les permissions Android après l'onboarding
+                    await _checkBrandSetup();
+                  },
+                ),
+              ),
           ],
         );
       },
+    );
+  }
+}
+
+/// Couverture opaque animée affichée pendant le check async des overlays.
+/// Fond identique au thème → pas de flash, fondu de sortie de 350 ms.
+class _LoadingCover extends StatefulWidget {
+  final bool visible;
+  const _LoadingCover({required this.visible});
+
+  @override
+  State<_LoadingCover> createState() => _LoadingCoverState();
+}
+
+class _LoadingCoverState extends State<_LoadingCover> {
+  @override
+  Widget build(BuildContext context) {
+    final bg = Theme.of(context).scaffoldBackgroundColor;
+    return AnimatedOpacity(
+      opacity: widget.visible ? 1.0 : 0.0,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOut,
+      child: IgnorePointer(
+        ignoring: !widget.visible,
+        child: ColoredBox(color: bg, child: const SizedBox.expand()),
+      ),
     );
   }
 }

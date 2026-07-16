@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../database/database_helper.dart';
 import '../models/projet.dart';
 import '../providers/progression_provider.dart';
+import '../../app.dart';
+import '../services/badge_service.dart';
 
 /// Provider gérant la liste des projets et leurs progressions agrégées.
 class ProjetsProvider with ChangeNotifier {
@@ -68,6 +70,11 @@ class ProjetsProvider with ChangeNotifier {
     await _db.insertProjet(projet);
     _projets.add(projet);
     notifyListeners();
+
+    final context = rootNavigatorKey.currentContext;
+    if (context != null && context.mounted) {
+      Future.microtask(() => BadgeService.instance.checkAndUnlock(context));
+    }
   }
 
   Future<void> updateProjet(Projet projet) async {

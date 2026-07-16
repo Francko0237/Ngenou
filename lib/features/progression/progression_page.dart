@@ -5,29 +5,75 @@ import '../../core/providers/progression_provider.dart';
 import '../../core/services/pdf_export_service.dart';
 import '../../core/utils/course_context_mapper.dart';
 import '../../modules/modules_registry.dart';
+import '../../core/models/badge.dart';
+import '../../core/models/score.dart';
+import '../../core/services/badge_service.dart';
 
 class ProgressionPage extends StatelessWidget {
   const ProgressionPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return DefaultTabController(
-      length: ModulesRegistry.matieres.length,
+      length: 2,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Tableau de bord'),
           bottom: TabBar(
-            isScrollable: true,
-            tabs: ModulesRegistry.matieres
-                .map((m) => Tab(text: m.nom))
-                .toList(),
+            labelColor: Theme.of(context).primaryColor,
+            unselectedLabelColor: isDark ? Colors.grey[500] : Colors.grey[600],
+            indicatorColor: Theme.of(context).primaryColor,
+            indicatorSize: TabBarIndicatorSize.tab,
+            tabs: const [
+              Tab(icon: Icon(Icons.analytics_rounded), text: 'Statistiques'),
+              Tab(
+                icon: Icon(Icons.emoji_events_rounded),
+                text: 'Badges & Récompenses',
+              ),
+            ],
           ),
         ),
-        body: TabBarView(
-          children: ModulesRegistry.matieres
-              .map((m) => _ProgressionTab(matiereId: m.id))
-              .toList(),
+        body: const TabBarView(
+          children: [_CoursesProgressionView(), _BadgesGridTab()],
         ),
+      ),
+    );
+  }
+}
+
+class _CoursesProgressionView extends StatelessWidget {
+  const _CoursesProgressionView();
+
+  @override
+  Widget build(BuildContext context) {
+    if (ModulesRegistry.matieres.isEmpty) {
+      return const Center(child: Text("Aucune matière pour le moment"));
+    }
+    return DefaultTabController(
+      length: ModulesRegistry.matieres.length + 1,
+      child: Column(
+        children: [
+          TabBar(
+            isScrollable: true,
+            labelColor: Theme.of(context).primaryColor,
+            unselectedLabelColor: Colors.grey,
+            tabs: [
+              const Tab(text: "Vue d'ensemble"),
+              ...ModulesRegistry.matieres.map((m) => Tab(text: m.nom)),
+            ],
+          ),
+          Expanded(
+            child: TabBarView(
+              children: [
+                const _GlobalSynthesisView(),
+                ...ModulesRegistry.matieres
+                    .map((m) => _ProgressionTab(matiereId: m.id))
+                    .toList(),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -66,6 +112,9 @@ class _ProgressionTab extends StatelessWidget {
         // Notion not started
       }
     }
+
+    final int notStartedNotions =
+        notions.length - completedNotions - inProgressNotions;
 
     final successRate = totalExercises > 0
         ? (successfulExercises / totalExercises * 100).toStringAsFixed(0)
@@ -195,108 +244,18 @@ class _ProgressionTab extends StatelessWidget {
 
           // Chart section
           if (notions.isNotEmpty) ...[
-            const Text(
-              "Activité par chapitre",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              "Exercices réussis par chapitre",
-              style: TextStyle(
-                fontSize: 13,
-                color: isDark ? Colors.grey[400] : Colors.grey[600],
-              ),
+            _buildDonutChart(
+              context,
+              completedNotions,
+              inProgressNotions,
+              notStartedNotions,
+              isDark,
             ),
             const SizedBox(height: 16),
-            SizedBox(
-              height: 200,
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  maxY: 5,
-                  barTouchData: BarTouchData(enabled: true),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          if (value.toInt() >= 0 &&
-                              value.toInt() < notions.length) {
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Text(
-                                "C${value.toInt() + 1}",
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: isDark
-                                      ? Colors.grey[400]
-                                      : Colors.grey[600],
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            );
-                          }
-                          return const Text("");
-                        },
-                      ),
-                    ),
-                    leftTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                  ),
-                  gridData: const FlGridData(show: false),
-                  borderData: FlBorderData(show: false),
-                  barGroups: List.generate(notions.length, (i) {
-                    final notion = notions[i];
-                    int reussis = 0;
-                    String statut = 'non_commence';
-                    try {
-                      if (progs.isNotEmpty) {
-                        final p = progs.firstWhere(
-                          (e) => e.notionId == notion.id,
-                        );
-                        reussis = p.nbExercicesReussis;
-                        statut = p.statut;
-                      }
-                    } catch (e) {}
-
-                    Color barColor;
-                    if (statut == 'termine') {
-                      barColor = Colors.green;
-                    } else if (statut == 'en_cours') {
-                      barColor = Theme.of(context).primaryColor;
-                    } else {
-                      barColor = isDark ? Colors.grey[700]! : Colors.grey[400]!;
-                    }
-
-                    return BarChartGroupData(
-                      x: i,
-                      barRods: [
-                        BarChartRodData(
-                          toY: reussis.toDouble().clamp(0, 5),
-                          color: barColor,
-                          width: 14,
-                          borderRadius: BorderRadius.circular(6),
-                          backDrawRodData: BackgroundBarChartRodData(
-                            show: true,
-                            toY: 5,
-                            color:
-                                (isDark ? Colors.grey[800] : Colors.grey[300])!
-                                    .withOpacity(0.3),
-                          ),
-                        ),
-                      ],
-                    );
-                  }),
-                ),
-              ),
+            _buildSubjectLineChart(
+              context,
+              progProvider.getScores(matiereId),
+              isDark,
             ),
           ],
 
@@ -500,6 +459,1192 @@ class _ProgressionTab extends StatelessWidget {
       totalNotions: totalNotions,
       exercisesDone: totalExercises,
       successRate: successRate,
+    );
+  }
+
+  Widget _buildDonutChart(
+    BuildContext context,
+    int completed,
+    int enCours,
+    int nonCommence,
+    bool isDark,
+  ) {
+    final theme = Theme.of(context);
+    final total = completed + enCours + nonCommence;
+    if (total == 0) return const SizedBox.shrink();
+
+    return Card(
+      elevation: 0,
+      color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[50],
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Statut des Chapitres",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: SizedBox(
+                    height: 120,
+                    child: PieChart(
+                      PieChartData(
+                        sectionsSpace: 4,
+                        centerSpaceRadius: 30,
+                        startDegreeOffset: -90,
+                        sections: [
+                          if (completed > 0)
+                            PieChartSectionData(
+                              color: Colors.green,
+                              value: completed.toDouble(),
+                              title: '$completed',
+                              radius: 18,
+                              titleStyle: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          if (enCours > 0)
+                            PieChartSectionData(
+                              color: theme.primaryColor,
+                              value: enCours.toDouble(),
+                              title: '$enCours',
+                              radius: 18,
+                              titleStyle: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          if (nonCommence > 0)
+                            PieChartSectionData(
+                              color: isDark
+                                  ? Colors.grey[700]!
+                                  : Colors.grey[300]!,
+                              value: nonCommence.toDouble(),
+                              title: '$nonCommence',
+                              radius: 18,
+                              titleStyle: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  flex: 4,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildLegendItem(
+                        "Complétés",
+                        Colors.green,
+                        completed,
+                        total,
+                      ),
+                      const SizedBox(height: 8),
+                      _buildLegendItem(
+                        "En cours",
+                        theme.primaryColor,
+                        enCours,
+                        total,
+                      ),
+                      const SizedBox(height: 8),
+                      _buildLegendItem(
+                        "Non commencés",
+                        isDark ? Colors.grey[600]! : Colors.grey[400]!,
+                        nonCommence,
+                        total,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLegendItem(String label, Color color, int count, int total) {
+    final pct = total > 0 ? (count / total * 100).toStringAsFixed(0) : '0';
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            "$label : $count ($pct%)",
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSubjectLineChart(
+    BuildContext context,
+    List<Score> scores,
+    bool isDark,
+  ) {
+    if (scores.isEmpty) {
+      return Card(
+        elevation: 0,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[50],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: const Padding(
+          padding: EdgeInsets.all(24.0),
+          child: Column(
+            children: [
+              Icon(Icons.insights_rounded, size: 48, color: Colors.grey),
+              SizedBox(height: 12),
+              Text(
+                "Aucun historique de score",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              SizedBox(height: 4),
+              Text(
+                "Complétez des exercices pour voir votre évolution !",
+                style: TextStyle(color: Colors.grey, fontSize: 13),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final theme = Theme.of(context);
+    final displayScores = scores.length > 10
+        ? scores.sublist(scores.length - 10)
+        : scores;
+
+    return Card(
+      elevation: 0,
+      color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[50],
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Évolution des Résultats",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              "Pourcentage de réussite par tentative",
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              height: 160,
+              child: LineChart(
+                LineChartData(
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    getDrawingHorizontalLine: (value) => FlLine(
+                      color: isDark ? Colors.grey[850]! : Colors.grey[200]!,
+                      strokeWidth: 1,
+                    ),
+                  ),
+                  titlesData: FlTitlesData(
+                    show: true,
+                    rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 22,
+                        getTitlesWidget: (value, meta) {
+                          final idx = value.toInt();
+                          if (idx >= 0 && idx < displayScores.length) {
+                            return Text(
+                              "T${idx + 1}",
+                              style: const TextStyle(
+                                color: Colors.grey,
+                                fontSize: 10,
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                    ),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        interval: 25,
+                        reservedSize: 28,
+                        getTitlesWidget: (value, meta) {
+                          return Text(
+                            "${value.toInt()}%",
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 10,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  minX: 0,
+                  maxX: (displayScores.length - 1).toDouble(),
+                  minY: 0,
+                  maxY: 100,
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: displayScores.asMap().entries.map((entry) {
+                        return FlSpot(
+                          entry.key.toDouble(),
+                          entry.value.pourcentage,
+                        );
+                      }).toList(),
+                      isCurved: true,
+                      color: theme.primaryColor,
+                      barWidth: 3,
+                      isStrokeCapRound: true,
+                      dotData: const FlDotData(show: true),
+                      belowBarData: BarAreaData(
+                        show: true,
+                        color: theme.primaryColor.withOpacity(0.1),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BadgesGridTab extends StatefulWidget {
+  const _BadgesGridTab();
+
+  @override
+  State<_BadgesGridTab> createState() => _BadgesGridTabState();
+}
+
+class _BadgesGridTabState extends State<_BadgesGridTab> {
+  String _selectedCategory = 'all';
+
+  final Map<String, String> _categories = {
+    'all': 'Tous',
+    'streak': '🔥 Défis',
+    'learning': '🎓 Cours',
+    'algo': '💻 Code',
+    'excellence': '⭐ Élite',
+    'creative': '🎨 Création',
+    'activity': '🌅 Activité',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return FutureBuilder<List<AppBadge>>(
+      future: BadgeService.instance.getAllBadgesWithLockState(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('Erreur: ${snapshot.error}'));
+        }
+
+        final allBadges = snapshot.data ?? [];
+        final unlockedCount = allBadges.where((b) => b.isUnlocked).length;
+        final totalCount = allBadges.length;
+        final unlockRatio = totalCount > 0 ? unlockedCount / totalCount : 0.0;
+
+        final filteredBadges = _selectedCategory == 'all'
+            ? allBadges
+            : allBadges.where((b) => b.category == _selectedCategory).toList();
+
+        return RefreshIndicator(
+          onRefresh: () async {
+            setState(() {});
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      gradient: LinearGradient(
+                        colors: isDark
+                            ? [const Color(0xFF1E2A3A), const Color(0xFF1A3A5A)]
+                            : [
+                                theme.primaryColor.withOpacity(0.05),
+                                theme.primaryColor.withOpacity(0.12),
+                              ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: theme.primaryColor.withOpacity(0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.emoji_events_rounded,
+                                color: theme.primaryColor,
+                                size: 32,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Succès & Récompenses',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark
+                                          ? Colors.white
+                                          : Colors.black87,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '$unlockedCount sur $totalCount badges débloqués',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: isDark
+                                          ? Colors.grey[300]
+                                          : Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: LinearProgressIndicator(
+                            value: unlockRatio,
+                            minHeight: 8,
+                            backgroundColor: isDark
+                                ? Colors.grey[800]
+                                : Colors.grey[200],
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              theme.primaryColor,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Progression',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark
+                                    ? Colors.grey[400]
+                                    : Colors.grey[600],
+                              ),
+                            ),
+                            Text(
+                              '${(unlockRatio * 100).toStringAsFixed(0)}%',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: theme.primaryColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: _categories.entries.map((entry) {
+                      final isSelected = _selectedCategory == entry.key;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: ChoiceChip(
+                          label: Text(entry.value),
+                          selected: isSelected,
+                          onSelected: (selected) {
+                            if (selected) {
+                              setState(() {
+                                _selectedCategory = entry.key;
+                              });
+                            }
+                          },
+                          selectedColor: theme.primaryColor.withOpacity(0.2),
+                          checkmarkColor: theme.primaryColor,
+                          labelStyle: TextStyle(
+                            color: isSelected
+                                ? theme.primaryColor
+                                : (isDark ? Colors.white70 : Colors.black87),
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                filteredBadges.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32.0),
+                          child: Text(
+                            'Aucun badge dans cette catégorie.',
+                            style: TextStyle(
+                              color: isDark
+                                  ? Colors.grey[400]
+                                  : Colors.grey[600],
+                            ),
+                          ),
+                        ),
+                      )
+                    : GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate:
+                            const SliverGridDelegateWithMaxCrossAxisExtent(
+                              maxCrossAxisExtent: 130,
+                              childAspectRatio: 0.82,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                            ),
+                        itemCount: filteredBadges.length,
+                        itemBuilder: (context, index) {
+                          final badge = filteredBadges[index];
+                          return _buildBadgeItem(context, badge, isDark, theme);
+                        },
+                      ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildBadgeItem(
+    BuildContext context,
+    AppBadge badge,
+    bool isDark,
+    ThemeData theme,
+  ) {
+    return GestureDetector(
+      onTap: () => _showBadgeDetailSheet(context, badge, isDark, theme),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: badge.isUnlocked
+                ? theme.primaryColor.withOpacity(0.3)
+                : (isDark ? Colors.grey[800]! : Colors.grey[200]!),
+            width: badge.isUnlocked ? 1.5 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.1 : 0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 8,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Opacity(
+                      opacity: badge.isUnlocked ? 1.0 : 0.45,
+                      child: Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: badge.isUnlocked
+                              ? theme.primaryColor.withOpacity(0.1)
+                              : (isDark ? Colors.grey[800] : Colors.grey[100]),
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          badge.icone,
+                          style: const TextStyle(fontSize: 30),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      badge.nom,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: badge.isUnlocked
+                            ? FontWeight.bold
+                            : FontWeight.w500,
+                        color: badge.isUnlocked
+                            ? (isDark ? Colors.white : Colors.black87)
+                            : (isDark ? Colors.grey[500] : Colors.grey[600]),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (!badge.isUnlocked)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Icon(
+                    Icons.lock_rounded,
+                    size: 14,
+                    color: isDark ? Colors.grey[600] : Colors.grey[400],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showBadgeDetailSheet(
+    BuildContext context,
+    AppBadge badge,
+    bool isDark,
+    ThemeData theme,
+  ) {
+    final String dateStr = badge.unlockedAt != null
+        ? "${badge.unlockedAt!.day.toString().padLeft(2, '0')}/${badge.unlockedAt!.month.toString().padLeft(2, '0')}/${badge.unlockedAt!.year}"
+        : "";
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 10,
+                offset: const Offset(0, -2),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.grey[700] : Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: badge.isUnlocked
+                      ? theme.primaryColor.withOpacity(0.1)
+                      : (isDark ? Colors.grey[800] : Colors.grey[100]),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(badge.icone, style: const TextStyle(fontSize: 44)),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                badge.nom,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: badge.isUnlocked
+                      ? Colors.green.withOpacity(0.12)
+                      : Colors.orange.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: badge.isUnlocked
+                        ? Colors.green.withOpacity(0.4)
+                        : Colors.orange.withOpacity(0.4),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      badge.isUnlocked
+                          ? Icons.check_circle_rounded
+                          : Icons.lock_rounded,
+                      size: 14,
+                      color: badge.isUnlocked ? Colors.green : Colors.orange,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      badge.isUnlocked
+                          ? 'Débloqué le $dateStr'
+                          : 'Badge Verrouillé',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: badge.isUnlocked ? Colors.green : Colors.orange,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Objectif : ${badge.conditionDesc}',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: theme.primaryColor,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                badge.description,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: isDark ? Colors.grey[300] : Colors.grey[600],
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    backgroundColor: theme.primaryColor,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text(
+                    'Fermer',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _GlobalSynthesisView extends StatelessWidget {
+  const _GlobalSynthesisView();
+
+  @override
+  Widget build(BuildContext context) {
+    final progProvider = context.watch<ProgressionProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+
+    // Calculate global stats across all matieres
+    int totalNotions = 0;
+    int completedNotions = 0;
+    int inProgressNotions = 0;
+    int totalExercises = 0;
+    int successfulExercises = 0;
+    int activeMatieres = 0;
+
+    final matieres = ModulesRegistry.matieres;
+    final List<Map<String, dynamic>> matiereProgressList = [];
+
+    for (final m in matieres) {
+      final globPct = progProvider.getProgressionGlobale(m.id);
+      if (globPct > 0) activeMatieres++;
+
+      final notions = ModulesRegistry.getNotions(m.id);
+      final progs = progProvider.getProgressions(m.id);
+      totalNotions += notions.length;
+
+      int mCompleted = 0;
+
+      for (final notion in notions) {
+        try {
+          final p = progs.firstWhere((e) => e.notionId == notion.id);
+          if (p.statut == 'termine') {
+            mCompleted++;
+            completedNotions++;
+          } else if (p.statut == 'en_cours') {
+            inProgressNotions++;
+          }
+          totalExercises += p.nbExercicesTotal;
+          successfulExercises += p.nbExercicesReussis;
+        } catch (e) {}
+      }
+
+      matiereProgressList.add({
+        'matiere': m,
+        'percent': globPct,
+        'completed': mCompleted,
+        'total': notions.length,
+      });
+    }
+
+    final overallSuccessRate = totalExercises > 0
+        ? (successfulExercises / totalExercises * 100).toInt()
+        : 0;
+
+    final overallProgress = totalNotions > 0
+        ? ((completedNotions + inProgressNotions * 0.5) / totalNotions * 100)
+              .clamp(0.0, 100.0)
+        : 0.0;
+
+    return FutureBuilder<List<Score>>(
+      future: progProvider.getAllRecentScores(15),
+      builder: (context, snapshot) {
+        final recentScores = snapshot.data ?? [];
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Global Score overview card
+              Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    gradient: LinearGradient(
+                      colors: [
+                        theme.primaryColor,
+                        theme.primaryColor.withOpacity(0.8),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Maîtrise Générale",
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "${overallProgress.toStringAsFixed(0)}%",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 42,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                "$completedNotions / $totalNotions notions",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: LinearProgressIndicator(
+                            value: overallProgress / 100,
+                            minHeight: 8,
+                            backgroundColor: Colors.white.withOpacity(0.2),
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // KPI stats row
+              Row(
+                children: [
+                  _buildKpiCard(
+                    context,
+                    title: "Matières actives",
+                    value: "$activeMatieres/${matieres.length}",
+                    icon: Icons.book_rounded,
+                    color: Colors.orange,
+                    isDark: isDark,
+                  ),
+                  const SizedBox(width: 12),
+                  _buildKpiCard(
+                    context,
+                    title: "Taux Réussite",
+                    value: "$overallSuccessRate%",
+                    icon: Icons.assignment_turned_in_rounded,
+                    color: Colors.green,
+                    isDark: isDark,
+                  ),
+                  const SizedBox(width: 12),
+                  _buildKpiCard(
+                    context,
+                    title: "Ex. Réalisés",
+                    value: totalExercises.toString(),
+                    icon: Icons.auto_graph_rounded,
+                    color: Colors.blue,
+                    isDark: isDark,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Recent progress Chart
+              if (recentScores.isNotEmpty) ...[
+                const Text(
+                  "Courbe de Progression",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Évolution de tes derniers scores d'exercices",
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  height: 220,
+                  padding: const EdgeInsets.only(right: 16, top: 16, bottom: 8),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[50],
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: LineChart(
+                    LineChartData(
+                      gridData: FlGridData(
+                        show: true,
+                        drawVerticalLine: false,
+                        getDrawingHorizontalLine: (value) => FlLine(
+                          color: isDark ? Colors.grey[850]! : Colors.grey[200]!,
+                          strokeWidth: 1,
+                        ),
+                      ),
+                      titlesData: FlTitlesData(
+                        show: true,
+                        rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 22,
+                            interval: 1,
+                            getTitlesWidget: (value, meta) {
+                              final index = value.toInt();
+                              if (index >= 0 &&
+                                  index < recentScores.length &&
+                                  index % (recentScores.length > 5 ? 2 : 1) ==
+                                      0) {
+                                return Text(
+                                  "${index + 1}",
+                                  style: const TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 10,
+                                  ),
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            },
+                          ),
+                        ),
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            interval: 20,
+                            reservedSize: 32,
+                            getTitlesWidget: (value, meta) {
+                              return Text(
+                                "${value.toInt()}%",
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 10,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                      borderData: FlBorderData(show: false),
+                      minX: 0,
+                      maxX: (recentScores.length - 1).toDouble(),
+                      minY: 0,
+                      maxY: 100,
+                      lineBarsData: [
+                        LineChartBarData(
+                          spots: recentScores.asMap().entries.map((entry) {
+                            return FlSpot(
+                              entry.key.toDouble(),
+                              entry.value.pourcentage,
+                            );
+                          }).toList(),
+                          isCurved: true,
+                          color: theme.primaryColor,
+                          barWidth: 3,
+                          isStrokeCapRound: true,
+                          dotData: const FlDotData(show: false),
+                          belowBarData: BarAreaData(
+                            show: true,
+                            color: theme.primaryColor.withOpacity(0.15),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+
+              // Matiere progress breakdown
+              const Text(
+                "Progression par matière",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              ...matiereProgressList.map((item) {
+                final m = item['matiere'];
+                final double percent = item['percent'];
+                final int completed = item['completed'];
+                final int total = item['total'];
+                final color = theme.primaryColor;
+
+                return Card(
+                  elevation: 0,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[50],
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              m.nom,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                            Text(
+                              "${percent.toStringAsFixed(0)}%",
+                              style: TextStyle(
+                                color: color,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: LinearProgressIndicator(
+                            value: percent / 100,
+                            minHeight: 6,
+                            backgroundColor: isDark
+                                ? Colors.grey[800]
+                                : Colors.grey[200],
+                            valueColor: AlwaysStoppedAnimation<Color>(color),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          "$completed sur $total notions terminées",
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? Colors.grey[400] : Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildKpiCard(
+    BuildContext context, {
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+    required bool isDark,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(isDark ? 0.12 : 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: color.withOpacity(isDark ? 0.2 : 0.15),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 9,
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

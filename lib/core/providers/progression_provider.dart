@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../database/database_helper.dart';
 import '../models/progression.dart';
+import '../models/score.dart';
 import '../../modules/modules_registry.dart';
 
 class ProgressionProvider with ChangeNotifier {
@@ -8,6 +9,7 @@ class ProgressionProvider with ChangeNotifier {
 
   final Map<String, double> _progressionGlobaleParMatiere = {};
   final Map<String, List<Progression>> _progressionsParMatiere = {};
+  final Map<String, List<Score>> _scoresParMatiere = {};
 
   // Pour rétrocompatibilité pendant la transition
   double get progressionGlobale =>
@@ -23,6 +25,11 @@ class ProgressionProvider with ChangeNotifier {
       _progressionGlobaleParMatiere[matiereId] ?? 0.0;
   List<Progression> getProgressions(String matiereId) =>
       _progressionsParMatiere[matiereId] ?? [];
+  List<Score> getScores(String matiereId) => _scoresParMatiere[matiereId] ?? [];
+
+  Future<List<Score>> getAllRecentScores(int limit) async {
+    return await _dbHelper.getAllRecentScores(limit);
+  }
 
   Future<void> loadAllProgressions() async {
     for (var matiere in ModulesRegistry.matieres) {
@@ -34,6 +41,9 @@ class ProgressionProvider with ChangeNotifier {
   Future<void> loadProgression(String matiereId, {bool notify = true}) async {
     final list = await _dbHelper.getProgressionsByMatiere(matiereId);
     _progressionsParMatiere[matiereId] = list;
+
+    final scores = await _dbHelper.getScoresByMatiere(matiereId);
+    _scoresParMatiere[matiereId] = scores;
 
     // Calculate progression based on completed notions vs total notions
     final notions = ModulesRegistry.getNotions(matiereId);
@@ -114,7 +124,9 @@ class ProgressionProvider with ChangeNotifier {
     );
 
     await _dbHelper.upsertProgression(newProgression);
-    await loadProgression(matiereId);
+    await loadProgression(matiereId, notify: false);
+    // Les badges sont déclenchés uniquement depuis exercice_page.dart
+    // après navigation vers /resultat — pas ici pour éviter les doublons.
   }
 
   Future<void> resetProgression(String matiereId) async {
