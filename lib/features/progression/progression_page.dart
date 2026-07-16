@@ -491,53 +491,55 @@ class _ProgressionTab extends StatelessWidget {
               children: [
                 Expanded(
                   flex: 3,
-                  child: SizedBox(
-                    height: 120,
-                    child: PieChart(
-                      PieChartData(
-                        sectionsSpace: 4,
-                        centerSpaceRadius: 30,
-                        startDegreeOffset: -90,
-                        sections: [
-                          if (completed > 0)
-                            PieChartSectionData(
-                              color: Colors.green,
-                              value: completed.toDouble(),
-                              title: '$completed',
-                              radius: 18,
-                              titleStyle: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                  child: ClipRect(
+                    child: SizedBox(
+                      height: 120,
+                      child: PieChart(
+                        PieChartData(
+                          sectionsSpace: 4,
+                          centerSpaceRadius: 28,
+                          startDegreeOffset: -90,
+                          sections: [
+                            if (completed > 0)
+                              PieChartSectionData(
+                                color: Colors.green,
+                                value: completed.toDouble(),
+                                title: '$completed',
+                                radius: 16,
+                                titleStyle: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
                               ),
-                            ),
-                          if (enCours > 0)
-                            PieChartSectionData(
-                              color: theme.primaryColor,
-                              value: enCours.toDouble(),
-                              title: '$enCours',
-                              radius: 18,
-                              titleStyle: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                            if (enCours > 0)
+                              PieChartSectionData(
+                                color: theme.primaryColor,
+                                value: enCours.toDouble(),
+                                title: '$enCours',
+                                radius: 16,
+                                titleStyle: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
                               ),
-                            ),
-                          if (nonCommence > 0)
-                            PieChartSectionData(
-                              color: isDark
-                                  ? Colors.grey[700]!
-                                  : Colors.grey[300]!,
-                              value: nonCommence.toDouble(),
-                              title: '$nonCommence',
-                              radius: 18,
-                              titleStyle: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: isDark ? Colors.white : Colors.black87,
+                            if (nonCommence > 0)
+                              PieChartSectionData(
+                                color: isDark
+                                    ? Colors.grey[700]!
+                                    : Colors.grey[300]!,
+                                value: nonCommence.toDouble(),
+                                title: '$nonCommence',
+                                radius: 16,
+                                titleStyle: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
                               ),
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -657,86 +659,98 @@ class _ProgressionTab extends StatelessWidget {
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
             const SizedBox(height: 20),
-            SizedBox(
-              height: 160,
-              child: LineChart(
-                LineChartData(
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    getDrawingHorizontalLine: (value) => FlLine(
-                      color: isDark ? Colors.grey[850]! : Colors.grey[200]!,
-                      strokeWidth: 1,
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: SizedBox(
+                height: 180,
+                child: LineChart(
+                  LineChartData(
+                    clipData: const FlClipData.all(),
+                    gridData: FlGridData(
+                      show: true,
+                      drawVerticalLine: false,
+                      getDrawingHorizontalLine: (value) => FlLine(
+                        color: isDark ? Colors.grey[850]! : Colors.grey[200]!,
+                        strokeWidth: 1,
+                      ),
                     ),
-                  ),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 22,
-                        getTitlesWidget: (value, meta) {
-                          final idx = value.toInt();
-                          if (idx >= 0 && idx < displayScores.length) {
+                    titlesData: FlTitlesData(
+                      show: true,
+                      rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      topTitles: const AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: false,
+                          reservedSize: 8,
+                        ),
+                      ),
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 24,
+                          getTitlesWidget: (value, meta) {
+                            final idx = value.toInt();
+                            if (idx >= 0 && idx < displayScores.length) {
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  "T${idx + 1}",
+                                  style: const TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          },
+                        ),
+                      ),
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          interval: 25,
+                          reservedSize: 36,
+                          getTitlesWidget: (value, meta) {
+                            if (value > 100) return const SizedBox.shrink();
                             return Text(
-                              "T${idx + 1}",
+                              "${value.toInt()}%",
                               style: const TextStyle(
                                 color: Colors.grey,
                                 fontSize: 10,
                               ),
                             );
-                          }
-                          return const SizedBox.shrink();
-                        },
+                          },
+                        ),
                       ),
                     ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        interval: 25,
-                        reservedSize: 28,
-                        getTitlesWidget: (value, meta) {
-                          return Text(
-                            "${value.toInt()}%",
-                            style: const TextStyle(
-                              color: Colors.grey,
-                              fontSize: 10,
-                            ),
+                    borderData: FlBorderData(show: false),
+                    minX: 0,
+                    maxX: (displayScores.length - 1).toDouble(),
+                    minY: 0,
+                    maxY: 110,
+                    lineBarsData: [
+                      LineChartBarData(
+                        spots: displayScores.asMap().entries.map((entry) {
+                          return FlSpot(
+                            entry.key.toDouble(),
+                            entry.value.pourcentage,
                           );
-                        },
+                        }).toList(),
+                        isCurved: true,
+                        preventCurveOverShooting: true,
+                        color: theme.primaryColor,
+                        barWidth: 3,
+                        isStrokeCapRound: true,
+                        dotData: const FlDotData(show: true),
+                        belowBarData: BarAreaData(
+                          show: true,
+                          color: theme.primaryColor.withOpacity(0.1),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                  borderData: FlBorderData(show: false),
-                  minX: 0,
-                  maxX: (displayScores.length - 1).toDouble(),
-                  minY: 0,
-                  maxY: 100,
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: displayScores.asMap().entries.map((entry) {
-                        return FlSpot(
-                          entry.key.toDouble(),
-                          entry.value.pourcentage,
-                        );
-                      }).toList(),
-                      isCurved: true,
-                      color: theme.primaryColor,
-                      barWidth: 3,
-                      isStrokeCapRound: true,
-                      dotData: const FlDotData(show: true),
-                      belowBarData: BarAreaData(
-                        show: true,
-                        color: theme.primaryColor.withOpacity(0.1),
-                      ),
-                    ),
-                  ],
                 ),
               ),
             ),
@@ -1425,94 +1439,105 @@ class _GlobalSynthesisView extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Container(
-                  height: 220,
-                  padding: const EdgeInsets.only(right: 16, top: 16, bottom: 8),
+                  height: 240,
+                  padding: const EdgeInsets.only(right: 16, top: 24, bottom: 8),
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[50],
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: LineChart(
-                    LineChartData(
-                      gridData: FlGridData(
-                        show: true,
-                        drawVerticalLine: false,
-                        getDrawingHorizontalLine: (value) => FlLine(
-                          color: isDark ? Colors.grey[850]! : Colors.grey[200]!,
-                          strokeWidth: 1,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: LineChart(
+                      LineChartData(
+                        clipData: const FlClipData.all(),
+                        gridData: FlGridData(
+                          show: true,
+                          drawVerticalLine: false,
+                          getDrawingHorizontalLine: (value) => FlLine(
+                            color: isDark ? Colors.grey[850]! : Colors.grey[200]!,
+                            strokeWidth: 1,
+                          ),
                         ),
-                      ),
-                      titlesData: FlTitlesData(
-                        show: true,
-                        rightTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                        topTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 22,
-                            interval: 1,
-                            getTitlesWidget: (value, meta) {
-                              final index = value.toInt();
-                              if (index >= 0 &&
-                                  index < recentScores.length &&
-                                  index % (recentScores.length > 5 ? 2 : 1) ==
-                                      0) {
+                        titlesData: FlTitlesData(
+                          show: true,
+                          rightTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          topTitles: const AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: false,
+                              reservedSize: 8,
+                            ),
+                          ),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 24,
+                              interval: 1,
+                              getTitlesWidget: (value, meta) {
+                                final index = value.toInt();
+                                if (index >= 0 &&
+                                    index < recentScores.length &&
+                                    index % (recentScores.length > 5 ? 2 : 1) == 0) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      "${index + 1}",
+                                      style: const TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  );
+                                }
+                                return const SizedBox.shrink();
+                              },
+                            ),
+                          ),
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              interval: 20,
+                              reservedSize: 38,
+                              getTitlesWidget: (value, meta) {
+                                if (value > 100) return const SizedBox.shrink();
                                 return Text(
-                                  "${index + 1}",
+                                  "${value.toInt()}%",
                                   style: const TextStyle(
                                     color: Colors.grey,
                                     fontSize: 10,
                                   ),
                                 );
-                              }
-                              return const SizedBox.shrink();
-                            },
+                              },
+                            ),
                           ),
                         ),
-                        leftTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            interval: 20,
-                            reservedSize: 32,
-                            getTitlesWidget: (value, meta) {
-                              return Text(
-                                "${value.toInt()}%",
-                                style: const TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 10,
-                                ),
+                        borderData: FlBorderData(show: false),
+                        minX: 0,
+                        maxX: (recentScores.length - 1).toDouble(),
+                        minY: 0,
+                        maxY: 110,
+                        lineBarsData: [
+                          LineChartBarData(
+                            spots: recentScores.asMap().entries.map((entry) {
+                              return FlSpot(
+                                entry.key.toDouble(),
+                                entry.value.pourcentage,
                               );
-                            },
+                            }).toList(),
+                            isCurved: true,
+                            preventCurveOverShooting: true,
+                            color: theme.primaryColor,
+                            barWidth: 3,
+                            isStrokeCapRound: true,
+                            dotData: const FlDotData(show: false),
+                            belowBarData: BarAreaData(
+                              show: true,
+                              color: theme.primaryColor.withOpacity(0.15),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-                      borderData: FlBorderData(show: false),
-                      minX: 0,
-                      maxX: (recentScores.length - 1).toDouble(),
-                      minY: 0,
-                      maxY: 100,
-                      lineBarsData: [
-                        LineChartBarData(
-                          spots: recentScores.asMap().entries.map((entry) {
-                            return FlSpot(
-                              entry.key.toDouble(),
-                              entry.value.pourcentage,
-                            );
-                          }).toList(),
-                          isCurved: true,
-                          color: theme.primaryColor,
-                          barWidth: 3,
-                          isStrokeCapRound: true,
-                          dotData: const FlDotData(show: false),
-                          belowBarData: BarAreaData(
-                            show: true,
-                            color: theme.primaryColor.withOpacity(0.15),
-                          ),
-                        ),
-                      ],
                     ),
                   ),
                 ),
