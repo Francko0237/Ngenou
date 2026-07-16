@@ -27,7 +27,7 @@ class CustomCoursesProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<String?> importCourse(CustomCoursePackage package) async {
+  Future<String?> importCourse(CustomCoursePackage package, {bool triggerBadges = true}) async {
     if (_modules.any((m) => m.matiere.id == package.matiere.id)) {
       return 'Un cours avec cet identifiant existe déjà.';
     }
@@ -37,9 +37,11 @@ class CustomCoursesProvider with ChangeNotifier {
     ModulesRegistry.registerCustomModule(module);
     notifyListeners();
 
-    final context = rootNavigatorKey.currentContext;
-    if (context != null && context.mounted) {
-      Future.microtask(() => BadgeService.instance.checkAndUnlock(context));
+    if (triggerBadges) {
+      final context = rootNavigatorKey.currentContext;
+      if (context != null && context.mounted) {
+        Future.microtask(() => BadgeService.instance.checkAndUnlock(context));
+      }
     }
 
     return null;
