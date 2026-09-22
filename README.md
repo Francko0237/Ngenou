@@ -1,4 +1,4 @@
-# novamind
+# Ngenou
 
 A new Flutter project.
 
