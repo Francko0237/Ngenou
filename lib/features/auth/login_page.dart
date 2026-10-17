@@ -33,7 +33,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _showPassword = false;
   String? _errorMessage;
   String _selectedRole = 'student'; // 'student' ou 'teacher'
-  String _selectedLevel = 'college'; // 'primaire', 'college', 'lycee', 'superieur'
+  String _selectedLevel = 'secondaire'; // 'primaire', 'secondaire', 'superieur'
 
   @override
   void dispose() {
@@ -756,8 +756,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget _buildSchoolLevelSelector(bool isDark, Color primary) {
     final levels = [
       {'key': 'primaire', 'label': 'Primaire'},
-      {'key': 'college', 'label': 'Collège'},
-      {'key': 'lycee', 'label': 'Lycée'},
+      {'key': 'secondaire', 'label': 'Secondaire'},
       {'key': 'superieur', 'label': 'Supérieur'},
     ];
 

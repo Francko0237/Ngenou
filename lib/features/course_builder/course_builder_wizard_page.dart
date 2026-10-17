@@ -44,7 +44,7 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
   String _objectif = 'comprehension';
   String _langue = 'fr';
   String _niveau = '';
-  String _schoolLevel = 'college'; // primaire, college, lycee, superieur
+  String _schoolLevel = 'secondaire'; // primaire, secondaire, superieur
   String? _coverImageUrl;
   String? _userRole;
   bool _hasDocuments = false;
@@ -76,7 +76,7 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
             _classeCtrl.text = _getDefaultClasseForLevel(lvl);
           }
         } else if (_classeCtrl.text.isEmpty) {
-          _classeCtrl.text = '3ème';
+          _classeCtrl.text = '6ème';
         }
       });
     }
@@ -86,14 +86,12 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
     switch (lvl) {
       case 'primaire':
         return 'CM2';
-      case 'college':
-        return '3ème';
-      case 'lycee':
-        return 'Terminale';
+      case 'secondaire':
+        return '6ème';
       case 'superieur':
         return 'Licence 1';
       default:
-        return '3ème';
+        return '6ème';
     }
   }
 
@@ -101,14 +99,12 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
     switch (lvl) {
       case 'primaire':
         return ['SIL', 'CP', 'CE1', 'CE2', 'CM1', 'CM2'];
-      case 'college':
-        return ['6ème', '5ème', '4ème', '3ème'];
-      case 'lycee':
-        return ['2nde', '1ère', 'Terminale'];
+      case 'secondaire':
+        return ['6ème', '5ème', '4ème', '3ème', '2nde', '1ère', 'Terminale'];
       case 'superieur':
         return ['Licence 1', 'Licence 2', 'Licence 3', 'Master'];
       default:
-        return ['6ème', '5ème', '4ème', '3ème'];
+        return ['6ème', '5ème', '4ème', '3ème', '2nde', '1ère', 'Terminale'];
     }
   }
 
@@ -564,8 +560,7 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
           runSpacing: 8,
           children: [
             _schoolLevelChip('primaire', 'Primaire', Icons.child_care_rounded, isDark),
-            _schoolLevelChip('college', 'Collège', Icons.school_rounded, isDark),
-            _schoolLevelChip('lycee', 'Lycée', Icons.account_balance_rounded, isDark),
+            _schoolLevelChip('secondaire', 'Secondaire', Icons.school_rounded, isDark),
             _schoolLevelChip('superieur', 'Supérieur', Icons.psychology_rounded, isDark),
           ],
         ),

@@ -30,6 +30,8 @@ class _ParametresPageState extends State<ParametresPage>
   String? _playingSound;
   bool _batteryExempted = false;
   String _username = 'Ami';
+  String _userRole = 'student';
+  String _schoolLevel = 'secondaire';
 
   @override
   void initState() {
@@ -52,10 +54,29 @@ class _ParametresPageState extends State<ParametresPage>
     }
   }
 
+  String get _schoolLevelLabel {
+    switch (_schoolLevel) {
+      case 'primaire':
+        return 'Primaire';
+      case 'secondaire':
+        return 'Secondaire (6e - Tle)';
+      case 'superieur':
+        return 'Supérieur';
+      default:
+        return 'Secondaire';
+    }
+  }
+
   Future<void> _loadUsername() async {
     final name = await AuthService.getUsername();
+    final role = await AuthService.getUserRole();
+    final level = await AuthService.getSchoolLevel();
     if (mounted) {
-      setState(() => _username = name);
+      setState(() {
+        _username = name;
+        _userRole = role;
+        _schoolLevel = level ?? 'secondaire';
+      });
     }
   }
 
@@ -105,6 +126,233 @@ class _ParametresPageState extends State<ParametresPage>
           const SnackBar(
             content: Text("Nom d'utilisateur mis à jour !"),
             backgroundColor: Color(0xFF2ECC71),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _changeRoleAndLevel() async {
+    String tempRole = _userRole;
+    String tempLevel = _schoolLevel;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            final primary = Theme.of(context).primaryColor;
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.manage_accounts_rounded, color: primary, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Modifier mon profil',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Choisissez votre profil :',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+                    ),
+                    const SizedBox(height: 12),
+                    // Option Élève / Étudiant
+                    InkWell(
+                      onTap: () => setModalState(() => tempRole = 'student'),
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: tempRole == 'student'
+                              ? primary.withValues(alpha: 0.12)
+                              : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: tempRole == 'student' ? primary : Colors.transparent,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.school_rounded,
+                              color: tempRole == 'student' ? primary : Colors.grey,
+                              size: 26,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Élève / Étudiant',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: tempRole == 'student' ? primary : null,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Accès aux cours, devoirs et révisions',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      color: isDark ? Colors.white60 : Colors.black54,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (tempRole == 'student')
+                              Icon(Icons.check_circle_rounded, color: primary, size: 20),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    // Option Enseignant
+                    InkWell(
+                      onTap: () => setModalState(() => tempRole = 'teacher'),
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: tempRole == 'teacher'
+                              ? const Color(0xFF9B59B6).withValues(alpha: 0.12)
+                              : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: tempRole == 'teacher' ? const Color(0xFF9B59B6) : Colors.transparent,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.cast_for_education_rounded,
+                              color: Color(0xFF9B59B6),
+                              size: 26,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Enseignant',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: tempRole == 'teacher' ? const Color(0xFF9B59B6) : null,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Création assistée par IA & publication de cours',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      color: isDark ? Colors.white60 : Colors.black54,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (tempRole == 'teacher')
+                              const Icon(Icons.check_circle_rounded, color: Color(0xFF9B59B6), size: 20),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (tempRole == 'student') ...[
+                      const SizedBox(height: 18),
+                      const Text(
+                        'Niveau scolaire :',
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          ChoiceChip(
+                            label: const Text('Primaire'),
+                            selected: tempLevel == 'primaire',
+                            onSelected: (val) {
+                              if (val) setModalState(() => tempLevel = 'primaire');
+                            },
+                          ),
+                          ChoiceChip(
+                            label: const Text('Secondaire (6e - Tle)'),
+                            selected: tempLevel == 'secondaire',
+                            onSelected: (val) {
+                              if (val) setModalState(() => tempLevel = 'secondaire');
+                            },
+                          ),
+                          ChoiceChip(
+                            label: const Text('Supérieur'),
+                            selected: tempLevel == 'superieur',
+                            onSelected: (val) {
+                              if (val) setModalState(() => tempLevel = 'superieur');
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Annuler'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Enregistrer'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result == true) {
+      await AuthService.updateUserRole(tempRole);
+      if (tempRole == 'student') {
+        await AuthService.updateSchoolLevel(tempLevel);
+      }
+      await _loadUsername();
+      if (mounted) {
+        final roleLabel = tempRole == 'teacher' ? 'Enseignant' : 'Élève ($_schoolLevelLabel)';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Profil mis à jour : $roleLabel'),
+            backgroundColor: const Color(0xFF2ECC71),
           ),
         );
       }
@@ -562,6 +810,51 @@ class _ParametresPageState extends State<ParametresPage>
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
+                            const SizedBox(height: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                              decoration: BoxDecoration(
+                                color: (_userRole == 'teacher'
+                                        ? const Color(0xFF9B59B6)
+                                        : primary)
+                                    .withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: (_userRole == 'teacher'
+                                          ? const Color(0xFF9B59B6)
+                                          : primary)
+                                      .withValues(alpha: 0.25),
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _userRole == 'teacher'
+                                        ? Icons.cast_for_education_rounded
+                                        : Icons.school_rounded,
+                                    size: 12,
+                                    color: _userRole == 'teacher'
+                                        ? const Color(0xFF9B59B6)
+                                        : primary,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _userRole == 'teacher'
+                                        ? 'Enseignant'
+                                        : 'Élève • $_schoolLevelLabel',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: _userRole == 'teacher'
+                                          ? const Color(0xFF9B59B6)
+                                          : primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -583,6 +876,52 @@ class _ParametresPageState extends State<ParametresPage>
                       ),
                     ],
                   ),
+                ),
+                Divider(height: 1, color: dividerColor),
+                _settingsTile(
+                  icon: _userRole == 'teacher'
+                      ? Icons.cast_for_education_rounded
+                      : Icons.school_rounded,
+                  iconColor: _userRole == 'teacher'
+                      ? const Color(0xFF9B59B6)
+                      : primary,
+                  title: 'Type de profil',
+                  subtitle: _userRole == 'teacher'
+                      ? 'Enseignant (Créateur de cours)'
+                      : 'Élève / Étudiant • $_schoolLevelLabel',
+                  isDark: isDark,
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: (_userRole == 'teacher' ? const Color(0xFF9B59B6) : primary)
+                          .withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Changer',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: _userRole == 'teacher'
+                                ? const Color(0xFF9B59B6)
+                                : primary,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: 16,
+                          color: _userRole == 'teacher'
+                              ? const Color(0xFF9B59B6)
+                              : primary,
+                        ),
+                      ],
+                    ),
+                  ),
+                  onTap: _changeRoleAndLevel,
                 ),
                 if (user != null) ...[
                   Divider(height: 1, color: dividerColor),

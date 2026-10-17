@@ -125,7 +125,6 @@ class AuthService {
     }
   }
 
-  /// Met à jour le nom d'utilisateur localement et sur Supabase si connecté
   static Future<void> updateUsername(String username) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_localUsernameKey, username);
@@ -136,6 +135,10 @@ class AuthService {
       );
     }
   }
+
+  /// Alias pour updateUserRole
+  static Future<void> updateRole(String role) => updateUserRole(role);
+
 
   // ─── TÉLÉPHONE + MOT DE PASSE ────────────────────────────────────────────
   // Supabase Phone Provider nécessite un SMS OTP.
