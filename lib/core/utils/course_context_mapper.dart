@@ -179,4 +179,96 @@ class CourseContextMapper {
       'psychologie',
     ];
   }
+
+  /// Retourne le chemin de l'icône SVG adaptée pour le cours en fallback
+  static String getSvgForCourse(String titre, [IconData? icon]) {
+    final t = titre.toLowerCase();
+    if (t.contains('code') ||
+        t.contains('algo') ||
+        t.contains('dev') ||
+        t.contains('programmation') ||
+        t.contains('python') ||
+        t.contains('dart')) {
+      return 'assets/icons/outline/code.svg';
+    }
+    if (t.contains('computer') ||
+        t.contains('ordi') ||
+        t.contains('systeme') ||
+        t.contains('système') ||
+        t.contains('reseau') ||
+        t.contains('réseau') ||
+        t.contains('informatique')) {
+      return 'assets/icons/outline/code.svg';
+    }
+    if (t.contains('math') ||
+        t.contains('calcul') ||
+        t.contains('algebre') ||
+        t.contains('algèbre') ||
+        t.contains('geometrie') ||
+        t.contains('géométrie')) {
+      return 'assets/icons/outline/brain.svg';
+    }
+    if (t.contains('physique') ||
+        t.contains('chimie') ||
+        t.contains('science') ||
+        t.contains('labo')) {
+      return 'assets/icons/outline/flask.svg';
+    }
+    if (t.contains('bio') ||
+        t.contains('plante') ||
+        t.contains('agri') ||
+        t.contains('agro') ||
+        t.contains('elevage') ||
+        t.contains('élevage') ||
+        t.contains('ecologie') ||
+        t.contains('écologie') ||
+        t.contains('nature')) {
+      return 'assets/icons/outline/leaf.svg';
+    }
+    if (t.contains('droit') || t.contains('loi') || t.contains('justice')) {
+      return 'assets/icons/outline/scale.svg';
+    }
+    if (t.contains('sante') ||
+        t.contains('santé') ||
+        t.contains('medecine') ||
+        t.contains('médecine')) {
+      return 'assets/icons/outline/heart.svg';
+    }
+    if (t.contains('langue') ||
+        t.contains('anglais') ||
+        t.contains('francais') ||
+        t.contains('français') ||
+        t.contains('traduction')) {
+      return 'assets/icons/outline/language.svg';
+    }
+    if (t.contains('histoire') ||
+        t.contains('civilisation') ||
+        t.contains('archeologie')) {
+      return 'assets/icons/outline/history.svg';
+    }
+    if (t.contains('art') ||
+        t.contains('dessin') ||
+        t.contains('peinture') ||
+        t.contains('design')) {
+      return 'assets/icons/outline/palette.svg';
+    }
+    if (t.contains('musique') || t.contains('piano') || t.contains('guitare')) {
+      return 'assets/icons/outline/music.svg';
+    }
+    if (t.contains('argent') ||
+        t.contains('finance') ||
+        t.contains('economie') ||
+        t.contains('économie') ||
+        t.contains('compta')) {
+      return 'assets/icons/outline/coin.svg';
+    }
+    if (t.contains('geo') ||
+        t.contains('géo') ||
+        t.contains('terre') ||
+        t.contains('monde')) {
+      return 'assets/icons/outline/world.svg';
+    }
+    return 'assets/icons/outline/book.svg';
+  }
 }
+

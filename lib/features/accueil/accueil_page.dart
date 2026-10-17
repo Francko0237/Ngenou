@@ -1,6 +1,10 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/utils/course_context_mapper.dart';
 import '../../core/providers/theme_provider.dart';
 import '../../core/providers/progression_provider.dart';
 import '../../core/providers/custom_courses_provider.dart';
@@ -448,6 +452,8 @@ class _AccueilPageState extends State<AccueilPage> {
                 prog,
                 isCustom: isCustom,
                 matiereId: matiere.id,
+                coverImageUrl: matiere.coverImageUrl,
+                couleur: matiere.couleur,
                 onTap: () => context.push('/cours/${matiere.id}'),
               );
             },
@@ -1231,6 +1237,100 @@ class _AccueilPageState extends State<AccueilPage> {
     );
   }
 
+  Widget _buildCourseCoverWidget({
+    required String? coverImageUrl,
+    required String titre,
+    required IconData icon,
+    required Color couleur,
+    required bool isDark,
+  }) {
+    if (coverImageUrl != null && coverImageUrl.trim().isNotEmpty) {
+      final cover = coverImageUrl.trim();
+      if (cover.startsWith('data:image')) {
+        try {
+          final commaIdx = cover.indexOf(',');
+          final base64Str =
+              commaIdx != -1 ? cover.substring(commaIdx + 1) : cover;
+          final bytes = base64Decode(base64Str);
+          return Image.memory(
+            bytes,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+            errorBuilder: (_, __, ___) =>
+                _buildCourseSvgFallback(titre, icon, couleur, isDark),
+          );
+        } catch (_) {}
+      } else if (cover.startsWith('http')) {
+        return Image.network(
+          cover,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (_, __, ___) =>
+              _buildCourseSvgFallback(titre, icon, couleur, isDark),
+        );
+      } else if (cover.startsWith('assets/')) {
+        return Image.asset(
+          cover,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (_, __, ___) =>
+              _buildCourseSvgFallback(titre, icon, couleur, isDark),
+        );
+      } else {
+        return Image.file(
+          File(cover),
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (_, __, ___) =>
+              _buildCourseSvgFallback(titre, icon, couleur, isDark),
+        );
+      }
+    }
+
+    return _buildCourseSvgFallback(titre, icon, couleur, isDark);
+  }
+
+  Widget _buildCourseSvgFallback(
+    String titre,
+    IconData icon,
+    Color couleur,
+    bool isDark,
+  ) {
+    final svgAsset = CourseContextMapper.getSvgForCourse(titre, icon);
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            couleur.withValues(alpha: isDark ? 0.35 : 0.22),
+            couleur.withValues(alpha: isDark ? 0.15 : 0.08),
+          ],
+        ),
+      ),
+      alignment: Alignment.center,
+      child: SvgPicture.asset(
+        svgAsset,
+        width: 38,
+        height: 38,
+        colorFilter: ColorFilter.mode(
+          isDark
+              ? couleur
+              : (couleur.computeLuminance() > 0.6
+                  ? const Color(0xFF15151C)
+                  : couleur),
+          BlendMode.srcIn,
+        ),
+      ),
+    );
+  }
+
   Widget _buildMatiereCard(
     BuildContext context,
     String titre,
@@ -1240,26 +1340,37 @@ class _AccueilPageState extends State<AccueilPage> {
     required VoidCallback onTap,
     bool isCustom = false,
     String? matiereId,
+    String? coverImageUrl,
+    Color? couleur,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = Theme.of(context).primaryColor;
+    final cardCouleur = couleur ?? primary;
+
     return Opacity(
       opacity: isAvailable ? 1.0 : 0.6,
       child: Container(
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-          borderRadius: BorderRadius.circular(24),
+          color: isDark ? const Color(0xFF1E1E26) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.06)
+                : Colors.black.withValues(alpha: 0.05),
+            width: 1,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
+              color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.06),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(20),
             onTap: isAvailable ? onTap : null,
             onLongPress: isCustom && matiereId != null
                 ? () => Navigator.push(
@@ -1272,124 +1383,177 @@ class _AccueilPageState extends State<AccueilPage> {
                 : null,
             child: Stack(
               children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ─── Visuel haut : Image de couverture ou SVG de fallback ───
+                    Expanded(
+                      flex: 55,
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(19),
+                        ),
+                        child: _buildCourseCoverWidget(
+                          coverImageUrl: coverImageUrl,
+                          titre: titre,
+                          icon: icon,
+                          couleur: cardCouleur,
+                          isDark: isDark,
+                        ),
+                      ),
+                    ),
+                    // ─── Contenu bas : Titre et Progression ───
+                    Expanded(
+                      flex: 45,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              titre,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                height: 1.2,
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF15151C),
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (isAvailable && progression > 0) ...[
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Progression',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w500,
+                                          color: isDark
+                                              ? Colors.white60
+                                              : Colors.black54,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${progression.toStringAsFixed(0)}%',
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.bold,
+                                          color: progression == 100
+                                              ? const Color(0xFFF1C40F)
+                                              : primary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 3),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: LinearProgressIndicator(
+                                      value: progression / 100,
+                                      minHeight: 4,
+                                      backgroundColor: isDark
+                                          ? Colors.grey[800]
+                                          : Colors.grey[200],
+                                      color: progression == 100
+                                          ? const Color(0xFFF1C40F)
+                                          : primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ] else if (isAvailable) ...[
+                              Row(
+                                children: [
+                                  Text(
+                                    'Commencer',
+                                    style: TextStyle(
+                                      color: primary,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 11.5,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Icon(
+                                    Icons.play_circle_fill_rounded,
+                                    size: 14,
+                                    color: primary,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                // ─── Badge Public (si cours personnalisé) ───
                 if (isCustom)
                   Positioned(
-                    top: 10,
-                    left: 10,
+                    top: 8,
+                    left: 8,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: Theme.of(
-                          context,
-                        ).primaryColor.withValues(alpha: 0.2),
+                        color: Colors.black.withValues(alpha: 0.65),
                         borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'Public',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).primaryColor,
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.25),
+                          width: 0.8,
                         ),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.public_rounded,
+                            size: 10,
+                            color: Colors.white,
+                          ),
+                          SizedBox(width: 3),
+                          Text(
+                            'Public',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                Padding(
-                  padding: const EdgeInsets.all(14.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isAvailable
-                              ? Theme.of(
-                                  context,
-                                ).primaryColor.withValues(alpha: 0.15)
-                              : Colors.grey.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          icon,
-                          size: 34,
-                          color: isAvailable
-                              ? Theme.of(context).primaryColor
-                              : Colors.grey,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        titre,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : Colors.black87,
-                        ),
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 8),
-                      if (isAvailable && progression > 0) ...[
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: LinearProgressIndicator(
-                            value: progression / 100,
-                            minHeight: 5,
-                            backgroundColor: isDark
-                                ? Colors.grey[800]
-                                : Colors.grey[200],
-                            color: progression == 100
-                                ? Colors.amber
-                                : Theme.of(context).primaryColor,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${progression.toStringAsFixed(0)}%',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: progression == 100
-                                ? Colors.amber
-                                : Theme.of(context).primaryColor,
-                          ),
-                        ),
-                      ] else if (isAvailable) ...[
-                        Text(
-                          'Commencer',
-                          style: TextStyle(
-                            color: Theme.of(context).primaryColor,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
+                // ─── Badge Bientôt (si indisponible) ───
                 if (!isAvailable)
                   Positioned(
-                    top: 12,
-                    right: 12,
+                    top: 8,
+                    right: 8,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
+                        horizontal: 8,
+                        vertical: 3,
                       ),
                       decoration: BoxDecoration(
                         color: Colors.redAccent.withValues(alpha: 0.9),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Text(
                         'Bientôt',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 10,
+                          fontSize: 9.5,
                           fontWeight: FontWeight.bold,
                         ),
                       ),

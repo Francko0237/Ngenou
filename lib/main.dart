@@ -19,6 +19,7 @@ import 'core/providers/defis_provider.dart';
 import 'core/services/supabase_credentials.dart';
 import 'core/services/connectivity_service.dart';
 import 'core/services/sync_service.dart';
+import 'core/services/extensions_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
@@ -130,6 +131,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => DefisProvider()),
         ChangeNotifierProvider(create: (_) => ConnectivityService()),
         ChangeNotifierProvider.value(value: SyncService.instance),
+        ChangeNotifierProvider.value(value: ExtensionsService.instance),
       ],
       child: const NgenouApp(),
     ),

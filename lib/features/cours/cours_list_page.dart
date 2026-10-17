@@ -8,6 +8,7 @@ import '../../core/providers/progression_provider.dart';
 import '../../core/services/pdf_export_service.dart';
 import '../../core/utils/course_context_mapper.dart';
 import '../../core/utils/error_formatter.dart';
+import '../../core/widgets/extension_download_dialog.dart';
 import '../../modules/modules_registry.dart';
 
 class CoursListPage extends StatelessWidget {
@@ -64,7 +65,16 @@ class CoursListPage extends StatelessWidget {
       ),
       floatingActionButton: ModulesRegistry.hasTerminal(matiereId)
           ? FloatingActionButton.extended(
-              onPressed: () => context.push('/terminal'),
+              onPressed: () async {
+                final ready = await promptExtensionDownload(
+                  context,
+                  'algo_interpreter',
+                  featureName: 'Terminal Algorithmique',
+                );
+                if (ready && context.mounted) {
+                  context.push('/terminal');
+                }
+              },
               icon: const Icon(Icons.code),
               label: const Text(
                 'Terminal',

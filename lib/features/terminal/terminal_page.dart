@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../algo_interpreter/syntax_highlighter.dart';
 import '../../algo_interpreter/interpreter.dart';
 import '../../algo_interpreter/debugger.dart';
 import '../../core/database/database_helper.dart';
+import '../../core/models/ngenou_extension.dart';
+import '../../core/services/extensions_service.dart';
 import '../../core/widgets/algo_code_editor.dart';
 
 class TerminalPage extends StatefulWidget {
@@ -18,6 +21,7 @@ class _TerminalPageState extends State<TerminalPage> {
   final GlobalKey _editorKey = GlobalKey();
   List<AlgoError> _errors = [];
   bool _isRunning = false;
+  bool _isInstallingExt = false;
   List<Map<String, dynamic>> _savedCodes = [];
 
   @override
@@ -29,6 +33,31 @@ class _TerminalPageState extends State<TerminalPage> {
   Future<void> _loadSavedCodes() async {
     final codes = await DatabaseHelper.instance.getCodesSauvegardes();
     setState(() => _savedCodes = codes);
+  }
+
+  Future<void> _downloadAndInstallExtension(NgenouExtension? ext) async {
+    if (ext == null) return;
+    setState(() => _isInstallingExt = true);
+    final service = context.read<ExtensionsService>();
+    final success = await service.installExtension(ext);
+    if (mounted) {
+      setState(() => _isInstallingExt = false);
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Extension installée ! Bienvenue dans le terminal."),
+            backgroundColor: Color(0xFF2ECC71),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Échec du téléchargement. Vérifiez votre connexion."),
+            backgroundColor: Color(0xFFE74C3C),
+          ),
+        );
+      }
+    }
   }
 
   final Map<String, String> exemples = {
@@ -366,6 +395,201 @@ Fin''',
   @override
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final extService = context.watch<ExtensionsService>();
+    final isExtInstalled = extService.isInstalled('algo_interpreter');
+
+    if (!isExtInstalled) {
+      final ext = extService.getExtensionById('algo_interpreter');
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Terminal Algo'),
+        ),
+        body: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  side: BorderSide(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.1)
+                        : Colors.black.withValues(alpha: 0.08),
+                  ),
+                ),
+                color: isDark ? const Color(0xFF16161E) : Colors.white,
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2ECC71).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(
+                            color: const Color(0xFF2ECC71).withValues(alpha: 0.35),
+                            width: 2,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.terminal_rounded,
+                          color: Color(0xFF2ECC71),
+                          size: 38,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      const Text(
+                        "Extension requise",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "L'interpréteur de pseudo-code algorithmique doit être téléchargé pour exécuter, déboguer et tester vos programmes.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          height: 1.45,
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.75)
+                              : Colors.black.withValues(alpha: 0.7),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.04)
+                              : const Color(0xFFF6F7F9),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.06)
+                                : Colors.black.withValues(alpha: 0.05),
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Row(
+                                  children: [
+                                    Icon(Icons.folder_zip_rounded,
+                                        size: 18, color: Color(0xFF2ECC71)),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      "Taille :",
+                                      style: TextStyle(
+                                          fontSize: 13, fontWeight: FontWeight.w500),
+                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF2ECC71)
+                                        .withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    ext?.taille ?? "48 Ko",
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF2ECC71),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(Icons.person_outline_rounded,
+                                        size: 18,
+                                        color: isDark ? Colors.white54 : Colors.black45),
+                                    const SizedBox(width: 8),
+                                    const Text(
+                                      "Auteur :",
+                                      style: TextStyle(
+                                          fontSize: 13, fontWeight: FontWeight.w500),
+                                    ),
+                                  ],
+                                ),
+                                Text(
+                                  ext?.auteur ?? "Yamga Daniel",
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: FilledButton.icon(
+                          onPressed: _isInstallingExt
+                              ? null
+                              : () => _downloadAndInstallExtension(ext),
+                          icon: _isInstallingExt
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.download_rounded),
+                          label: Text(
+                            _isInstallingExt
+                                ? "Téléchargement en cours..."
+                                : "Télécharger l'interpréteur (${ext?.taille ?? '48 Ko'})",
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFF2ECC71),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text("Retour au cours"),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     bool isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
     final bool isTablet = MediaQuery.of(context).size.shortestSide >= 600;
     final int editorFlex = isKeyboardOpen ? 1 : (isTablet ? 6 : 5);

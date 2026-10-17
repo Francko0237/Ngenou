@@ -9,6 +9,7 @@ class Matiere {
   final bool isAvailable;
   final List<String> sections;
   final int durationMinutes;
+  final String? coverImageUrl;
 
   Matiere({
     required this.id,
@@ -19,7 +20,32 @@ class Matiere {
     this.isAvailable = true,
     this.sections = const [],
     this.durationMinutes = 120,
+    this.coverImageUrl,
   }) : _icone = icone;
+
+  Matiere copyWith({
+    String? id,
+    String? nom,
+    String? description,
+    IconData? icone,
+    Color? couleur,
+    bool? isAvailable,
+    List<String>? sections,
+    int? durationMinutes,
+    String? coverImageUrl,
+  }) {
+    return Matiere(
+      id: id ?? this.id,
+      nom: nom ?? this.nom,
+      description: description ?? this.description,
+      icone: icone ?? _icone,
+      couleur: couleur ?? this.couleur,
+      isAvailable: isAvailable ?? this.isAvailable,
+      sections: sections ?? this.sections,
+      durationMinutes: durationMinutes ?? this.durationMinutes,
+      coverImageUrl: coverImageUrl ?? this.coverImageUrl,
+    );
+  }
 
   IconData get icone => _getDynamicIcon(nom, _icone);
 

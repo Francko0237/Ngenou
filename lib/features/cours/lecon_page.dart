@@ -4,6 +4,7 @@ import '../../core/models/lecon.dart';
 import '../../core/services/ai_tutor_service.dart';
 import '../../core/utils/lesson_content_parser.dart';
 import '../../modules/modules_registry.dart';
+import '../../core/widgets/extension_download_dialog.dart';
 import 'widgets/ai_tutor_chat_sheet.dart';
 import 'widgets/lesson_section_card.dart';
 
@@ -382,7 +383,16 @@ class _LeconPageState extends State<LeconPage> {
             IconButton(
               icon: const Icon(Icons.code),
               tooltip: 'Ouvrir le terminal',
-              onPressed: () => context.push('/terminal'),
+              onPressed: () async {
+                final ready = await promptExtensionDownload(
+                  context,
+                  'algo_interpreter',
+                  featureName: 'Terminal Algorithmique',
+                );
+                if (ready && context.mounted) {
+                  context.push('/terminal');
+                }
+              },
             ),
         ],
       ),
