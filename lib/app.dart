@@ -470,8 +470,8 @@ class _NgenouAppShellState extends State<_NgenouAppShell> {
       title: 'Ngenou',
       debugShowCheckedModeBanner: false,
       themeMode: themeProvider.themeMode,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
+      theme: AppTheme.buildLight(themeProvider.accentLight),
+      darkTheme: AppTheme.buildDark(themeProvider.accentDark),
       routerConfig: _router,
       builder: (context, child) {
         final content = child ?? const SizedBox.shrink();

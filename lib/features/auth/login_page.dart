@@ -10,6 +10,7 @@ import '../../core/providers/projets_provider.dart';
 import '../../core/providers/schedule_provider.dart';
 import '../../core/providers/progression_provider.dart';
 import '../../core/providers/defis_provider.dart';
+import '../../core/providers/theme_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../app.dart' show rootNavigatorKey;
 
@@ -334,6 +335,8 @@ class _LoginPageState extends State<LoginPage> {
                         color: isDark ? Colors.white.withValues(alpha: 0.45) : AppColors.textSecondaryLight,
                       ),
                     ),
+                    const SizedBox(height: 32),
+                    _buildThemeSelector(isDark),
                   ],
                 ),
               ),
@@ -426,6 +429,8 @@ class _LoginPageState extends State<LoginPage> {
           _buildToggleLink(isDark, primary),
           const SizedBox(height: 8),
           _buildFooterText(isDark),
+          const SizedBox(height: 16),
+          _buildThemeSelector(isDark),
         ],
       ),
     );
@@ -1014,6 +1019,129 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildThemeSelector(bool isDark) {
+    final themeProvider = context.read<ThemeProvider>();
+    final accent = isDark ? themeProvider.accentDark : themeProvider.accentLight;
+
+    return Column(
+      children: [
+        // ── Toggle clair / sombre ────────────────────────────────────────
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _themeToggleChip(
+              icon: Icons.light_mode_rounded,
+              label: "Clair",
+              active: !isDark,
+              isDark: isDark,
+              accent: accent,
+              onTap: () => context.read<ThemeProvider>().toggleTheme(ThemeMode.light),
+            ),
+            const SizedBox(width: 10),
+            _themeToggleChip(
+              icon: Icons.dark_mode_rounded,
+              label: "Sombre",
+              active: isDark,
+              isDark: isDark,
+              accent: accent,
+              onTap: () => context.read<ThemeProvider>().toggleTheme(ThemeMode.dark),
+            ),
+            const SizedBox(width: 10),
+            _themeToggleChip(
+              icon: Icons.brightness_auto_rounded,
+              label: "Auto",
+              active: themeProvider.themeMode == ThemeMode.system,
+              isDark: isDark,
+              accent: accent,
+              onTap: () => context.read<ThemeProvider>().toggleTheme(ThemeMode.system),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        // ── Pastilles de couleur ─────────────────────────────────────────
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          alignment: WrapAlignment.center,
+          children: AppAccentColors.options.map((opt) {
+            final color = isDark ? opt.dark : opt.light;
+            final isSelected = color.value == accent.value;
+            return GestureDetector(
+              onTap: () => context.read<ThemeProvider>().setAccentColor(opt.light, opt.dark),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isSelected
+                        ? (isDark ? Colors.white : Colors.black87)
+                        : Colors.transparent,
+                    width: 2.5,
+                  ),
+                  boxShadow: isSelected
+                      ? [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 8, spreadRadius: 1)]
+                      : [],
+                ),
+                child: isSelected
+                    ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
+                    : null,
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _themeToggleChip({
+    required IconData icon,
+    required String label,
+    required bool active,
+    required bool isDark,
+    required Color accent,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: active
+              ? accent.withValues(alpha: isDark ? 0.25 : 0.12)
+              : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04)),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: active ? accent : (isDark ? Colors.white12 : Colors.black12),
+            width: active ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 15,
+              color: active ? accent : (isDark ? Colors.white38 : Colors.black38),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                color: active ? (isDark ? Colors.white : accent) : (isDark ? Colors.white38 : Colors.black38),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
