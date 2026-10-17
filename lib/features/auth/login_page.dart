@@ -1069,7 +1069,7 @@ class _LoginPageState extends State<LoginPage> {
           alignment: WrapAlignment.center,
           children: AppAccentColors.options.map((opt) {
             final color = isDark ? opt.dark : opt.light;
-            final isSelected = color.value == accent.value;
+            final isSelected = color.toARGB32() == accent.toARGB32();
             return GestureDetector(
               onTap: () => context.read<ThemeProvider>().setAccentColor(opt.light, opt.dark),
               child: AnimatedContainer(
