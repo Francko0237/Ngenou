@@ -35,6 +35,8 @@ import 'features/splash/onboarding_page.dart';
 import 'features/auth/login_page.dart';
 import 'features/catalogue/catalogue_courses_page.dart';
 import 'features/enseignant/enseignant_dashboard_page.dart';
+import 'features/extensions/extensions_manager_page.dart';
+import 'features/extensions/extension_host_page.dart';
 import 'core/services/auth_service.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -149,6 +151,16 @@ final GoRouter _router = GoRouter(
     GoRoute(
       path: '/enseignant',
       builder: (context, state) => const EnseignantDashboardPage(),
+    ),
+    GoRoute(
+      path: '/extensions',
+      builder: (context, state) => const ExtensionsManagerPage(),
+    ),
+    GoRoute(
+      path: '/extensions/host/:id',
+      builder: (context, state) => ExtensionHostPage(
+        extensionId: state.pathParameters['id']!,
+      ),
     ),
   ],
 );

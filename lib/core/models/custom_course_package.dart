@@ -51,6 +51,8 @@ class CustomCoursePackage {
         couleur: colorFromHex(matiereMap['couleur'] as String?),
         isAvailable: true,
         durationMinutes: DurationUtils.parse(matiereMap['durationMinutes'] ?? matiereMap['tempsMinutes']),
+        coverImageUrl: matiereMap['coverImageUrl'] as String? ??
+            (json['meta'] as Map<String, dynamic>?)?['coverImageUrl'] as String?,
         sections:
             (json['notions'] as List<dynamic>?)
                 ?.map((n) => (n as Map<String, dynamic>)['section'] as String?)
@@ -78,6 +80,8 @@ class CustomCoursePackage {
     'icone': iconToKey(m.icone),
     'couleur': colorToHex(m.couleur),
     'durationMinutes': m.durationMinutes,
+    if (m.coverImageUrl != null && m.coverImageUrl!.isNotEmpty)
+      'coverImageUrl': m.coverImageUrl,
   };
 
   static Map<String, dynamic> _notionToJson(Notion n) => {

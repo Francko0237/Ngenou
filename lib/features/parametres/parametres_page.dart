@@ -1263,6 +1263,22 @@ class _ParametresPageState extends State<ParametresPage>
             ),
           ),
           const SizedBox(height: 20),
+          _sectionLabel('Extensions & Outils', isDark),
+          _card(
+            isDark: isDark,
+            cardColor: cardColor,
+            dividerColor: dividerColor,
+            child: _settingsTile(
+              icon: Icons.extension_rounded,
+              iconColor: const Color(0xFF2ECC71),
+              title: 'Gestionnaire d\'extensions',
+              subtitle: 'Interpréteur algorithmique, simulateurs, kits GitHub',
+              isDark: isDark,
+              trailing: const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+              onTap: () => context.push('/extensions'),
+            ),
+          ),
+          const SizedBox(height: 20),
           _sectionLabel('À propos', isDark),
           _card(
             isDark: isDark,

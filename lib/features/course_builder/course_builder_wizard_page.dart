@@ -19,6 +19,7 @@ import '../../core/services/ocr_service.dart';
 import 'course_import_page.dart';
 import '../../core/services/teacher_courses_service.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/utils/image_compression_helper.dart';
 
 class CourseBuilderWizardPage extends StatefulWidget {
   /// Si fourni, le cours créé sera automatiquement rattaché à ce projet.
@@ -120,18 +121,11 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
   }
 
   Future<void> _pickCoverImage(ImageSource source) async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(
-      source: source,
-      maxWidth: 1200,
-      maxHeight: 800,
-      imageQuality: 82,
-    );
-    if (pickedFile != null) {
-      final bytes = await File(pickedFile.path).readAsBytes();
-      final base64String = base64Encode(bytes);
+    final compressedBase64 =
+        await ImageCompressionHelper.pickAndCompressCoverImage(source);
+    if (compressedBase64 != null) {
       setState(() {
-        _coverImageUrl = 'data:image/jpeg;base64,$base64String';
+        _coverImageUrl = compressedBase64;
       });
     }
   }
@@ -1477,7 +1471,17 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
         );
       }
 
-      final pkg = validation.package!;
+      var pkg = validation.package!;
+      if (_coverImageUrl != null && _coverImageUrl!.isNotEmpty) {
+        pkg = CustomCoursePackage(
+          schemaVersionValue: pkg.schemaVersionValue,
+          meta: pkg.meta,
+          matiere: pkg.matiere.copyWith(coverImageUrl: _coverImageUrl),
+          notions: pkg.notions,
+          lecons: pkg.lecons,
+          exercices: pkg.exercices,
+        );
+      }
       final customProvider = context.read<CustomCoursesProvider>();
       final err = await customProvider.importCourse(pkg);
       if (err != null) {

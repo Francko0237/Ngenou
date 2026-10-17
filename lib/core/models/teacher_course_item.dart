@@ -74,7 +74,21 @@ class TeacherCourseItem {
   }
 
   CustomCoursePackage toPackage() {
-    return CustomCoursePackage.fromJson(jsonData);
+    final pkg = CustomCoursePackage.fromJson(jsonData);
+    if (coverImageUrl != null &&
+        coverImageUrl!.isNotEmpty &&
+        (pkg.matiere.coverImageUrl == null ||
+            pkg.matiere.coverImageUrl!.isEmpty)) {
+      return CustomCoursePackage(
+        schemaVersionValue: pkg.schemaVersionValue,
+        meta: pkg.meta,
+        matiere: pkg.matiere.copyWith(coverImageUrl: coverImageUrl),
+        notions: pkg.notions,
+        lecons: pkg.lecons,
+        exercices: pkg.exercices,
+      );
+    }
+    return pkg;
   }
 
   Map<String, dynamic> toMap() => {
