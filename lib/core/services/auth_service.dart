@@ -9,6 +9,8 @@ class AuthService {
   static final SupabaseClient _client = Supabase.instance.client;
   static const String _localUsernameKey = 'local_username';
   static const String _localPhoneKey = 'local_phone';
+  static const String _localRoleKey = 'local_user_role';
+  static const String _localLevelKey = 'local_school_level';
 
   // Domaine interne utilisé pour transformer un numéro de téléphone en email
   // virtuel afin d'éviter d'avoir besoin du fournisseur SMS de Supabase.
@@ -75,6 +77,55 @@ class AuthService {
   }
 
   /// Met à jour le nom d'utilisateur localement et sur Supabase si connecté
+  /// Récupère le rôle de l'utilisateur (student, teacher, admin).
+  static Future<String> getUserRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (isAuthenticated && currentUser?.userMetadata != null) {
+      final role = currentUser!.userMetadata!['role'] as String?;
+      if (role != null && role.isNotEmpty) {
+        await prefs.setString(_localRoleKey, role);
+        return role;
+      }
+    }
+    return prefs.getString(_localRoleKey) ?? 'student';
+  }
+
+  /// Récupère le niveau scolaire de l'élève (primaire, college, lycee, superieur).
+  static Future<String?> getSchoolLevel() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (isAuthenticated && currentUser?.userMetadata != null) {
+      final level = currentUser!.userMetadata!['school_level'] as String?;
+      if (level != null && level.isNotEmpty) {
+        await prefs.setString(_localLevelKey, level);
+        return level;
+      }
+    }
+    return prefs.getString(_localLevelKey);
+  }
+
+  /// Met à jour le rôle localement et sur Supabase
+  static Future<void> updateUserRole(String role) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_localRoleKey, role);
+    if (isAuthenticated) {
+      await _client.auth.updateUser(
+        UserAttributes(data: {'role': role}),
+      );
+    }
+  }
+
+  /// Met à jour le niveau scolaire localement et sur Supabase
+  static Future<void> updateSchoolLevel(String schoolLevel) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_localLevelKey, schoolLevel);
+    if (isAuthenticated) {
+      await _client.auth.updateUser(
+        UserAttributes(data: {'school_level': schoolLevel}),
+      );
+    }
+  }
+
+  /// Met à jour le nom d'utilisateur localement et sur Supabase si connecté
   static Future<void> updateUsername(String username) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_localUsernameKey, username);
@@ -96,19 +147,31 @@ class AuthService {
     required String phone,
     required String password,
     required String username,
+    String role = 'student',
+    String? schoolLevel,
   }) async {
     final virtualEmail = _phoneToVirtualEmail(phone);
 
     final response = await _client.auth.signUp(
       email: virtualEmail,
       password: password,
-      data: {'username': username, 'phone': phone, 'auth_method': 'phone'},
+      data: {
+        'username': username,
+        'phone': phone,
+        'role': role,
+        if (schoolLevel != null) 'school_level': schoolLevel,
+        'auth_method': 'phone',
+      },
     );
 
     // Sauvegarder localement
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_localUsernameKey, username);
     await prefs.setString(_localPhoneKey, phone);
+    await prefs.setString(_localRoleKey, role);
+    if (schoolLevel != null) {
+      await prefs.setString(_localLevelKey, schoolLevel);
+    }
 
     return response;
   }
@@ -125,13 +188,21 @@ class AuthService {
       password: password,
     );
 
-    // Si connecté, stocker le username et le téléphone de Supabase en local
+    // Si connecté, stocker le username, le rôle et le niveau en local
     final prefs = await SharedPreferences.getInstance();
     if (response.user?.userMetadata != null) {
-      final remoteUsername =
-          response.user!.userMetadata!['username'] as String?;
+      final meta = response.user!.userMetadata!;
+      final remoteUsername = meta['username'] as String?;
       if (remoteUsername != null) {
         await prefs.setString(_localUsernameKey, remoteUsername);
+      }
+      final remoteRole = meta['role'] as String?;
+      if (remoteRole != null) {
+        await prefs.setString(_localRoleKey, remoteRole);
+      }
+      final remoteLevel = meta['school_level'] as String?;
+      if (remoteLevel != null) {
+        await prefs.setString(_localLevelKey, remoteLevel);
       }
     }
     await prefs.setString(_localPhoneKey, phone);
@@ -146,15 +217,26 @@ class AuthService {
     required String email,
     required String password,
     required String username,
+    String role = 'student',
+    String? schoolLevel,
   }) async {
     final response = await _client.auth.signUp(
       email: email,
       password: password,
-      data: {'username': username, 'auth_method': 'email'},
+      data: {
+        'username': username,
+        'role': role,
+        if (schoolLevel != null) 'school_level': schoolLevel,
+        'auth_method': 'email',
+      },
     );
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_localUsernameKey, username);
+    await prefs.setString(_localRoleKey, role);
+    if (schoolLevel != null) {
+      await prefs.setString(_localLevelKey, schoolLevel);
+    }
 
     return response;
   }
@@ -169,13 +251,21 @@ class AuthService {
       password: password,
     );
 
-    // Récupérer le username depuis Supabase
+    // Récupérer le username, rôle et niveau depuis Supabase
     if (response.user?.userMetadata != null) {
-      final remoteUsername =
-          response.user!.userMetadata!['username'] as String?;
+      final meta = response.user!.userMetadata!;
+      final prefs = await SharedPreferences.getInstance();
+      final remoteUsername = meta['username'] as String?;
       if (remoteUsername != null) {
-        final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_localUsernameKey, remoteUsername);
+      }
+      final remoteRole = meta['role'] as String?;
+      if (remoteRole != null) {
+        await prefs.setString(_localRoleKey, remoteRole);
+      }
+      final remoteLevel = meta['school_level'] as String?;
+      if (remoteLevel != null) {
+        await prefs.setString(_localLevelKey, remoteLevel);
       }
     }
 
@@ -260,6 +350,14 @@ class AuthService {
             }
           }
         }
+        final customRole = meta['role'] as String?;
+        if (customRole != null && customRole.isNotEmpty) {
+          await prefs.setString(_localRoleKey, customRole);
+        }
+        final customLevel = meta['school_level'] as String?;
+        if (customLevel != null && customLevel.isNotEmpty) {
+          await prefs.setString(_localLevelKey, customLevel);
+        }
       }
 
       return true;
@@ -294,6 +392,8 @@ class AuthService {
       // Supprimer le username local pour qu'un autre utilisateur
       // ne voie pas le nom du compte précédent
       await prefs.remove(_localUsernameKey);
+      await prefs.remove(_localRoleKey);
+      await prefs.remove(_localLevelKey);
     }
   }
 }

@@ -194,6 +194,13 @@ class DeepSeekService {
       payload['response_format'] = {'type': responseFormat};
     }
 
+    try {
+      final session = Supabase.instance.client.auth.currentSession;
+      if (session != null && session.isExpired) {
+        await Supabase.instance.client.auth.refreshSession();
+      }
+    } catch (_) {}
+
     final response = await Supabase.instance.client.functions.invoke(
       'ia-proxy',
       body: payload,
@@ -211,7 +218,10 @@ class DeepSeekService {
       throw Exception('Erreur IA : $error');
     }
 
-    final content = data['content'] as String? ?? '';
+    final content = (data['content'] as String?)?.trim() ?? '';
+    if (content.isEmpty) {
+      throw Exception("Le modèle IA a retourné une réponse vide. Veuillez réessayer.");
+    }
     final totalTokens = (data['total_tokens'] as num?)?.toInt() ?? 0;
 
     return (content: content, totalTokens: totalTokens);

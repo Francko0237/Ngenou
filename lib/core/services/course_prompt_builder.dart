@@ -28,13 +28,18 @@ class CoursePromptBuilder {
               ? 'Utilise EXACTEMENT ces chapitres (notions), dans cet ordre :\n${input.chapitres.map((c) => '- $c').join('\n')}'
               : 'Use EXACTLY these chapters (notions), in this order:\n${input.chapitres.map((c) => '- $c').join('\n')}');
 
+    final schoolLevelInfo = [
+      if (input.schoolLevel != null && input.schoolLevel!.isNotEmpty) 'Cycle/Niveau : ${input.schoolLevel}',
+      if (input.classe != null && input.classe!.isNotEmpty) 'Classe : ${input.classe}',
+    ].join(', ');
+
     final niveauBlock = input.niveau.trim().isEmpty
         ? (isFr
-              ? 'Niveau non précisé (Auto) : Les notions doivent suivre une progression pédagogique linéaire et croissante en difficulté. Configure la ou les premières notions au niveau "debutant", puis les suivantes au niveau "intermediaire", et les dernières notions au niveau "avance" afin de suivre la progression de l\'apprenant.'
-              : 'Level not specified (Auto): The notions must follow a linear and increasing pedagogical progression in difficulty. Set the first notion(s) to "debutant" (beginner) level, then the middle notion(s) to "intermediaire" (intermediate), and the final notion(s) to "avance" (advanced) to match the learner\'s progression.')
+              ? 'Niveau non précisé (Auto) : ${schoolLevelInfo.isNotEmpty ? "Public cible : $schoolLevelInfo. " : ""}Les notions doivent suivre une progression pédagogique linéaire et croissante en difficulté. Configure la ou les premières notions au niveau "debutant", puis les suivantes au niveau "intermediaire", et les dernières notions au niveau "avance" afin de suivre la progression de l\'apprenant.'
+              : 'Level not specified (Auto): ${schoolLevelInfo.isNotEmpty ? "Target audience: $schoolLevelInfo. " : ""}The notions must follow a linear and increasing pedagogical progression in difficulty. Set the first notion(s) to "debutant" (beginner) level, then the middle notion(s) to "intermediaire" (intermediate), and the final notion(s) to "avance" (advanced) to match the learner\'s progression.')
         : (isFr
-              ? 'Niveau cible du cours : "${input.niveau}". Applique ce niveau à toutes les notions (notion.niveau), sauf si une progression interne justifie une montée en difficulté.'
-              : 'Target course level: "${input.niveau}". Apply this level to all notions (notion.niveau), unless internal progression justifies increasing difficulty.');
+              ? 'Niveau cible du cours : "${input.niveau}" ${schoolLevelInfo.isNotEmpty ? "($schoolLevelInfo)" : ""}. Applique ce niveau à toutes les notions (notion.niveau), sauf si une progression interne justifie une montée en difficulté.'
+              : 'Target course level: "${input.niveau}" ${schoolLevelInfo.isNotEmpty ? "($schoolLevelInfo)" : ""}. Apply this level to all notions (notion.niveau), unless internal progression justifies increasing difficulty.');
 
     final docsBlock = input.hasDocuments
         ? (isFr

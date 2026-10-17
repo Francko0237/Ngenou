@@ -49,3 +49,6 @@ android/key.properties
 assets/ngenou-release.jks
 *.jks
 *.keystore
+
+# Extensions / Micro-logiciels — Dépôts GitHub séparés, NE PAS inclure dans ce dépôt
+/extensions/

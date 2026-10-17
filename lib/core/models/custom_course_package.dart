@@ -310,6 +310,9 @@ class CourseWizardInput {
   final bool hasDocuments;
   final String documentsText;
   final String niveau;
+  final String? schoolLevel;
+  final String? classe;
+  final String? coverImageUrl;
   final List<String> chapitres;
   final bool enableTerminal;
   final String matiereId;
@@ -323,6 +326,9 @@ class CourseWizardInput {
     required this.hasDocuments,
     required this.documentsText,
     required this.niveau,
+    this.schoolLevel,
+    this.classe,
+    this.coverImageUrl,
     required this.chapitres,
     required this.enableTerminal,
     required this.matiereId,
