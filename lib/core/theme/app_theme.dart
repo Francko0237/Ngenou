@@ -3,15 +3,16 @@ import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 class AppTheme {
-  static ThemeData get lightTheme {
+  /// Thème clair avec couleur d'accent personnalisable.
+  static ThemeData buildLight(Color accent) {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      primaryColor: AppColors.primaryLight,
+      primaryColor: accent,
       scaffoldBackgroundColor: AppColors.backgroundLight,
-      colorScheme: const ColorScheme.light(
-        primary: AppColors.primaryLight,
-        secondary: AppColors.primaryLight,
+      colorScheme: ColorScheme.light(
+        primary: accent,
+        secondary: accent,
         surface: AppColors.surfaceLight,
         error: AppColors.error,
         onPrimary: Colors.white,
@@ -23,12 +24,12 @@ class AppTheme {
         bodyColor: AppColors.textLight,
         displayColor: AppColors.textLight,
       ),
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: AppColors.surfaceLight,
         foregroundColor: AppColors.textLight,
         elevation: 0,
         centerTitle: true,
-        iconTheme: IconThemeData(color: AppColors.primaryLight),
+        iconTheme: IconThemeData(color: accent),
       ),
       cardTheme: CardThemeData(
         color: AppColors.surfaceLight,
@@ -38,7 +39,7 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primaryLight,
+          backgroundColor: accent,
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -48,7 +49,7 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.grey[100], // Gris très clair pour bien le distinguer du fond blanc
+        fillColor: Colors.grey[100],
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey[300]!),
@@ -59,22 +60,23 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primaryLight, width: 2),
+          borderSide: BorderSide(color: accent, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
     );
   }
 
-  static ThemeData get darkTheme {
+  /// Thème sombre avec couleur d'accent personnalisable.
+  static ThemeData buildDark(Color accent) {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      primaryColor: AppColors.primaryDark,
+      primaryColor: accent,
       scaffoldBackgroundColor: AppColors.backgroundDark,
-      colorScheme: const ColorScheme.dark(
-        primary: AppColors.primaryDark,
-        secondary: AppColors.primaryDark,
+      colorScheme: ColorScheme.dark(
+        primary: accent,
+        secondary: accent,
         surface: AppColors.surfaceDark,
         error: AppColors.error,
         onPrimary: Colors.white,
@@ -86,12 +88,12 @@ class AppTheme {
         bodyColor: AppColors.textDark,
         displayColor: AppColors.textDark,
       ),
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: AppColors.surfaceDark,
         foregroundColor: AppColors.textDark,
         elevation: 0,
         centerTitle: true,
-        iconTheme: IconThemeData(color: AppColors.primaryDark),
+        iconTheme: IconThemeData(color: accent),
       ),
       cardTheme: CardThemeData(
         color: AppColors.surfaceDark,
@@ -101,7 +103,7 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primaryDark,
+          backgroundColor: accent,
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -122,10 +124,14 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primaryDark, width: 2),
+          borderSide: BorderSide(color: accent, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
     );
   }
+
+  // Compatibilité : getters statiques avec couleurs par défaut
+  static ThemeData get lightTheme => buildLight(AppColors.primaryLight);
+  static ThemeData get darkTheme  => buildDark(AppColors.primaryDark);
 }
