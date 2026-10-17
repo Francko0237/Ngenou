@@ -28,12 +28,7 @@ class AppAccentColors {
   static Color defaultDark = options[0].dark; // Violet
 }
 
-class _AccentOption {
-  final String label;
-  final Color light;
-  final Color dark;
-  const _AccentOption(this.label, this.light, this.dark);
-}
+
 
 class ThemeProvider with ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
