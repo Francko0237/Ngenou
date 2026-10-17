@@ -28,6 +28,7 @@ class AccueilPage extends StatefulWidget {
 class _AccueilPageState extends State<AccueilPage> {
   int _selectedTab = 0; // 0 = Mes cours, 1 = Projets
   String _username = 'Ami';
+  String _userRole = 'student';
   bool _wasSyncing = false;
 
   @override
@@ -88,9 +89,11 @@ class _AccueilPageState extends State<AccueilPage> {
 
   Future<void> _loadUsername() async {
     final name = await AuthService.getUsername();
+    final role = await AuthService.getUserRole();
     if (mounted) {
       setState(() {
         _username = name;
+        _userRole = role;
       });
     }
   }
@@ -186,7 +189,12 @@ class _AccueilPageState extends State<AccueilPage> {
         backgroundColor: Colors.transparent,
         actions: [
           const ConnectionStatusIndicator(),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.public_rounded),
+            tooltip: 'Cours publics',
+            onPressed: () => context.push('/catalogue'),
+          ),
           IconButton(
             icon: Icon(
               isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
@@ -247,6 +255,10 @@ class _AccueilPageState extends State<AccueilPage> {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
+                    if (_userRole == 'teacher') ...[
+                      const SizedBox(height: 14),
+                      _buildTeacherShortcutBanner(context, isDark, primary),
+                    ],
                     const SizedBox(height: 16),
 
                     // Sélecteur d'onglets avec pastille glissante
@@ -400,6 +412,8 @@ class _AccueilPageState extends State<AccueilPage> {
           _buildTachesCard(context, isDark, scheduleProvider),
           const SizedBox(height: 14),
           _buildPlanningCard(context, isDark, scheduleProvider),
+          const SizedBox(height: 14),
+          _buildCatalogueCard(context, isDark),
           const SizedBox(height: 14),
           _buildCreateCourseCard(context, isDark),
           const SizedBox(height: 28),
@@ -660,6 +674,174 @@ class _AccueilPageState extends State<AccueilPage> {
               Icons.arrow_forward_ios_rounded,
               size: 16,
               color: Theme.of(context).primaryColor,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTeacherShortcutBanner(
+    BuildContext context,
+    bool isDark,
+    Color primary,
+  ) {
+    return GestureDetector(
+      onTap: () => context.push('/enseignant').then((_) => _loadUsername()),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF6C63FF), Color(0xFF3D9EFF)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF6C63FF).withValues(alpha: 0.25),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.co_present_rounded, color: Colors.white, size: 26),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Mode Enseignant activé',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  Text(
+                    'Gérer, créer et publier vos cours pour vos élèves',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 11.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Text(
+                'Espace Prof',
+                style: TextStyle(
+                  color: Color(0xFF6C63FF),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCatalogueCard(BuildContext context, bool isDark) {
+    const accentColor = Color(0xFF00B4D8);
+    return GestureDetector(
+      onTap: () => context.push('/catalogue'),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.08)
+                : Colors.black.withValues(alpha: 0.06),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: accentColor.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.public_rounded,
+                size: 28,
+                color: accentColor,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Cours publics',
+                        style: TextStyle(
+                          fontSize: 16.5,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: accentColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'NOUVEAU',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                            color: accentColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Cours partagés par les enseignants · Téléchargement hors-ligne',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 16,
+              color: accentColor,
             ),
           ],
         ),
@@ -1106,7 +1288,7 @@ class _AccueilPageState extends State<AccueilPage> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        'Perso',
+                        'Public',
                         style: TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.bold,

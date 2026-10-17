@@ -18,18 +18,29 @@ class CourseImportValidator {
   /// - Texte ou markdown avant/après le JSON
   /// - Retours à la ligne réels à l'intérieur des valeurs de chaîne
   static String _repairJson(String raw) {
-    // Étape 1 : Extraire le JSON pur en trouvant la première { et la dernière }
-    // On utilise une correspondance de braces pour trouver l'objet JSON complet.
-    final firstBrace = raw.indexOf('{');
-    final lastBrace = raw.lastIndexOf('}');
-    if (firstBrace == -1 || lastBrace == -1 || lastBrace <= firstBrace) {
-      // Pas de JSON détectable, on retourne brut (le parser échouera proprement)
-      return raw;
+    String clean = raw.trim();
+    if (clean.startsWith('```')) {
+      final firstLineEnd = clean.indexOf('\n');
+      if (firstLineEnd != -1) {
+        clean = clean.substring(firstLineEnd).trim();
+      }
+      if (clean.endsWith('```')) {
+        clean = clean.substring(0, clean.length - 3).trim();
+      }
     }
-    String candidate = raw.substring(firstBrace, lastBrace + 1);
 
-    // Étape 2 : Corriger les retours à la ligne et tabulations réels
-    // à l'intérieur des valeurs de chaînes JSON
+    // Étape 1 : Extraire le JSON pur en trouvant la première { et la dernière }
+    final firstBrace = clean.indexOf('{');
+    final lastBrace = clean.lastIndexOf('}');
+    if (firstBrace == -1 || lastBrace == -1 || lastBrace <= firstBrace) {
+      return clean;
+    }
+    String candidate = clean.substring(firstBrace, lastBrace + 1);
+
+    // Étape 2 : Supprimer les virgules traînantes préliminaires (ex: [1, 2, ])
+    candidate = candidate.replaceAll(RegExp(r',\s*([\]}])'), r'$1');
+
+    // Étape 3 : Corriger les retours à la ligne et tabulations réels à l'intérieur des chaînes
     final buf = StringBuffer();
     bool inString = false;
     bool escaped = false;
@@ -50,12 +61,25 @@ class CourseImportValidator {
         buf.write(c);
         continue;
       }
-      if (inString && c == '\n') { buf.write(r'\n'); continue; }
-      if (inString && c == '\r') { buf.write(r'\r'); continue; }
-      if (inString && c == '\t') { buf.write(r'\t'); continue; }
+      if (inString && c == '\n') {
+        buf.write(r'\n');
+        continue;
+      }
+      if (inString && c == '\r') {
+        buf.write(r'\r');
+        continue;
+      }
+      if (inString && c == '\t') {
+        buf.write(r'\t');
+        continue;
+      }
       buf.write(c);
     }
-    return buf.toString();
+
+    String result = buf.toString();
+    // Nettoyage final des virgules orphelines éventuelles avant fermeture
+    result = result.replaceAll(RegExp(r',\s*([\]}])'), r'$1');
+    return result;
   }
 
   static CourseValidationResult validate(String rawJson) {

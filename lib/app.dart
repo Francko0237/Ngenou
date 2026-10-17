@@ -33,6 +33,8 @@ import 'features/splash/splash_screen.dart';
 import 'features/splash/brand_setup_page.dart';
 import 'features/splash/onboarding_page.dart';
 import 'features/auth/login_page.dart';
+import 'features/catalogue/catalogue_courses_page.dart';
+import 'features/enseignant/enseignant_dashboard_page.dart';
 import 'core/services/auth_service.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -139,6 +141,14 @@ final GoRouter _router = GoRouter(
     GoRoute(
       path: '/course-import',
       builder: (context, state) => const CourseImportPage(),
+    ),
+    GoRoute(
+      path: '/catalogue',
+      builder: (context, state) => const CatalogueCoursesPage(),
+    ),
+    GoRoute(
+      path: '/enseignant',
+      builder: (context, state) => const EnseignantDashboardPage(),
     ),
   ],
 );

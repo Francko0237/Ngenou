@@ -46,14 +46,14 @@ String formatUserError(Object error) {
       raw.contains('api key') ||
       raw.contains('non configurée') ||
       raw.contains('dart-define')) {
-    return 'Le service IA n\'est pas configuré. Contactez le support.';
+    return 'Le service IA n\'est pas encore configuré sur le serveur.';
   }
 
   // ── Erreur API (code HTTP) ───────────────────────────────────────────────
   if (raw.contains('erreur api 401') ||
       raw.contains('status code 401') ||
       raw.contains('unauthorized')) {
-    return 'Accès refusé au service IA. Contactez le support.';
+    return 'Accès refusé ou session expirée. Veuillez vous reconnecter ou relancer l\'application.';
   }
 
   if (raw.contains('erreur api 429') ||
@@ -74,7 +74,7 @@ String formatUserError(Object error) {
   if (raw.contains('réponse vide') ||
       raw.contains('empty response') ||
       raw.contains('choices.isempty')) {
-    return 'Le service n\'a pas pu générer une réponse. Réessayez.';
+    return 'Le service n\'a pas pu générer une réponse. Veuillez réessayer.';
   }
 
   // ── JSON invalide ────────────────────────────────────────────────────────
@@ -82,7 +82,7 @@ String formatUserError(Object error) {
       raw.contains('formatexception') ||
       raw.contains('invalid json') ||
       raw.contains('unexpected character')) {
-    return 'La réponse reçue est invalide. Réessayez — si le problème persiste, contactez le support.';
+    return 'La structure du contenu généré n\'a pas pu être validée. Veuillez relancer la génération.';
   }
 
   // ── Alarmes exactes ──────────────────────────────────────────────────────
