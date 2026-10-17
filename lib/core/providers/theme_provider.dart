@@ -5,20 +5,27 @@ import '../services/focus_mode_service.dart';
 import '../services/schedule_notification_service.dart';
 
 /// Couleurs d'accent disponibles dans le sélecteur de thème.
+class AccentOption {
+  final String label;
+  final Color light;
+  final Color dark;
+  const AccentOption(this.label, this.light, this.dark);
+}
+
 class AppAccentColors {
-  static const List<_AccentOption> options = [
-    _AccentOption('Violet',  Color(0xFF6C63FF), Color(0xFF8B82FF)),
-    _AccentOption('Bleu',    Color(0xFF4A90D9), Color(0xFF64A9F0)),
-    _AccentOption('Indigo',  Color(0xFF3F51B5), Color(0xFF5C6BC0)),
-    _AccentOption('Vert',    Color(0xFF27AE60), Color(0xFF2ECC71)),
-    _AccentOption('Rose',    Color(0xFFE91E8B), Color(0xFFF06292)),
-    _AccentOption('Orange',  Color(0xFFE67E22), Color(0xFFFF9800)),
-    _AccentOption('Rouge',   Color(0xFFE74C3C), Color(0xFFEF5350)),
-    _AccentOption('Cyan',    Color(0xFF00BCD4), Color(0xFF26C6DA)),
+  static const List<AccentOption> options = [
+    AccentOption('Violet', Color(0xFF6C63FF), Color(0xFF8B82FF)),
+    AccentOption('Bleu', Color(0xFF4A90D9), Color(0xFF64A9F0)),
+    AccentOption('Indigo', Color(0xFF3F51B5), Color(0xFF5C6BC0)),
+    AccentOption('Vert', Color(0xFF27AE60), Color(0xFF2ECC71)),
+    AccentOption('Rose', Color(0xFFE91E8B), Color(0xFFF06292)),
+    AccentOption('Orange', Color(0xFFE67E22), Color(0xFFFF9800)),
+    AccentOption('Rouge', Color(0xFFE74C3C), Color(0xFFEF5350)),
+    AccentOption('Cyan', Color(0xFF00BCD4), Color(0xFF26C6DA)),
   ];
 
   static Color defaultLight = options[1].light; // Bleu
-  static Color defaultDark  = options[0].dark;  // Violet
+  static Color defaultDark = options[0].dark; // Violet
 }
 
 class _AccentOption {
@@ -94,8 +101,8 @@ class ThemeProvider with ChangeNotifier {
     _accentLight = lightColor;
     _accentDark  = darkColor;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('accentLight', lightColor.value);
-    await prefs.setInt('accentDark',  darkColor.value);
+    await prefs.setInt('accentLight', lightColor.toARGB32());
+    await prefs.setInt('accentDark',  darkColor.toARGB32());
     notifyListeners();
   }
 
