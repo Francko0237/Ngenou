@@ -16,7 +16,7 @@ class CatalogueCoursesPage extends StatefulWidget {
 }
 
 class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
-  String _selectedLevel = 'all'; // all, primaire, college, lycee, superieur
+  String _selectedLevel = 'all'; // all, primaire, secondaire, superieur
   final TextEditingController _searchController = TextEditingController();
   List<TeacherCourseItem> _courses = [];
   bool _isLoading = true;
@@ -26,8 +26,7 @@ class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
   final List<Map<String, String>> _levels = [
     {'key': 'all', 'label': 'Tous les niveaux'},
     {'key': 'primaire', 'label': 'Primaire'},
-    {'key': 'college', 'label': 'Collège'},
-    {'key': 'lycee', 'label': 'Lycée'},
+    {'key': 'secondaire', 'label': 'Secondaire'},
     {'key': 'superieur', 'label': 'Supérieur'},
   ];
 
