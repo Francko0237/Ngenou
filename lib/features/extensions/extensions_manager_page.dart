@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/models/ngenou_extension.dart';
 import '../../core/services/extensions_service.dart';
+import '../../core/widgets/connection_status_indicator.dart';
 
 class ExtensionsManagerPage extends StatefulWidget {
   const ExtensionsManagerPage({super.key});
@@ -119,31 +120,38 @@ class _ExtensionsManagerPageState extends State<ExtensionsManagerPage> {
           : const Color(0xFFF6F7FB),
       appBar: AppBar(
         title: const Text(
-          'Extensions & Outils',
+          'Ngenou Assets',
           style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20),
         ),
         centerTitle: false,
         actions: [
-          IconButton(
-            tooltip: 'Actualiser depuis GitHub',
-            icon: service.isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.refresh_rounded),
-            onPressed: service.isLoading
-                ? null
-                : () => service.loadExtensions(forceRefresh: true),
+          // Point de connexion + bouton actualiser
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const ConnectionStatusIndicator(),
+              IconButton(
+                tooltip: 'Actualiser depuis GitHub',
+                icon: service.isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh_rounded),
+                onPressed: service.isLoading
+                    ? null
+                    : () => service.loadExtensions(forceRefresh: true),
+              ),
+            ],
           ),
         ],
       ),
       body: Column(
         children: [
-          // En-tête info dépôt
+          // Barre de recherche
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF16161E) : Colors.white,
               border: Border(
@@ -154,96 +162,30 @@ class _ExtensionsManagerPageState extends State<ExtensionsManagerPage> {
                 ),
               ),
             ),
-            child: Column(
-              children: [
-                // GitHub repo banner
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: primary.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(Icons.hub_rounded, color: primary, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Ngenou Assets',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2ECC71).withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF2ECC71),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          const Text(
-                            'Connecté',
-                            style: TextStyle(
-                              color: Color(0xFF2ECC71),
-                              fontWeight: FontWeight.w700,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+            child: TextField(
+              onChanged: (val) => setState(() => _searchQuery = val.trim()),
+              decoration: InputDecoration(
+                hintText: 'Rechercher une extension, un simulateur...',
+                hintStyle: TextStyle(
+                  fontSize: 13.5,
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.4)
+                      : Colors.black.withValues(alpha: 0.35),
                 ),
-                const SizedBox(height: 12),
-                // Champ de recherche
-                TextField(
-                  onChanged: (val) => setState(() => _searchQuery = val.trim()),
-                  decoration: InputDecoration(
-                    hintText: 'Rechercher une extension, un simulateur...',
-                    hintStyle: TextStyle(
-                      fontSize: 13.5,
-                      color: isDark
-                          ? Colors.white.withValues(alpha: 0.4)
-                          : Colors.black.withValues(alpha: 0.35),
-                    ),
-                    prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                    filled: true,
-                    fillColor: isDark
-                        ? Colors.white.withValues(alpha: 0.05)
-                        : const Color(0xFFF0F1F5),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
+                prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                filled: true,
+                fillColor: isDark
+                    ? Colors.white.withValues(alpha: 0.05)
+                    : const Color(0xFFF0F1F5),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
                 ),
-              ],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
             ),
           ),
 

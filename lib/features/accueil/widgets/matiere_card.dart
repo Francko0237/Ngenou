@@ -12,6 +12,7 @@ class MatiereCard extends StatelessWidget {
   final double progression;
   final VoidCallback onTap;
   final bool isCustom;
+  final bool isPublic;
   final String? matiereId;
   final String? coverImageUrl;
   final Color? couleur;
@@ -24,6 +25,7 @@ class MatiereCard extends StatelessWidget {
     required this.progression,
     required this.onTap,
     this.isCustom = false,
+    this.isPublic = false,
     this.matiereId,
     this.coverImageUrl,
     this.couleur,
@@ -197,7 +199,7 @@ class MatiereCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                // Badge "Créé par vous" pour les cours personnalisés
+                // Badge pour les cours personnalisés ou publics
                 if (isCustom)
                   Positioned(
                     top: 8,
@@ -208,21 +210,29 @@ class MatiereCard extends StatelessWidget {
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.65),
+                        color: isPublic
+                            ? const Color(0xFF1565C0).withValues(alpha: 0.85)
+                            : Colors.black.withValues(alpha: 0.65),
                         borderRadius: BorderRadius.circular(8),
+                        border: isPublic
+                            ? Border.all(
+                                color: const Color(0xFF64B5F6).withValues(alpha: 0.5),
+                                width: 0.8,
+                              )
+                            : null,
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            Icons.person_rounded,
+                            isPublic ? Icons.public_rounded : Icons.person_rounded,
                             size: 10,
                             color: Colors.white,
                           ),
-                          SizedBox(width: 3),
+                          const SizedBox(width: 3),
                           Text(
-                            'Perso',
-                            style: TextStyle(
+                            isPublic ? 'Public' : 'Perso',
+                            style: const TextStyle(
                               fontSize: 9,
                               color: Colors.white,
                               fontWeight: FontWeight.bold,

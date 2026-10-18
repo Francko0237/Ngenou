@@ -262,12 +262,14 @@ class CoursTab extends StatelessWidget {
                     final matiere = matieres[index];
                     final prog = progProvider.getProgressionGlobale(matiere.id);
                     final isCustom = ModulesRegistry.isCustomMatiere(matiere.id);
+                    final isPublic = ModulesRegistry.isPublicCourse(matiere.id);
                     return MatiereCard(
                       titre: matiere.nom,
                       icon: matiere.icone,
                       isAvailable: matiere.isAvailable,
                       progression: prog,
                       isCustom: isCustom,
+                      isPublic: isPublic,
                       matiereId: matiere.id,
                       coverImageUrl: matiere.coverImageUrl,
                       couleur: matiere.couleur,

@@ -129,6 +129,40 @@ class ProgressionProvider with ChangeNotifier {
     // après navigation vers /resultat — pas ici pour éviter les doublons.
   }
 
+  /// Marque la complétion d'une série d'exercices pour une notion,
+  /// met à jour immédiatement le statut et notifie tous les écouteurs locaux (dashboard & cours).
+  Future<void> completeNotionSeries({
+    required String matiereId,
+    required String notionId,
+    required int score,
+    required int total,
+  }) async {
+    Progression? current;
+    try {
+      final list = await _dbHelper.getProgressionsByMatiere(matiereId);
+      current = list.where((p) => p.notionId == notionId).firstOrNull;
+    } catch (e) {
+      // Not found
+    }
+
+    final double successRate = total > 0 ? score / total : 1.0;
+    // La notion est considérée terminée si au moins 50% de réussite ou si tous réussis
+    final bool isCompleted = successRate >= 0.5;
+
+    final newProgression = Progression(
+      id: current?.id,
+      matiereId: matiereId,
+      notionId: notionId,
+      statut: isCompleted ? 'termine' : 'en_cours',
+      nbExercicesReussis: score,
+      nbExercicesTotal: total,
+      derniereActivite: DateTime.now(),
+    );
+
+    await _dbHelper.upsertProgression(newProgression);
+    await loadProgression(matiereId, notify: true);
+  }
+
   Future<void> resetProgression(String matiereId) async {
     final db = await _dbHelper.database;
     await db.delete(

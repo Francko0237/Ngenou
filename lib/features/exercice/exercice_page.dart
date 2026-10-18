@@ -7,6 +7,8 @@ import '../../core/providers/progression_provider.dart';
 import '../../core/database/database_helper.dart';
 import '../../core/services/badge_service.dart';
 import '../../modules/modules_registry.dart';
+import '../../core/services/sync_service.dart';
+import '../../core/services/resultat_cache.dart';
 import '../../app.dart';
 import 'widgets/qcm_widget.dart';
 import 'widgets/editeur_widget.dart';
@@ -74,15 +76,24 @@ class _ExercicePageState extends State<ExercicePage> {
       );
       await DatabaseHelper.instance.insertScore(score);
       if (mounted) {
-        // Charger la progression sans notifier — évite les rebuilds et badges
-        // prématurés qui bloqueraient la navigation vers /resultat
-        await context.read<ProgressionProvider>().loadProgression(
-          widget.matiereId,
-          notify: false,
+        // Mettre à jour immédiatement la progression de la notion et les stats du dashboard
+        await context.read<ProgressionProvider>().completeNotionSeries(
+          matiereId: widget.matiereId,
+          notionId: widget.notionId,
+          score: _score,
+          total: total,
         );
+
         if (mounted) {
-          // Naviguer vers les résultats EN PREMIER
-          context.push('/resultat', extra: score);
+          // Lancer la synchronisation distante en tâche de fond silencieuse
+          SyncService.instance.syncAll();
+
+          // Naviguer vers les résultats avec cache et paramètres de sécurité
+          ResultatCache.lastScore = score;
+          context.push(
+            '/resultat?matiereId=${widget.matiereId}&notionId=${widget.notionId}&score=$_score&total=$total',
+            extra: score,
+          );
           // Badges d'apprentissage uniquement — pas les badges de création cours/projet
           Future.delayed(const Duration(milliseconds: 400), () {
             final ctx = rootNavigatorKey.currentContext;
@@ -108,8 +119,27 @@ class _ExercicePageState extends State<ExercicePage> {
   Widget build(BuildContext context) {
     if (_exercices.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Exercices')),
-        body: const Center(child: Text('Aucun exercice pour cette notion.')),
+        appBar: AppBar(
+          title: const Text('Exercices'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => context.go('/cours/${widget.matiereId}'),
+          ),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Aucun exercice disponible pour cette notion.'),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () => context.go('/cours/${widget.matiereId}'),
+                icon: const Icon(Icons.menu_book_rounded),
+                label: const Text('Retour aux leçons du cours'),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
@@ -125,6 +155,11 @@ class _ExercicePageState extends State<ExercicePage> {
         elevation: 0,
         backgroundColor: Colors.transparent,
         iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Retour au cours',
+          onPressed: () => context.go('/cours/${widget.matiereId}'),
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

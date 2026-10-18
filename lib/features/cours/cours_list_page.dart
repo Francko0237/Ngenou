@@ -95,7 +95,7 @@ class CoursListPage extends StatelessWidget {
               : 20.0;
 
           return ListView.builder(
-            padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 20),
+            padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 14),
             physics: const BouncingScrollPhysics(),
             itemCount: notions.length,
             itemBuilder: (context, index) {
@@ -109,17 +109,17 @@ class CoursListPage extends StatelessWidget {
                 if (isFirstOfSection) {
                   sectionHeader = Padding(
                     padding: const EdgeInsets.only(
-                      top: 24,
-                      bottom: 16,
-                      left: 4,
+                      top: 16,
+                      bottom: 8,
+                      left: 2,
                     ),
                     child: Text(
                       notion.section!.toUpperCase(),
                       style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
                         color: Theme.of(context).primaryColor,
-                        letterSpacing: 1.5,
+                        letterSpacing: 0.9,
                       ),
                     ),
                   );
@@ -154,14 +154,14 @@ class CoursListPage extends StatelessWidget {
 
               if (prog?.statut == 'termine') {
                 statusIcon = Icons.star_rounded;
-                statusBoxColor = Colors.amber.withOpacity(0.2);
+                statusBoxColor = Colors.amber.withValues(alpha: 0.2);
                 statusIconColor = Colors.amber;
                 isUnlocked = true;
               } else if (prog?.statut == 'en_cours') {
                 statusIcon = Icons.play_arrow_rounded;
                 statusBoxColor = Theme.of(
                   context,
-                ).primaryColor.withOpacity(0.2);
+                ).primaryColor.withValues(alpha: 0.2);
                 statusIconColor = Theme.of(context).primaryColor;
                 isUnlocked = true;
               } else if (index == 0 ||
@@ -173,7 +173,7 @@ class CoursListPage extends StatelessWidget {
                 statusIcon = Icons.play_arrow_rounded;
                 statusBoxColor = Theme.of(
                   context,
-                ).primaryColor.withOpacity(0.1);
+                ).primaryColor.withValues(alpha: 0.1);
                 statusIconColor = Theme.of(context).primaryColor;
                 isUnlocked = true;
               }
@@ -192,22 +192,30 @@ class CoursListPage extends StatelessWidget {
               final card = Opacity(
                 opacity: isUnlocked ? 1.0 : 0.6,
                 child: Container(
-                  margin: const EdgeInsets.only(bottom: 16),
+                  margin: const EdgeInsets.only(bottom: 8),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-                    borderRadius: BorderRadius.circular(20),
+                    color: isDark ? const Color(0xFF1E1E26) : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.06)
+                          : Colors.black.withValues(alpha: 0.05),
+                      width: 1,
+                    ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
-                        blurRadius: 15,
-                        offset: const Offset(0, 5),
+                        color: Colors.black.withValues(
+                          alpha: isDark ? 0.25 : 0.04,
+                        ),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
                       ),
                     ],
                   ),
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(16),
                       onTap: () {
                         if (isUnlocked) {
                           context.push('/cours/$matiereId/${notion.id}');
@@ -222,27 +230,32 @@ class CoursListPage extends StatelessWidget {
                         }
                       },
                       child: Padding(
-                        padding: const EdgeInsets.all(20),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Container(
-                              width: 56,
-                              height: 56,
+                              width: 44,
+                              height: 44,
                               decoration: BoxDecoration(
                                 color: notion.contexte != null
                                     ? CourseContextMapper.getColorForContext(
                                         notion.contexte,
-                                      ).withOpacity(isUnlocked ? 0.15 : 0.08)
+                                      ).withValues(
+                                        alpha: isUnlocked ? 0.13 : 0.07,
+                                      )
                                     : statusBoxColor,
-                                borderRadius: BorderRadius.circular(16),
+                                borderRadius: BorderRadius.circular(12),
                                 border: notion.contexte != null && isUnlocked
                                     ? Border.all(
                                         color:
                                             CourseContextMapper.getColorForContext(
                                               notion.contexte,
-                                            ).withOpacity(0.3),
-                                        width: 1.5,
+                                            ).withValues(alpha: 0.25),
+                                        width: 1,
                                       )
                                     : null,
                               ),
@@ -257,10 +270,10 @@ class CoursListPage extends StatelessWidget {
                                         notion.contexte,
                                       )
                                     : statusIconColor,
-                                size: 28,
+                                size: 20,
                               ),
                             ),
-                            const SizedBox(width: 16),
+                            const SizedBox(width: 12),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -268,45 +281,49 @@ class CoursListPage extends StatelessWidget {
                                   Text(
                                     notion.titre,
                                     style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 14,
                                       color: isDark
                                           ? Colors.white
-                                          : Colors.black87,
+                                          : const Color(0xFF15151C),
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    notion.description,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isDark
+                                          ? Colors.white54
+                                          : Colors.black45,
                                     ),
                                   ),
                                   const SizedBox(height: 6),
-                                  Text(
-                                    notion.description,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: isDark
-                                          ? Colors.grey[400]
-                                          : Colors.grey[600],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
                                   Row(
                                     children: [
                                       Container(
                                         padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 4,
+                                          horizontal: 7,
+                                          vertical: 3,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: niveauColor.withOpacity(0.15),
+                                          color: niveauColor.withValues(
+                                            alpha: 0.12,
+                                          ),
                                           borderRadius: BorderRadius.circular(
-                                            8,
+                                            6,
                                           ),
                                         ),
                                         child: Text(
                                           niveauLabel,
                                           style: TextStyle(
                                             color: niveauColor,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w700,
                                           ),
                                         ),
                                       ),
@@ -315,14 +332,16 @@ class CoursListPage extends StatelessWidget {
                                         Row(
                                           children: [
                                             SizedBox(
-                                              width: 14,
-                                              height: 14,
+                                              width: 13,
+                                              height: 13,
                                               child: CircularProgressIndicator(
                                                 value: pct / 100,
-                                                strokeWidth: 2.5,
+                                                strokeWidth: 2,
                                                 backgroundColor: isDark
-                                                    ? Colors.grey[800]
-                                                    : Colors.grey[300],
+                                                    ? Colors.white
+                                                        .withValues(alpha: 0.1)
+                                                    : Colors.black
+                                                        .withValues(alpha: 0.08),
                                                 color: pct == 100
                                                     ? Colors.amber
                                                     : Theme.of(
@@ -330,25 +349,43 @@ class CoursListPage extends StatelessWidget {
                                                       ).primaryColor,
                                               ),
                                             ),
-                                            const SizedBox(width: 6),
+                                            const SizedBox(width: 5),
                                             Text(
-                                              "$pct%",
+                                              '$pct%',
                                               style: TextStyle(
-                                                fontSize: 12,
+                                                fontSize: 11,
                                                 color: pct == 100
                                                     ? Colors.amber
                                                     : Theme.of(
                                                         context,
                                                       ).primaryColor,
-                                                fontWeight: FontWeight.bold,
+                                                fontWeight: FontWeight.w700,
                                               ),
                                             ),
                                           ],
+                                        )
+                                      else if (!isUnlocked)
+                                        Icon(
+                                          Icons.lock_outline_rounded,
+                                          size: 14,
+                                          color: isDark
+                                              ? Colors.white30
+                                              : Colors.black26,
                                         ),
                                     ],
                                   ),
                                 ],
                               ),
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              size: 18,
+                              color: isUnlocked
+                                  ? Theme.of(context).primaryColor
+                                  : (isDark
+                                        ? Colors.white24
+                                        : Colors.black.withValues(alpha: 0.24)),
                             ),
                           ],
                         ),

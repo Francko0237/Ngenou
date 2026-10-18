@@ -88,23 +88,27 @@ class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
     setState(() => _downloadingCourseIds.add(course.id));
 
     try {
+      TeacherCoursesService.markAsPublic(course.matiereId);
       final package = course.toPackage();
       await customProvider.importCourse(package);
       await TeacherCoursesService.incrementDownloads(course.id);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: const Color(0xFF2ECC71),
-            behavior: SnackBarBehavior.floating,
-            content: Text('Cours "${course.titre}" téléchargé avec succès !'),
-            action: SnackBarAction(
-              label: 'Ouvrir',
-              textColor: Colors.white,
-              onPressed: () => context.push('/cours/${course.matiereId}'),
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(
+            SnackBar(
+              backgroundColor: const Color(0xFF2ECC71),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 4),
+              content: Text('Cours "${course.titre}" téléchargé avec succès !'),
+              action: SnackBarAction(
+                label: 'Ouvrir',
+                textColor: Colors.white,
+                onPressed: () => context.push('/cours/${course.matiereId}'),
+              ),
             ),
-          ),
-        );
+          );
       }
     } catch (e) {
       if (mounted) {
@@ -303,25 +307,70 @@ class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
                           )
                     : RefreshIndicator(
                         onRefresh: _loadCatalog,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          itemCount: _courses.length,
-                          itemBuilder: (context, index) {
-                            final course = _courses[index];
-                            final isInstalled = customProvider.modules
-                                .any((m) => m.matiere.id == course.matiereId);
-                            final isDownloading =
-                                _downloadingCourseIds.contains(course.id);
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final w = constraints.maxWidth;
+                            // Responsive : 1 col mobile, 2 tablette, 3 desktop
+                            final cols = w > 1100 ? 3 : w > 650 ? 2 : 1;
+                            final hPad = w > 1200
+                                ? w * 0.08
+                                : w > 800
+                                    ? w * 0.05
+                                    : 16.0;
 
-                            return _buildCourseCard(
-                              course: course,
-                              isDark: isDark,
-                              primary: primary,
-                              isInstalled: isInstalled,
-                              isDownloading: isDownloading,
+                            if (cols == 1) {
+                              return ListView.builder(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: hPad,
+                                  vertical: 12,
+                                ),
+                                itemCount: _courses.length,
+                                itemBuilder: (context, index) {
+                                  final course = _courses[index];
+                                  final isInstalled = customProvider.modules
+                                      .any((m) => m.matiere.id == course.matiereId);
+                                  final isDownloading =
+                                      _downloadingCourseIds.contains(course.id);
+                                  return _buildCourseCard(
+                                    course: course,
+                                    isDark: isDark,
+                                    primary: primary,
+                                    isInstalled: isInstalled,
+                                    isDownloading: isDownloading,
+                                  );
+                                },
+                              );
+                            }
+
+                            return GridView.builder(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: hPad,
+                                vertical: 16,
+                              ),
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: cols,
+                                mainAxisSpacing: 16,
+                                crossAxisSpacing: 16,
+                                // Ratio adapté : la card a une hauteur fixe
+                                // cover 140px + corps ~210px ≈ 350px
+                                childAspectRatio: w > 1100 ? 0.72 : 0.70,
+                              ),
+                              itemCount: _courses.length,
+                              itemBuilder: (context, index) {
+                                final course = _courses[index];
+                                final isInstalled = customProvider.modules
+                                    .any((m) => m.matiere.id == course.matiereId);
+                                final isDownloading =
+                                    _downloadingCourseIds.contains(course.id);
+                                return _buildCourseCard(
+                                  course: course,
+                                  isDark: isDark,
+                                  primary: primary,
+                                  isInstalled: isInstalled,
+                                  isDownloading: isDownloading,
+                                );
+                              },
                             );
                           },
                         ),
@@ -343,7 +392,7 @@ class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
     final icone = CustomCoursePackage.iconFromKey(course.icone);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(22),
@@ -366,7 +415,7 @@ class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
         children: [
           // ── Photo de couverture / Header visuel façon produit ─────────────────
           SizedBox(
-            height: 155,
+            height: 130,
             width: double.infinity,
             child: Stack(
               fit: StackFit.expand,
@@ -482,7 +531,7 @@ class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
 
           // ── Corps de la carte ───────────────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -490,14 +539,14 @@ class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
                 Text(
                   course.titre,
                   style: const TextStyle(
-                    fontSize: 17,
+                    fontSize: 15,
                     fontWeight: FontWeight.bold,
                     letterSpacing: -0.2,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 5),
 
                 // Enseignant créateur
                 Row(

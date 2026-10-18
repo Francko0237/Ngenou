@@ -187,7 +187,7 @@ class _TasksHubPageState extends State<TasksHubPage> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(
-                Icons.check_rounded,
+                Icons.calendar_today,
                 color: Colors.white,
                 size: 18,
               ),

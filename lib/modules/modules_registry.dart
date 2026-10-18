@@ -2,6 +2,7 @@ import '../core/models/matiere.dart';
 import '../core/models/notion.dart';
 import '../core/models/lecon.dart';
 import '../core/models/exercice.dart';
+import '../core/services/teacher_courses_service.dart';
 import 'algorithmique/algo_module.dart';
 import 'micro_ordi/micro_ordi_module_data.dart';
 import 'custom_course_module.dart';
@@ -33,6 +34,13 @@ class ModulesRegistry {
 
   static bool isCustomMatiere(String matiereId) =>
       _customModules.containsKey(matiereId);
+
+  static bool isPublicCourse(String matiereId) {
+    if (_customModules.containsKey(matiereId)) {
+      if (_customModules[matiereId]!.isPublic) return true;
+    }
+    return TeacherCoursesService.isPublicMatiere(matiereId);
+  }
 
   static bool hasTerminal(String matiereId) {
     if (matiereId == 'algo') return true;
