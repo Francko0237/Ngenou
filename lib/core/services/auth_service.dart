@@ -90,17 +90,25 @@ class AuthService {
     return prefs.getString(_localRoleKey) ?? 'student';
   }
 
-  /// Récupère le niveau scolaire de l'élève (primaire, college, lycee, superieur).
+  /// Récupère le niveau scolaire de l'élève (primaire, secondaire, superieur).
   static Future<String?> getSchoolLevel() async {
     final prefs = await SharedPreferences.getInstance();
     if (isAuthenticated && currentUser?.userMetadata != null) {
       final level = currentUser!.userMetadata!['school_level'] as String?;
       if (level != null && level.isNotEmpty) {
-        await prefs.setString(_localLevelKey, level);
-        return level;
+        final normalized = (level == 'college' || level == 'lycee')
+            ? 'secondaire'
+            : level;
+        await prefs.setString(_localLevelKey, normalized);
+        return normalized;
       }
     }
-    return prefs.getString(_localLevelKey);
+    final local = prefs.getString(_localLevelKey);
+    if (local == 'college' || local == 'lycee') {
+      await prefs.setString(_localLevelKey, 'secondaire');
+      return 'secondaire';
+    }
+    return local;
   }
 
   /// Met à jour le rôle localement et sur Supabase
@@ -119,9 +127,21 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_localLevelKey, schoolLevel);
     if (isAuthenticated) {
-      await _client.auth.updateUser(
-        UserAttributes(data: {'school_level': schoolLevel}),
-      );
+      try {
+        await _client.auth.updateUser(
+          UserAttributes(data: {'school_level': schoolLevel}),
+        );
+      } on AuthException catch (e) {
+        if (schoolLevel == 'secondaire' &&
+            e.message.contains('profiles_school_level_check')) {
+          // Fallback rétrocompatible si la base Supabase n'a pas encore exécuté la migration
+          await _client.auth.updateUser(
+            UserAttributes(data: {'school_level': 'college'}),
+          );
+        } else {
+          rethrow;
+        }
+      }
     }
   }
 
@@ -132,6 +152,34 @@ class AuthService {
     if (isAuthenticated) {
       await _client.auth.updateUser(
         UserAttributes(data: {'username': username}),
+      );
+    }
+  }
+
+  /// Récupère l'identifiant de contact (téléphone ou email)
+  static Future<String?> getContactIdentifier() async {
+    final phone = await getSavedPhone();
+    if (phone != null && phone.trim().isNotEmpty) return phone.trim();
+    if (isAuthenticated && currentUser?.email != null) {
+      final email = currentUser!.email!;
+      if (!email.endsWith('@ngenou.internal')) return email;
+    }
+    final metaPhone = currentUser?.userMetadata?['phone'] as String?;
+    if (metaPhone != null && metaPhone.trim().isNotEmpty) return metaPhone.trim();
+    return null;
+  }
+
+  /// Met à jour le contact (téléphone ou email dans les métadonnées)
+  static Future<void> updateContact(String contact) async {
+    final trimmed = contact.trim();
+    final isPhone = RegExp(r'^\+?[0-9\s\-]{6,}$').hasMatch(trimmed);
+    final prefs = await SharedPreferences.getInstance();
+    if (isPhone) {
+      await prefs.setString(_localPhoneKey, trimmed);
+    }
+    if (isAuthenticated) {
+      await _client.auth.updateUser(
+        UserAttributes(data: isPhone ? {'phone': trimmed} : {'contact_email': trimmed}),
       );
     }
   }
@@ -155,17 +203,38 @@ class AuthService {
   }) async {
     final virtualEmail = _phoneToVirtualEmail(phone);
 
-    final response = await _client.auth.signUp(
-      email: virtualEmail,
-      password: password,
-      data: {
-        'username': username,
-        'phone': phone,
-        'role': role,
-        if (schoolLevel != null) 'school_level': schoolLevel,
-        'auth_method': 'phone',
-      },
-    );
+    AuthResponse response;
+    try {
+      response = await _client.auth.signUp(
+        email: virtualEmail,
+        password: password,
+        data: {
+          'username': username,
+          'phone': phone,
+          'role': role,
+          if (schoolLevel != null) 'school_level': schoolLevel,
+          'auth_method': 'phone',
+        },
+      );
+    } on AuthException catch (e) {
+      if (schoolLevel == 'secondaire' &&
+          e.message.contains('profiles_school_level_check')) {
+        // Fallback si la table Supabase n'a pas encore exécuté la migration 'secondaire'
+        response = await _client.auth.signUp(
+          email: virtualEmail,
+          password: password,
+          data: {
+            'username': username,
+            'phone': phone,
+            'role': role,
+            'school_level': 'college',
+            'auth_method': 'phone',
+          },
+        );
+      } else {
+        rethrow;
+      }
+    }
 
     // Sauvegarder localement
     final prefs = await SharedPreferences.getInstance();
@@ -205,7 +274,10 @@ class AuthService {
       }
       final remoteLevel = meta['school_level'] as String?;
       if (remoteLevel != null) {
-        await prefs.setString(_localLevelKey, remoteLevel);
+        final normalized = (remoteLevel == 'college' || remoteLevel == 'lycee')
+            ? 'secondaire'
+            : remoteLevel;
+        await prefs.setString(_localLevelKey, normalized);
       }
     }
     await prefs.setString(_localPhoneKey, phone);
@@ -223,16 +295,36 @@ class AuthService {
     String role = 'student',
     String? schoolLevel,
   }) async {
-    final response = await _client.auth.signUp(
-      email: email,
-      password: password,
-      data: {
-        'username': username,
-        'role': role,
-        if (schoolLevel != null) 'school_level': schoolLevel,
-        'auth_method': 'email',
-      },
-    );
+    AuthResponse response;
+    try {
+      response = await _client.auth.signUp(
+        email: email,
+        password: password,
+        data: {
+          'username': username,
+          'role': role,
+          if (schoolLevel != null) 'school_level': schoolLevel,
+          'auth_method': 'email',
+        },
+      );
+    } on AuthException catch (e) {
+      if (schoolLevel == 'secondaire' &&
+          e.message.contains('profiles_school_level_check')) {
+        // Fallback si la table Supabase n'a pas encore exécuté la migration 'secondaire'
+        response = await _client.auth.signUp(
+          email: email,
+          password: password,
+          data: {
+            'username': username,
+            'role': role,
+            'school_level': 'college',
+            'auth_method': 'email',
+          },
+        );
+      } else {
+        rethrow;
+      }
+    }
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_localUsernameKey, username);
@@ -268,7 +360,10 @@ class AuthService {
       }
       final remoteLevel = meta['school_level'] as String?;
       if (remoteLevel != null) {
-        await prefs.setString(_localLevelKey, remoteLevel);
+        final normalized = (remoteLevel == 'college' || remoteLevel == 'lycee')
+            ? 'secondaire'
+            : remoteLevel;
+        await prefs.setString(_localLevelKey, normalized);
       }
     }
 
