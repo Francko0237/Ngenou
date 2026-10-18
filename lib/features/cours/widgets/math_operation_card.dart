@@ -55,38 +55,50 @@ class VerticalFractionWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final effectiveColor =
         color ?? (isDark ? Colors.white : const Color(0xFF2C3E50));
+    final numStr = numerator.trim();
+    final denStr = denominator.trim();
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(
-            numerator.trim(),
-            style: TextStyle(
-              fontSize: fontSize,
-              fontWeight: FontWeight.w700,
-              color: effectiveColor,
-              height: 1.1,
-            ),
+      padding: const EdgeInsets.symmetric(horizontal: 3),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 14),
+        child: IntrinsicWidth(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Text(
+                  numStr,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.w700,
+                    color: effectiveColor,
+                    height: 1.1,
+                  ),
+                ),
+              ),
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 2),
+                height: 1.6,
+                color: effectiveColor.withValues(alpha: 0.85),
+              ),
+              Center(
+                child: Text(
+                  denStr,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.w700,
+                    color: effectiveColor,
+                    height: 1.1,
+                  ),
+                ),
+              ),
+            ],
           ),
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: 2),
-            height: 1.6,
-            constraints: const BoxConstraints(minWidth: 14),
-            color: effectiveColor.withValues(alpha: 0.8),
-          ),
-          Text(
-            denominator.trim(),
-            style: TextStyle(
-              fontSize: fontSize,
-              fontWeight: FontWeight.w700,
-              color: effectiveColor,
-              height: 1.1,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
