@@ -227,17 +227,14 @@ class MathOperationCard extends StatelessWidget {
               ),
             ),
 
-            // Contenu mathématique rendu avec défilement horizontal si nécessaire
+            // Contenu mathématique avec retour à la ligne vers le bas
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: _buildMathElements(mathPart),
-                ),
+              child: Wrap(
+                spacing: 4,
+                runSpacing: 12,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: _buildMathElements(mathPart),
               ),
             ),
           ],
