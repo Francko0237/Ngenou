@@ -354,6 +354,9 @@ class CourseWizardInput {
   final bool enableTerminal;
   final String matiereId;
   final int? durationMinutes;
+  final String? selectedExtensionId;
+  final String? selectedExtensionName;
+  final String? selectedExtensionPrompt;
 
   CourseWizardInput({
     required this.nom,
@@ -370,5 +373,8 @@ class CourseWizardInput {
     required this.enableTerminal,
     required this.matiereId,
     this.durationMinutes,
+    this.selectedExtensionId,
+    this.selectedExtensionName,
+    this.selectedExtensionPrompt,
   });
 }

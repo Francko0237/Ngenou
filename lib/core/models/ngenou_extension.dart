@@ -17,6 +17,7 @@ class NgenouExtension {
   final String type; // 'script_engine', 'math_tool', 'web_microapp', 'interactive_ui'
   final String? entrypoint;
   final Map<String, dynamic> config;
+  final String? aiPrompt;
 
   NgenouExtension({
     required this.id,
@@ -35,6 +36,7 @@ class NgenouExtension {
     this.type = 'interactive_ui',
     this.entrypoint,
     this.config = const {},
+    this.aiPrompt,
   });
 
   IconData get icon {
@@ -95,6 +97,7 @@ class NgenouExtension {
       type: json['type'] as String? ?? 'interactive_ui',
       entrypoint: json['entrypoint'] as String?,
       config: (json['config'] as Map<String, dynamic>?) ?? const {},
+      aiPrompt: json['ai_prompt'] as String? ?? json['aiPrompt'] as String?,
     );
   }
 
@@ -114,6 +117,7 @@ class NgenouExtension {
         'type': type,
         'entrypoint': entrypoint,
         'config': config,
+        'ai_prompt': aiPrompt,
       };
 
   NgenouExtension copyWith({
@@ -122,6 +126,7 @@ class NgenouExtension {
     String? type,
     String? entrypoint,
     Map<String, dynamic>? config,
+    String? aiPrompt,
   }) {
     return NgenouExtension(
       id: id,
@@ -140,6 +145,7 @@ class NgenouExtension {
       type: type ?? this.type,
       entrypoint: entrypoint ?? this.entrypoint,
       config: config ?? this.config,
+      aiPrompt: aiPrompt ?? this.aiPrompt,
     );
   }
 }

@@ -69,7 +69,9 @@ class SyncService extends ChangeNotifier {
     }
 
     _isSyncing = true;
-    notifyListeners();
+    // Pas de notifyListeners() ici — on n'informe l'UI qu'en fin de sync
+    // pour éviter un rebuild "isSyncing=true" immédiatement suivi de
+    // "isSyncing=false" qui cause un double flash.
     debugPrint('Début de la synchronisation Supabase...');
 
     try {

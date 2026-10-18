@@ -64,19 +64,24 @@ class _AccueilPageState extends State<AccueilPage> {
   Future<void> _refreshAllDataQuietly() async {
     if (!mounted) return;
     try {
-      await Future.wait([
-        _loadUsername(),
-        TeacherCoursesService.syncPublicCourseIds(),
-        context.read<CustomCoursesProvider>().loadCustomCourses(),
-        context.read<ProjetsProvider>().loadProjets(),
-        context.read<ScheduleProvider>().load().then((_) {
-          if (mounted) {
-            context.read<ScheduleProvider>().rescheduleAllTasks();
-          }
-        }),
-        context.read<ProgressionProvider>().loadAllProgressions(),
-        context.read<DefisProvider>().loadTodaySession(),
-      ]);
+      // On charge séquentiellement plutôt qu'en Future.wait parallèle.
+      // Chaque provider notifie une seule fois en fin de load — en parallèle
+      // ils se terminent à des instants différents et déclenchent une rafale
+      // de notifyListeners qui cause des scintillements.
+      await _loadUsername();
+      if (!mounted) return;
+      await TeacherCoursesService.syncPublicCourseIds();
+      if (!mounted) return;
+      await context.read<CustomCoursesProvider>().loadCustomCourses();
+      if (!mounted) return;
+      await context.read<ProjetsProvider>().loadProjets();
+      if (!mounted) return;
+      await context.read<ScheduleProvider>().load();
+      if (mounted) context.read<ScheduleProvider>().rescheduleAllTasks();
+      if (!mounted) return;
+      await context.read<ProgressionProvider>().loadAllProgressions();
+      if (!mounted) return;
+      await context.read<DefisProvider>().loadTodaySession();
     } catch (e) {
       debugPrint('Erreur refreshAllDataQuietly : $e');
     }
@@ -85,7 +90,8 @@ class _AccueilPageState extends State<AccueilPage> {
   Future<void> _loadUsername() async {
     final name = await AuthService.getUsername();
     final role = await AuthService.getUserRole();
-    if (mounted) {
+    // Ne rebuilder que si les valeurs ont vraiment changé
+    if (mounted && (name != _username || role != _userRole)) {
       setState(() {
         _username = name;
         _userRole = role;
