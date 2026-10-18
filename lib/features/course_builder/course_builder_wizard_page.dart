@@ -20,6 +20,8 @@ import 'course_import_page.dart';
 import '../../core/services/teacher_courses_service.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/utils/image_compression_helper.dart';
+import '../../core/models/ngenou_extension.dart';
+import '../../core/services/extensions_service.dart';
 
 class CourseBuilderWizardPage extends StatefulWidget {
   /// Si fourni, le cours créé sera automatiquement rattaché à ce projet.
@@ -52,6 +54,8 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
   bool _enableTerminal = false;
   final List<String> _chapitres = [];
   DeepSeekModel _selectedModel = DeepSeekModel.flash;
+  bool _addExtension = false;
+  NgenouExtension? _selectedExtension;
 
   String? _generatedPrompt;
   bool _isGenerating = false;
@@ -63,6 +67,7 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
   void initState() {
     super.initState();
     _loadUserContext();
+    ExtensionsService.instance.init();
   }
 
   Future<void> _loadUserContext() async {
@@ -261,6 +266,9 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
       chapitres: List.from(_chapitres),
       enableTerminal: _enableTerminal,
       matiereId: _matiereId,
+      selectedExtensionId: _selectedExtension?.id,
+      selectedExtensionName: _selectedExtension?.nom,
+      selectedExtensionPrompt: _selectedExtension?.aiPrompt,
     );
     setState(() {
       _generatedPrompt = CoursePromptBuilder.build(input);
@@ -1287,6 +1295,9 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
         // ── Sélecteur de modèle ──────────────────────────────────────────
         _buildModelSelectorTile(isDark),
         const SizedBox(height: 16),
+        // ── Sélecteur d'extension pédagogique ─────────────────────────────
+        _buildExtensionSelectorCard(isDark),
+        const SizedBox(height: 16),
         SwitchListTile(
           title: const Text(
             'Exercices avec terminal pour les cours d\'algorithmique)',
@@ -1307,6 +1318,429 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildExtensionSelectorCard(bool isDark) {
+    final hasExtension = _selectedExtension != null;
+    return Container(
+      decoration: BoxDecoration(
+        color: hasExtension
+            ? const Color(0xFFE67E22).withValues(alpha: 0.08)
+            : (isDark ? const Color(0xFF1E1E1E) : Colors.grey[50]),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: hasExtension
+              ? const Color(0xFFE67E22).withValues(alpha: 0.4)
+              : (isDark ? Colors.grey[800]! : Colors.grey[200]!),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CheckboxListTile(
+            value: _addExtension || hasExtension,
+            activeColor: const Color(0xFFE67E22),
+            title: Text(
+              'Ajouter une extension (optionnel)',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+            subtitle: Text(
+              hasExtension
+                  ? 'Extension active : ${_selectedExtension!.nom}'
+                  : 'Associe un outil interactif (fractions, conversion, algo...)',
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
+              ),
+            ),
+            onChanged: (val) {
+              if (val == true) {
+                _openExtensionPickerModal(isDark);
+              } else {
+                setState(() {
+                  _addExtension = false;
+                  _selectedExtension = null;
+                });
+              }
+            },
+          ),
+          if (hasExtension) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.grey[900] : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFFE67E22).withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: _selectedExtension!.color.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        _selectedExtension!.icon,
+                        color: _selectedExtension!.color,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _selectedExtension!.nom,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                          Text(
+                            _selectedExtension!.categorie,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? Colors.grey[400] : Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => _openExtensionPickerModal(isDark),
+                      child: const Text('Changer'),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                      tooltip: 'Retirer',
+                      onPressed: () {
+                        setState(() {
+                          _addExtension = false;
+                          _selectedExtension = null;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ] else ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.extension_rounded, size: 16),
+                label: const Text('Choisir une extension'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFE67E22),
+                  side: const BorderSide(color: Color(0xFFE67E22)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: () => _openExtensionPickerModal(isDark),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _openExtensionPickerModal(bool isDark) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        String? tempSelectedId = _selectedExtension?.id;
+        final pendingDownloads = <String>{};
+
+        return StatefulBuilder(
+          builder: (modalContext, setModalState) {
+            final service = ExtensionsService.instance;
+            final extensions = service.extensions;
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.82,
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF181820) : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                children: [
+                  // En-tête
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE67E22).withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.extension_rounded,
+                            color: Color(0xFFE67E22),
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Extensions disponibles',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                              Text(
+                                'Choisissez une seule extension pour ce cours',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded),
+                          onPressed: () => Navigator.pop(modalContext),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+
+                  // Liste des extensions
+                  Expanded(
+                    child: extensions.isEmpty
+                        ? Center(
+                            child: service.isLoading
+                                ? const CircularProgressIndicator()
+                                : Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.extension_off_rounded, size: 40, color: Colors.grey),
+                                      const SizedBox(height: 10),
+                                      const Text('Aucune extension disponible'),
+                                      const SizedBox(height: 8),
+                                      TextButton(
+                                        onPressed: () async {
+                                          await service.loadExtensions(forceRefresh: true);
+                                          setModalState(() {});
+                                        },
+                                        child: const Text('Actualiser'),
+                                      ),
+                                    ],
+                                  ),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: extensions.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 10),
+                            itemBuilder: (context, index) {
+                              final ext = extensions[index];
+                              final isInstalled = service.isInstalled(ext.id);
+                              final isSelected = tempSelectedId == ext.id;
+                              final isDownloading = pendingDownloads.contains(ext.id);
+
+                              return InkWell(
+                                onTap: () {
+                                  setModalState(() {
+                                    tempSelectedId = ext.id;
+                                  });
+                                },
+                                borderRadius: BorderRadius.circular(16),
+                                child: Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? ext.color.withValues(alpha: isDark ? 0.18 : 0.08)
+                                        : (isDark ? const Color(0xFF22222E) : Colors.grey[50]),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? ext.color
+                                          : (isDark ? Colors.grey[800]! : Colors.grey[200]!),
+                                      width: isSelected ? 2 : 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: ext.color.withValues(alpha: 0.15),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(ext.icon, color: ext.color, size: 24),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    ext.nom,
+                                                    style: const TextStyle(
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 15,
+                                                    ),
+                                                  ),
+                                                ),
+                                                if (isInstalled)
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(0xFF2ECC71).withValues(alpha: 0.15),
+                                                      borderRadius: BorderRadius.circular(6),
+                                                    ),
+                                                    child: const Text(
+                                                      'Installée',
+                                                      style: TextStyle(
+                                                        fontSize: 10,
+                                                        color: Color(0xFF2ECC71),
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              ext.description,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Row(
+                                              children: [
+                                                Text(
+                                                  '${ext.categorie} · ${ext.taille}',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: isDark ? Colors.grey[500] : Colors.grey[500],
+                                                  ),
+                                                ),
+                                                const Spacer(),
+                                                if (!isInstalled)
+                                                  FilledButton.tonalIcon(
+                                                    style: FilledButton.styleFrom(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                                                      visualDensity: VisualDensity.compact,
+                                                    ),
+                                                    icon: isDownloading
+                                                        ? const SizedBox(
+                                                            width: 14,
+                                                            height: 14,
+                                                            child: CircularProgressIndicator(strokeWidth: 2),
+                                                          )
+                                                        : const Icon(Icons.download_rounded, size: 16),
+                                                    label: Text(isDownloading ? 'Téléchargement...' : 'Télécharger'),
+                                                    onPressed: isDownloading
+                                                        ? null
+                                                        : () async {
+                                                            setModalState(() => pendingDownloads.add(ext.id));
+                                                            final success = await service.installExtension(ext);
+                                                            if (modalContext.mounted) {
+                                                              setModalState(() {
+                                                                pendingDownloads.remove(ext.id);
+                                                                if (success) {
+                                                                  tempSelectedId = ext.id;
+                                                                }
+                                                              });
+                                                            }
+                                                          },
+                                                  )
+                                                else
+                                                  Radio<String>(
+                                                    value: ext.id,
+                                                    groupValue: tempSelectedId,
+                                                    activeColor: ext.color,
+                                                    onChanged: (val) {
+                                                      setModalState(() => tempSelectedId = val);
+                                                    },
+                                                  ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+
+                  // Barre d'actions
+                  SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.pop(modalContext),
+                              child: const Text('Annuler'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 2,
+                            child: FilledButton(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: const Color(0xFFE67E22),
+                              ),
+                              onPressed: () {
+                                if (tempSelectedId != null) {
+                                  final chosen = extensions.firstWhere((e) => e.id == tempSelectedId);
+                                  setState(() {
+                                    _selectedExtension = chosen;
+                                    _addExtension = true;
+                                  });
+                                }
+                                Navigator.pop(modalContext);
+                              },
+                              child: const Text('Continuer'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -1472,16 +1906,22 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
       }
 
       var pkg = validation.package!;
-      if (_coverImageUrl != null && _coverImageUrl!.isNotEmpty) {
-        pkg = CustomCoursePackage(
-          schemaVersionValue: pkg.schemaVersionValue,
-          meta: pkg.meta,
-          matiere: pkg.matiere.copyWith(coverImageUrl: _coverImageUrl),
-          notions: pkg.notions,
-          lecons: pkg.lecons,
-          exercices: pkg.exercices,
-        );
+      var meta = pkg.meta;
+      if (_selectedExtension != null) {
+        meta = meta.copyWith(requiredExtension: _selectedExtension!.id);
       }
+      var matiere = pkg.matiere;
+      if (_coverImageUrl != null && _coverImageUrl!.isNotEmpty) {
+        matiere = matiere.copyWith(coverImageUrl: _coverImageUrl);
+      }
+      pkg = CustomCoursePackage(
+        schemaVersionValue: pkg.schemaVersionValue,
+        meta: meta,
+        matiere: matiere,
+        notions: pkg.notions,
+        lecons: pkg.lecons,
+        exercices: pkg.exercices,
+      );
       final customProvider = context.read<CustomCoursesProvider>();
       final err = await customProvider.importCourse(pkg);
       if (err != null) {
@@ -1715,11 +2155,11 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
         const SizedBox(height: 24),
         Card(
           elevation: 0,
-          color: Theme.of(context).primaryColor.withOpacity(0.05),
+          color: Theme.of(context).primaryColor.withValues(alpha: 0.05),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
             side: BorderSide(
-              color: Theme.of(context).primaryColor.withOpacity(0.2),
+              color: Theme.of(context).primaryColor.withValues(alpha: 0.2),
             ),
           ),
           child: Padding(
