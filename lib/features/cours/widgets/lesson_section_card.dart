@@ -4,6 +4,7 @@ import '../../../core/utils/lesson_block_mapper.dart';
 import '../../../core/utils/lesson_content_parser.dart';
 import 'context_svg_icon.dart';
 import 'lesson_reveal_tile.dart';
+import 'math_operation_card.dart';
 
 class LessonSectionCard extends StatefulWidget {
   final LessonSection section;
@@ -169,15 +170,34 @@ class _LessonSectionCardState extends State<LessonSectionCard>
         continue;
       }
 
+      final trimmed = line.trim();
+
+      // 1. Détection des lignes d'opérations mathématiques ou de calculs posés
+      if (isMathOperationLine(trimmed)) {
+        widgets.add(MathOperationCard(
+          line: trimmed,
+          accent: accent,
+          isDark: isDark,
+        ));
+        continue;
+      }
+
+      // 2. Détection des exemples explicites en paragraphe
+      if (RegExp(r'^(Exemple|Illustration|Cas pratique|Application)\s*(\d*)\s*:\s*', caseSensitive: false).hasMatch(trimmed)) {
+        widgets.add(_exampleBlock(trimmed, isDark, accent));
+        continue;
+      }
+
+      // 3. Citations & Blocs d'attention
       if (line.startsWith('> ') && !line.startsWith('> ?')) {
         widgets.add(_quoteBlock(line.substring(2), isDark, accent));
       } else if (line.startsWith('- ') || line.startsWith('* ')) {
         widgets.add(_listItem(line.substring(2), isDark, accent));
-      } else if (line.trim().isNotEmpty) {
+      } else if (trimmed.isNotEmpty) {
         widgets.add(
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: _parseInline(line, isDark),
+            child: _parseInline(line, isDark, accent),
           ),
         );
       } else {
@@ -225,7 +245,55 @@ class _LessonSectionCardState extends State<LessonSectionCard>
         borderRadius: const BorderRadius.horizontal(right: Radius.circular(12)),
         border: Border(left: BorderSide(color: accent, width: 3)),
       ),
-      child: _parseInline(text, isDark),
+      child: _parseInline(text, isDark, accent),
+    );
+  }
+
+  Widget _exampleBlock(String text, bool isDark, Color accent) {
+    final colonIdx = text.indexOf(':');
+    final title = colonIdx != -1 ? text.substring(0, colonIdx).trim() : 'Exemple';
+    final content = colonIdx != -1 ? text.substring(colonIdx + 1).trim() : text;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: isDark ? 0.12 : 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: accent.withValues(alpha: isDark ? 0.35 : 0.22),
+          width: 1.2,
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              color: accent.withValues(alpha: isDark ? 0.18 : 0.1),
+              child: Row(
+                children: [
+                  Icon(Icons.lightbulb_outline_rounded, size: 15, color: accent),
+                  const SizedBox(width: 6),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: accent,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: _parseInline(content, isDark, accent),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -240,15 +308,16 @@ class _LessonSectionCardState extends State<LessonSectionCard>
             child: Icon(Icons.circle, size: 6, color: accent),
           ),
           const SizedBox(width: 12),
-          Expanded(child: _parseInline(text, isDark)),
+          Expanded(child: _parseInline(text, isDark, accent)),
         ],
       ),
     );
   }
 
-  Widget _parseInline(String text, bool isDark) {
-    final spans = <TextSpan>[];
-    final pattern = RegExp(r'\*\*(.*?)\*\*|\*(.*?)\*|`(.*?)`');
+  Widget _parseInline(String text, bool isDark, Color accent) {
+    final spans = <InlineSpan>[];
+    // Détecte : **gras**, *italique*, `code`, et fractions inline "1/2" ou "3/4"
+    final pattern = RegExp(r'\*\*(.*?)\*\*|\*(.*?)\*|`(.*?)`|\b(\d+)\s*\/\s*(\d+)\b');
     var lastEnd = 0;
 
     for (final match in pattern.allMatches(text)) {
@@ -291,6 +360,17 @@ class _LessonSectionCardState extends State<LessonSectionCard>
             fontFamily: 'monospace',
             fontWeight: FontWeight.w600,
             fontSize: 15,
+          ),
+        ));
+      } else if (match.group(4) != null && match.group(5) != null) {
+        // Fraction inline stylisée
+        spans.add(WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: InlineFractionBadge(
+            numerator: match.group(4)!,
+            denominator: match.group(5)!,
+            accent: accent,
+            isDark: isDark,
           ),
         ));
       }

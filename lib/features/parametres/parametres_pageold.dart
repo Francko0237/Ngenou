@@ -817,7 +817,7 @@ class _ParametresPageState extends State<ParametresPage>
               icon: Icons.info_outline_rounded,
               iconColor: const Color(0xFF4A90D9),
               title: 'Ngenou',
-              subtitle: 'Version 1.1.1 • Par Yamgai Mokube Francko Daniel',
+              subtitle: 'Version 1.1.1 • Par Yamga Mokube Francko Daniel',
               isDark: isDark,
             ),
           ),

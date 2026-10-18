@@ -38,7 +38,10 @@ class ScheduleProvider with ChangeNotifier {
 
   Future<void> load() async {
     _loading = true;
-    notifyListeners();
+    // On ne notifie PAS ici pour éviter un rebuild "loading=true"
+    // immédiatement suivi d'un rebuild "loading=false" (double flash).
+    // Les widgets qui regardent isLoading verront _loading=true dès le prochain
+    // rebuild naturel, et recevront la notification unique en fin de load.
     await _db.ensureManualScheduleExists();
     _schedules = await _db.getAllSchedules();
     _upcomingTasks = await _db.getUpcomingTasks();
