@@ -61,6 +61,19 @@ class CoursePromptBuilder {
               : '''### No documents provided
     Rely on the course title, description and learning goal.''');
 
+    final extensionBlock = (input.selectedExtensionPrompt != null &&
+            input.selectedExtensionPrompt!.trim().isNotEmpty)
+        ? (isFr
+            ? '''# EXTENSION ASSOCIÉE (${input.selectedExtensionName ?? 'Outil interactif'})
+Ce cours est couplé à l'extension "${input.selectedExtensionName}".
+${input.selectedExtensionPrompt}
+Dans les leçons (lecons[].contenu), intègre des exemples et explications adaptés qui préparent l'élève à utiliser cet outil.'''
+            : '''# ASSOCIATED EXTENSION (${input.selectedExtensionName ?? 'Interactive tool'})
+This course is linked to the "${input.selectedExtensionName}" extension.
+${input.selectedExtensionPrompt}
+In the lessons (lecons[].contenu), include examples and explanations that guide the student on using this tool.''')
+        : '';
+
     if (isFr) {
       return '''# RÔLE
 Tu es un auteur pédagogique expert. Tu dois produire UNIQUEMENT un fichier JSON valide pour l'application Ngenou (import direct, sans texte autour).
@@ -96,14 +109,14 @@ $niveauBlock
 # STRUCTURE DES CHAPITRES
 $chapitresBlock
 
-# SCHÉMA JSON OBLIGATOIRE (schemaVersion "1.0")
+${extensionBlock.isNotEmpty ? '$extensionBlock\n' : ''}# SCHÉMA JSON OBLIGATOIRE (schemaVersion "1.0")
 {
   "schemaVersion": "1.0",
   "meta": {
     "objectif": "${input.objectif}",
     "langue": "fr",
     "hasTerminal": ${input.enableTerminal},
-    "hadDocuments": ${input.hasDocuments}
+    "hadDocuments": ${input.hasDocuments}${input.selectedExtensionId != null ? ',\n    "requiredExtension": "${input.selectedExtensionId}"' : ''}
   },
   "matiere": {
     "id": "${input.matiereId}",
@@ -267,14 +280,14 @@ $niveauBlock
 # CHAPTER STRUCTURE
 $chapitresBlock
 
-# REQUIRED JSON SCHEMA (schemaVersion "1.0")
+${extensionBlock.isNotEmpty ? '$extensionBlock\n' : ''}# REQUIRED JSON SCHEMA (schemaVersion "1.0")
 {
   "schemaVersion": "1.0",
   "meta": {
     "objectif": "${input.objectif}",
     "langue": "en",
     "hasTerminal": ${input.enableTerminal},
-    "hadDocuments": ${input.hasDocuments}
+    "hadDocuments": ${input.hasDocuments}${input.selectedExtensionId != null ? ',\n    "requiredExtension": "${input.selectedExtensionId}"' : ''}
   },
   "matiere": {
     "id": "${input.matiereId}",

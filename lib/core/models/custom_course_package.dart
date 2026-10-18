@@ -286,6 +286,7 @@ class CourseMeta {
   final bool isPublic;
   final String? authorName;
   final String? teacherId;
+  final String? requiredExtension;
 
   CourseMeta({
     required this.objectif,
@@ -295,6 +296,7 @@ class CourseMeta {
     this.isPublic = false,
     this.authorName,
     this.teacherId,
+    this.requiredExtension,
   });
 
   CourseMeta copyWith({
@@ -305,6 +307,7 @@ class CourseMeta {
     bool? isPublic,
     String? authorName,
     String? teacherId,
+    String? requiredExtension,
   }) {
     return CourseMeta(
       objectif: objectif ?? this.objectif,
@@ -314,6 +317,7 @@ class CourseMeta {
       isPublic: isPublic ?? this.isPublic,
       authorName: authorName ?? this.authorName,
       teacherId: teacherId ?? this.teacherId,
+      requiredExtension: requiredExtension ?? this.requiredExtension,
     );
   }
 
@@ -325,6 +329,7 @@ class CourseMeta {
     'isPublic': isPublic,
     if (authorName != null) 'authorName': authorName,
     if (teacherId != null) 'teacherId': teacherId,
+    if (requiredExtension != null) 'requiredExtension': requiredExtension,
   };
 
   factory CourseMeta.fromJson(Map<String, dynamic> json) => CourseMeta(
@@ -335,6 +340,7 @@ class CourseMeta {
     isPublic: json['isPublic'] as bool? ?? false,
     authorName: json['authorName'] as String? ?? json['teacher_name'] as String?,
     teacherId: json['teacherId'] as String? ?? json['teacher_id'] as String?,
+    requiredExtension: json['requiredExtension'] as String?,
   );
 }
 
