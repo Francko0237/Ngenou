@@ -70,11 +70,16 @@ Tu es un auteur pédagogique expert. Tu dois produire UNIQUEMENT un fichier JSON
 2. Respecte EXACTEMENT le schéma et les noms de champs ci-dessous (casse sensible).
 3. Tous les id doivent être uniques (snake_case ou camelCase cohérent).
 4. matiere.id DOIT commencer par "custom_" : utilise "${input.matiereId}".
-5. Chaque notion doit avoir au moins 2 leçons et au moins 3 exercices.
+5. CHAQUE notion (de la première à la toute dernière !) DOIT OBLIGATOIREMENT avoir au moins 2 leçons et au moins 2 exercices dans le tableau "exercices". Ne t'arrête JAMAIS avant d'avoir généré les exercices pour TOUTES les notions sans exception.
 6. $terminalNote
 7. $durationInstruction
 8. Langue du contenu (titres, leçons, questions) : français.
-9. CRITIQUE — ÉCHAPPEMENT JSON : toutes les valeurs de chaînes JSON sont entre guillemets doubles. Par conséquent, tout guillemet double DANS une valeur DOIT être échappé avec un antislash : \\" et jamais ". Les sauts de ligne dans les valeurs doivent aussi être écrits \\n et non pas une vraie nouvelle ligne. Si tu mets un guillemet non échappé dans une valeur, le JSON est invalide et l'application plantera.
+9. CRITIQUE — SYNTAXE JSON ET ÉCHAPPEMENT :
+- Toutes les valeurs de chaînes JSON sont entre guillemets doubles. Tout guillemet double DANS une valeur DOIT être échappé avec un antislash : \\" et jamais ".
+- Pour les citations ou termes mis en valeur dans les leçons ou explications, utilise TOUJOURS des guillemets français « ... » ou des apostrophes simples '...' au lieu de guillemets doubles, pour éliminer tout risque de syntaxe JSON invalide.
+- Les sauts de ligne dans les valeurs doivent être écrits \\n et non pas une vraie nouvelle ligne.
+- INTERDIT : Ne mets JAMAIS de virgule en trop (trailing comma) après le dernier élément d'un objet ou d'un tableau (ex: pas de [1, 2,] ni {"a": 1,}).
+- INTERDIT : Ne mets JAMAIS de guillemet ni de virgule orpheline juste avant une accolade fermante (ex: pas de ,"} ni de ,""). Assure-toi de clore proprement chaque objet avec } et chaque tableau avec ].
 
 # OBJECTIF PÉDAGOGIQUE
 $objectifBlock
@@ -236,11 +241,16 @@ You are an expert educational author writing EXCLUSIVELY IN ENGLISH. Every singl
 2. Follow EXACTLY the schema and field names below (case-sensitive).
 3. All ids must be unique.
 4. matiere.id MUST start with "custom_": use "${input.matiereId}".
-5. Each notion needs at least 2 lessons and at least 3 exercises.
+5. EVERY SINGLE notion (from the first to the very last!) MUST HAVE at least 2 lessons and at least 2 exercises in the "exercices" array. NEVER stop before generating exercises for ALL notions without exception.
 6. $terminalNote
 7. $durationInstruction
 8. ⚠️ LANGUAGE: ALL content (titles, lesson text, questions, explanations, section headings) MUST be written in ENGLISH. Even if the course name or description is in French, write all generated content in English.
-9. CRITICAL — JSON ESCAPING: all JSON string values are delimited by double quotes. Therefore any double quote INSIDE a value MUST be escaped with a backslash: \\" and never ". Newlines inside values must also be written \\n and never as a real newline. An unescaped double quote inside a value makes the JSON invalid and the app will crash.
+9. CRITICAL — JSON SYNTAX AND ESCAPING:
+- All JSON string values are delimited by double quotes. Any double quote INSIDE a value MUST be escaped with a backslash: \\" and never ".
+- For quotations or highlighted terms in lessons and explanations, ALWAYS use single quotes '...' instead of unescaped double quotes, to eliminate any risk of invalid JSON syntax.
+- Newlines inside values must be written \\n and never as a real newline.
+- FORBIDDEN: NEVER include trailing commas after the last element of an object or array (e.g. no [1, 2,] or {"a": 1,}).
+- FORBIDDEN: NEVER put stray quotes or orphan commas right before a closing brace (e.g. no ,"} or ,""). Ensure every object is closed cleanly with } and every array with ].
 
 # LEARNING GOAL
 $objectifBlock

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/custom_course_package.dart';
 import '../models/teacher_course_item.dart';
@@ -8,12 +9,70 @@ class TeacherCoursesService {
   static final SupabaseClient _client = Supabase.instance.client;
 
   static List<TeacherCourseItem> _cachedCatalog = [];
+  static final Set<String> _publicMatiereIds = {};
+  static bool _hasLoadedPersistedPublicIds = false;
+
+  /// Vérifie si une matière provient du catalogue public
+  static bool isPublicMatiere(String matiereId) {
+    if (_publicMatiereIds.contains(matiereId)) return true;
+    if (_cachedCatalog.any((c) => c.matiereId == matiereId)) return true;
+    return false;
+  }
+
+  /// Enregistre une matière comme étant publique
+  static void markAsPublic(String matiereId) {
+    _publicMatiereIds.add(matiereId);
+    _savePublicMatiereIds();
+  }
+
+  /// Charge les identifiants de matières publiques persistés localement
+  static Future<void> loadPublicMatiereIds() async {
+    if (_hasLoadedPersistedPublicIds) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList('ngenou_public_matiere_ids') ?? [];
+      _publicMatiereIds.addAll(list);
+      _hasLoadedPersistedPublicIds = true;
+    } catch (e) {
+      debugPrint('Erreur chargement public_matiere_ids: $e');
+    }
+  }
+
+  static Future<void> _savePublicMatiereIds() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('ngenou_public_matiere_ids', _publicMatiereIds.toList());
+    } catch (_) {}
+  }
+
+  /// Interroge rapidement Supabase pour synchroniser la liste des identifiants publics
+  static Future<void> syncPublicCourseIds() async {
+    await loadPublicMatiereIds();
+    try {
+      final response = await _client
+          .from('teacher_courses')
+          .select('matiere_id')
+          .eq('is_published', true)
+          .timeout(const Duration(seconds: 4));
+      final rows = response as List<dynamic>;
+      for (final r in rows) {
+        final mid = r['matiere_id']?.toString();
+        if (mid != null && mid.isNotEmpty) {
+          _publicMatiereIds.add(mid);
+        }
+      }
+      _savePublicMatiereIds();
+    } catch (e) {
+      debugPrint("Info syncPublicCourseIds (hors-ligne/timeout) : $e");
+    }
+  }
 
   /// Récupère la liste des cours publiés pour le catalogue (avec timeout & cache hors-ligne)
   static Future<List<TeacherCourseItem>> fetchCatalog({
     String? schoolLevel,
     String? searchQuery,
   }) async {
+    await loadPublicMatiereIds();
     try {
       var query = _client
           .from('teacher_courses')
@@ -38,6 +97,10 @@ class TeacherCoursesService {
 
       if (items.isNotEmpty) {
         _cachedCatalog = items;
+        for (final item in items) {
+          _publicMatiereIds.add(item.matiereId);
+        }
+        _savePublicMatiereIds();
       }
       return items;
     } catch (e) {
@@ -118,7 +181,9 @@ class TeacherCoursesService {
         .select()
         .single();
 
-    return TeacherCourseItem.fromJson(response);
+    final item = TeacherCourseItem.fromJson(response);
+    markAsPublic(item.matiereId);
+    return item;
   }
 
   /// Modifie la visibilité (publié / brouillon) d'un cours

@@ -12,6 +12,7 @@ import 'core/services/schedule_notification_service.dart';
 import 'core/services/widget_intent_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/models/score.dart';
+import 'core/services/resultat_cache.dart';
 import 'modules/modules_registry.dart';
 
 import 'features/accueil/accueil_page.dart';
@@ -106,7 +107,42 @@ final GoRouter _router = GoRouter(
     GoRoute(
       path: '/resultat',
       builder: (context, state) {
-        return ResultatPage(score: state.extra as Score);
+        Score? score;
+        if (state.extra is Score) {
+          score = state.extra as Score;
+        } else {
+          final mId = state.uri.queryParameters['matiereId'];
+          final nId = state.uri.queryParameters['notionId'];
+          final sc = int.tryParse(state.uri.queryParameters['score'] ?? '');
+          final tot = int.tryParse(state.uri.queryParameters['total'] ?? '');
+          if (mId != null && nId != null && sc != null && tot != null) {
+            score = Score(
+              matiereId: mId,
+              notionId: nId,
+              exerciceId: '',
+              score: sc,
+              total: tot,
+              pourcentage: tot > 0 ? (sc / tot) * 100 : 0.0,
+              dateTentative: DateTime.now(),
+              tentativeNum: 1,
+            );
+          } else {
+            score = ResultatCache.lastScore;
+          }
+        }
+
+        if (score != null) {
+          ResultatCache.lastScore = score;
+          return ResultatPage(score: score);
+        }
+
+        // Si vraiment aucun score disponible, redirection vers l'accueil
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) context.go('/');
+        });
+        return const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        );
       },
     ),
     GoRoute(

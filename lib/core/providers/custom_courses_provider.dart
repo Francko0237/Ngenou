@@ -5,6 +5,7 @@ import '../../modules/custom_course_module.dart';
 import '../../modules/modules_registry.dart';
 import '../../app.dart';
 import '../services/badge_service.dart';
+import '../services/teacher_courses_service.dart';
 
 class CustomCoursesProvider with ChangeNotifier {
   final DatabaseHelper _db = DatabaseHelper.instance;
@@ -15,13 +16,30 @@ class CustomCoursesProvider with ChangeNotifier {
   bool get isLoaded => _loaded;
 
   Future<void> loadCustomCourses() async {
+    await TeacherCoursesService.loadPublicMatiereIds();
     final packages = await _db.getAllCustomCourses();
-    _modules.clear();
-    ModulesRegistry.clearCustomModules();
+    final newModules = <CustomCourseModule>[];
     for (final pkg in packages) {
-      final module = CustomCourseModule(pkg);
-      _modules.add(module);
-      ModulesRegistry.registerCustomModule(module);
+      var actualPkg = pkg;
+      if (TeacherCoursesService.isPublicMatiere(pkg.matiere.id) && !pkg.meta.isPublic) {
+        actualPkg = CustomCoursePackage(
+          schemaVersionValue: pkg.schemaVersionValue,
+          meta: pkg.meta.copyWith(isPublic: true),
+          matiere: pkg.matiere,
+          notions: pkg.notions,
+          lecons: pkg.lecons,
+          exercices: pkg.exercices,
+        );
+        _db.insertCustomCourse(actualPkg);
+      }
+      newModules.add(CustomCourseModule(actualPkg));
+    }
+    _modules
+      ..clear()
+      ..addAll(newModules);
+    ModulesRegistry.clearCustomModules();
+    for (final m in newModules) {
+      ModulesRegistry.registerCustomModule(m);
     }
     _loaded = true;
     notifyListeners();
@@ -30,6 +48,9 @@ class CustomCoursesProvider with ChangeNotifier {
   Future<String?> importCourse(CustomCoursePackage package, {bool triggerBadges = true}) async {
     if (_modules.any((m) => m.matiere.id == package.matiere.id)) {
       return 'Un cours avec cet identifiant existe déjà.';
+    }
+    if (package.meta.isPublic) {
+      TeacherCoursesService.markAsPublic(package.matiere.id);
     }
     await _db.insertCustomCourse(package);
     final module = CustomCourseModule(package);
@@ -40,7 +61,11 @@ class CustomCoursesProvider with ChangeNotifier {
     if (triggerBadges) {
       final context = rootNavigatorKey.currentContext;
       if (context != null && context.mounted) {
-        Future.microtask(() => BadgeService.instance.checkAndUnlock(context));
+        Future.microtask(() {
+          if (context.mounted) {
+            BadgeService.instance.checkAndUnlock(context);
+          }
+        });
       }
     }
 

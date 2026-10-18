@@ -26,6 +26,7 @@ class CustomCoursePackage {
   });
 
   bool get hasTerminal => meta.hasTerminal;
+  bool get isPublic => meta.isPublic;
 
   Map<String, dynamic> toJson() => {
     'schemaVersion': schemaVersionValue,
@@ -274,7 +275,7 @@ class CustomCoursePackage {
   }
 
   static String colorToHex(Color c) =>
-      '#${c.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
+      '#${c.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
 }
 
 class CourseMeta {
@@ -282,19 +283,48 @@ class CourseMeta {
   final String langue;
   final bool hasTerminal;
   final bool hadDocuments;
+  final bool isPublic;
+  final String? authorName;
+  final String? teacherId;
 
   CourseMeta({
     required this.objectif,
     required this.langue,
     this.hasTerminal = false,
     this.hadDocuments = false,
+    this.isPublic = false,
+    this.authorName,
+    this.teacherId,
   });
+
+  CourseMeta copyWith({
+    String? objectif,
+    String? langue,
+    bool? hasTerminal,
+    bool? hadDocuments,
+    bool? isPublic,
+    String? authorName,
+    String? teacherId,
+  }) {
+    return CourseMeta(
+      objectif: objectif ?? this.objectif,
+      langue: langue ?? this.langue,
+      hasTerminal: hasTerminal ?? this.hasTerminal,
+      hadDocuments: hadDocuments ?? this.hadDocuments,
+      isPublic: isPublic ?? this.isPublic,
+      authorName: authorName ?? this.authorName,
+      teacherId: teacherId ?? this.teacherId,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
     'objectif': objectif,
     'langue': langue,
     'hasTerminal': hasTerminal,
     'hadDocuments': hadDocuments,
+    'isPublic': isPublic,
+    if (authorName != null) 'authorName': authorName,
+    if (teacherId != null) 'teacherId': teacherId,
   };
 
   factory CourseMeta.fromJson(Map<String, dynamic> json) => CourseMeta(
@@ -302,6 +332,9 @@ class CourseMeta {
     langue: json['langue'] as String? ?? 'fr',
     hasTerminal: json['hasTerminal'] as bool? ?? false,
     hadDocuments: json['hadDocuments'] as bool? ?? false,
+    isPublic: json['isPublic'] as bool? ?? false,
+    authorName: json['authorName'] as String? ?? json['teacher_name'] as String?,
+    teacherId: json['teacherId'] as String? ?? json['teacher_id'] as String?,
   );
 }
 

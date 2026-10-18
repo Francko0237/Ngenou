@@ -11,6 +11,8 @@ class CustomCourseModule {
 
   Matiere get matiere => package.matiere;
   bool get hasTerminal => package.hasTerminal;
+  bool get isPublic => package.isPublic;
+  String? get authorName => package.meta.authorName;
 
   List<Notion> get notions => package.notions;
 

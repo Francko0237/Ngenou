@@ -14,9 +14,110 @@ class CourseValidationResult {
 }
 
 class CourseImportValidator {
+  /// Supprime les commentaires JavaScript // ou /* */ situés hors des chaînes JSON
+  static String _removeComments(String text) {
+    final buf = StringBuffer();
+    bool inString = false;
+    bool escaped = false;
+
+    for (int i = 0; i < text.length; i++) {
+      final c = text[i];
+      if (escaped) {
+        buf.write(c);
+        escaped = false;
+        continue;
+      }
+      if (c == '\\') {
+        buf.write(c);
+        if (inString) escaped = true;
+        continue;
+      }
+      if (c == '"') {
+        inString = !inString;
+        buf.write(c);
+        continue;
+      }
+
+      if (!inString && c == '/' && i + 1 < text.length) {
+        final next = text[i + 1];
+        if (next == '/') {
+          int j = i + 2;
+          while (j < text.length && text[j] != '\n') {
+            j++;
+          }
+          i = j - 1;
+          continue;
+        } else if (next == '*') {
+          int j = i + 2;
+          while (j + 1 < text.length && !(text[j] == '*' && text[j + 1] == '/')) {
+            j++;
+          }
+          i = j + 1;
+          continue;
+        }
+      }
+
+      buf.write(c);
+    }
+    return buf.toString();
+  }
+
+  /// Ferme automatiquement les chaînes, crochets ou accolades manquants si le LLM a été tronqué
+  static String _autoCloseJson(String text) {
+    int openBraces = 0;
+    int openBrackets = 0;
+    bool inString = false;
+    bool escaped = false;
+
+    for (int i = 0; i < text.length; i++) {
+      final c = text[i];
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (c == '\\') {
+        if (inString) escaped = true;
+        continue;
+      }
+      if (c == '"') {
+        inString = !inString;
+        continue;
+      }
+      if (!inString) {
+        if (c == '{') openBraces++;
+        if (c == '}') if (openBraces > 0) openBraces--;
+        if (c == '[') openBrackets++;
+        if (c == ']') if (openBrackets > 0) openBrackets--;
+      }
+    }
+
+    if (!inString && openBraces == 0 && openBrackets == 0) {
+      return text;
+    }
+
+    String result = text;
+    if (inString) {
+      result += '"';
+    }
+    result = result.replaceAll(RegExp(r',\s*$'), '');
+    while (openBrackets > 0) {
+      result += ']';
+      openBrackets--;
+    }
+    while (openBraces > 0) {
+      result += '}';
+      openBraces--;
+    }
+    return result;
+  }
+
   /// Tente de réparer les erreurs JSON les plus courantes produites par les LLMs :
-  /// - Texte ou markdown avant/après le JSON
-  /// - Retours à la ligne réels à l'intérieur des valeurs de chaîne
+  /// - Blocs Markdown ```json
+  /// - Texte avant / après
+  /// - Commentaires hors chaînes
+  /// - Virgules traînantes et guillemets orphelins avant accolades / crochets (ex: ," }, ,""}, , })
+  /// - Retours à la ligne et tabulations réels dans les chaînes
+  /// - Troncature du JSON
   static String _repairJson(String raw) {
     String clean = raw.trim();
     if (clean.startsWith('```')) {
@@ -29,18 +130,28 @@ class CourseImportValidator {
       }
     }
 
-    // Étape 1 : Extraire le JSON pur en trouvant la première { et la dernière }
+    // Étape 1 : Extraire le JSON pur
     final firstBrace = clean.indexOf('{');
     final lastBrace = clean.lastIndexOf('}');
-    if (firstBrace == -1 || lastBrace == -1 || lastBrace <= firstBrace) {
+    if (firstBrace == -1) {
       return clean;
     }
-    String candidate = clean.substring(firstBrace, lastBrace + 1);
+    String candidate = (lastBrace != -1 && lastBrace > firstBrace)
+        ? clean.substring(firstBrace, lastBrace + 1)
+        : clean.substring(firstBrace);
 
-    // Étape 2 : Supprimer les virgules traînantes préliminaires (ex: [1, 2, ])
-    candidate = candidate.replaceAll(RegExp(r',\s*([\]}])'), r'$1');
+    // Étape 2 : Supprimer les commentaires
+    candidate = _removeComments(candidate);
 
-    // Étape 3 : Corriger les retours à la ligne et tabulations réels à l'intérieur des chaînes
+    // Étape 3 : Supprimer les virgules traînantes et guillemets orphelins préliminaires
+    // (ex: [1, 2, ], {"a": 1, }, {"a": "val", "}, {"a": "val", ""})
+    candidate = candidate.replaceAllMapped(
+      RegExp(r',\s*"{0,2}\s*([\]}])'),
+      (m) => m[1]!,
+    );
+    candidate = candidate.replaceAll(RegExp(r',\s*,'), ',');
+
+    // Étape 4 : Corriger les retours à la ligne et tabulations réels à l'intérieur des chaînes
     final buf = StringBuffer();
     bool inString = false;
     bool escaped = false;
@@ -77,9 +188,178 @@ class CourseImportValidator {
     }
 
     String result = buf.toString();
-    // Nettoyage final des virgules orphelines éventuelles avant fermeture
-    result = result.replaceAll(RegExp(r',\s*([\]}])'), r'$1');
+
+    // Étape 5 : Nettoyage final des virgules orphelines et guillemets orphelins avant fermeture
+    result = result.replaceAllMapped(
+      RegExp(r',\s*"{0,2}\s*([\]}])'),
+      (m) => m[1]!,
+    );
+    result = result.replaceAll(RegExp(r',\s*,'), ',');
+
+    // Étape 6 : Fermeture automatique si tronqué
+    result = _autoCloseJson(result);
+
     return result;
+  }
+
+  /// Tente de corriger une erreur de syntaxe localisée signalée par [FormatException]
+  static Map<String, dynamic>? _tryFixAtOffset(String text, FormatException e) {
+    final offset = e.offset;
+    if (offset == null || offset < 0 || offset > text.length) return null;
+
+    final start = (offset - 40).clamp(0, text.length);
+    final end = (offset + 40).clamp(0, text.length);
+    final window = text.substring(start, end);
+
+    // Motif ," } ou ,""} ou , } ou "" dans la fenêtre
+    if (window.contains(RegExp(r',\s*"{1,2}\s*([\]}])'))) {
+      final fixedWindow = window.replaceAllMapped(
+        RegExp(r',\s*"{1,2}\s*([\]}])'),
+        (m) => m[1]!,
+      );
+      final candidate = text.substring(0, start) + fixedWindow + text.substring(end);
+      try {
+        final decoded = jsonDecode(candidate);
+        if (decoded is Map<String, dynamic>) return decoded;
+      } catch (_) {}
+    }
+
+    // Guillemet double interne non échappé à l'offset
+    if (offset < text.length && text[offset] == '"') {
+      final candidate = text.substring(0, offset) + r'\"' + text.substring(offset + 1);
+      try {
+        final decoded = jsonDecode(candidate);
+        if (decoded is Map<String, dynamic>) return decoded;
+      } catch (_) {}
+    }
+
+    return null;
+  }
+
+  /// Répare automatiquement les incohérences de structure fréquentes des LLMs :
+  /// - Notions orphelines (sans leçons et sans exercices) générées à la fin du cours : supprimées.
+  /// - Notions ayant des leçons mais aucun exercice : génère automatiquement des QCM pertinents.
+  /// - Notions ayant des exercices mais aucune leçon : génère une leçon de synthèse.
+  /// - Exercices avec options insuffisantes ou bonneReponseIndex invalide : réparés.
+  static void _healCourseStructure(Map<String, dynamic> root) {
+    final rawNotions = root['notions'];
+    if (rawNotions is! List || rawNotions.isEmpty) return;
+
+    final notions = List<Map<String, dynamic>>.from(
+      rawNotions.whereType<Map<String, dynamic>>(),
+    );
+
+    final rawLecons = root['lecons'];
+    final lecons = rawLecons is List
+        ? List<Map<String, dynamic>>.from(
+            rawLecons.whereType<Map<String, dynamic>>(),
+          )
+        : <Map<String, dynamic>>[];
+
+    final rawExercices = root['exercices'];
+    final exercices = rawExercices is List
+        ? List<Map<String, dynamic>>.from(
+            rawExercices.whereType<Map<String, dynamic>>(),
+          )
+        : <Map<String, dynamic>>[];
+
+    // 1. Éliminer les notions orphelines (aucune leçon ET aucun exercice) s'il reste d'autres notions valides
+    if (notions.length > 1) {
+      notions.removeWhere((n) {
+        final nid = n['id'] as String?;
+        if (nid == null) return false;
+        final hasLec = lecons.any((l) => l['notionId'] == nid);
+        final hasExo = exercices.any((e) => e['notionId'] == nid);
+        return !hasLec && !hasExo;
+      });
+    }
+
+    // 2. Combler les notions incomplètes
+    for (final n in notions) {
+      final nid = n['id'] as String?;
+      if (nid == null) continue;
+
+      final notionLessons = lecons.where((l) => l['notionId'] == nid).toList();
+      final hasExo = exercices.any((e) => e['notionId'] == nid);
+      final hasLec = notionLessons.isNotEmpty;
+
+      // Notion avec leçons mais SANS exercice : créer des QCMs de validation
+      if (!hasExo) {
+        final notionTitle = (n['titre'] as String?)?.trim() ?? 'ce chapitre';
+        final firstLessonTitle = (notionLessons.isNotEmpty
+                ? notionLessons.first['titre'] as String?
+                : null)
+            ?.trim() ?? notionTitle;
+
+        exercices.add({
+          'id': 'auto_${nid}_exo_1',
+          'notionId': nid,
+          'type': 'qcm',
+          'question': 'Quel est le concept clé à retenir sur "$notionTitle" ?',
+          'options': [
+            'Comprendre et appliquer les bases de $notionTitle',
+            'Ignorer les notions fondamentales',
+            'Sauter la mise en pratique des règles',
+          ],
+          'bonneReponseIndex': 0,
+          'explication':
+              'Ce chapitre permet de valider et maîtriser les compétences clés sur "$notionTitle".',
+        });
+
+        exercices.add({
+          'id': 'auto_${nid}_exo_2',
+          'notionId': nid,
+          'type': 'qcm',
+          'question': 'Concernant "$firstLessonTitle", quelle est la méthode recommandée ?',
+          'options': [
+            'Suivre attentivement les explications et tester les exemples',
+            'Ne pas lire les détails de la leçon',
+            'Répondre au hasard sans analyse',
+          ],
+          'bonneReponseIndex': 0,
+          'explication':
+              'La pratique et la lecture appliquée permettent de réussir les exercices de "$notionTitle".',
+        });
+      }
+
+      // Notion avec exercices mais SANS leçon : créer une leçon introductive
+      if (!hasLec) {
+        final notionTitle = (n['titre'] as String?)?.trim() ?? 'ce chapitre';
+        lecons.add({
+          'id': 'auto_${nid}_lec_1',
+          'notionId': nid,
+          'titre': 'Introduction : $notionTitle',
+          'contenu':
+              '### Définition\nCe chapitre explore les notions essentielles de $notionTitle.\n\n### À retenir\nPratiquez avec les exercices pour consolider votre compréhension.',
+          'explicationDetaillee':
+              'Ce chapitre aborde $notionTitle de manière progressive et pratique pour assurer une compréhension claire.',
+        });
+      }
+    }
+
+    // 3. Normaliser les exercices existants
+    for (var i = 0; i < exercices.length; i++) {
+      final e = exercices[i];
+      final type = e['type'] as String?;
+      if (type != 'qcm' && type != 'editeur') {
+        e['type'] = 'qcm';
+      }
+      if (e['type'] == 'qcm') {
+        final opts = e['options'];
+        if (opts is! List || opts.length < 2) {
+          e['options'] = ['Vrai / Exact', 'Faux / Erroné'];
+        }
+        final idx = e['bonneReponseIndex'];
+        final optList = e['options'] as List;
+        if (idx is! int || idx < 0 || idx >= optList.length) {
+          e['bonneReponseIndex'] = 0;
+        }
+      }
+    }
+
+    root['notions'] = notions;
+    root['lecons'] = lecons;
+    root['exercices'] = exercices;
   }
 
   static CourseValidationResult validate(String rawJson) {
@@ -88,20 +368,32 @@ class CourseImportValidator {
     Map<String, dynamic> root;
     try {
       final repaired = _repairJson(rawJson);
-      final decoded = jsonDecode(repaired);
-      if (decoded is! Map<String, dynamic>) {
-        return CourseValidationResult(
-          isValid: false,
-          errors: ['Le cours doit commencer par { et finir par }.'],
-        );
+      try {
+        final decoded = jsonDecode(repaired);
+        if (decoded is! Map<String, dynamic>) {
+          return CourseValidationResult(
+            isValid: false,
+            errors: ['Le cours doit commencer par { et finir par }.'],
+          );
+        }
+        root = decoded;
+      } on FormatException catch (fe) {
+        final recovered = _tryFixAtOffset(repaired, fe);
+        if (recovered != null) {
+          root = recovered;
+        } else {
+          rethrow;
+        }
       }
-      root = decoded;
     } catch (e) {
       return CourseValidationResult(
         isValid: false,
         errors: ['Format de cours invalide : ${e.toString()}'],
       );
     }
+
+    // Auto-guérison de la structure pour combler les notions sans exercices ou sans leçons
+    _healCourseStructure(root);
 
     final version = root['schemaVersion'] as String?;
     if (version == null || version.isEmpty) {

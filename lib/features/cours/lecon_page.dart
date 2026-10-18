@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../core/models/lecon.dart';
+import '../../core/models/notion.dart';
+import '../../core/providers/progression_provider.dart';
 import '../../core/services/ai_tutor_service.dart';
 import '../../core/utils/lesson_content_parser.dart';
 import '../../modules/modules_registry.dart';
@@ -245,21 +248,209 @@ class _LeconPageState extends State<LeconPage> {
   }
 
   void _handleNext() {
-    void advance() {
+    Future<void> advance() async {
       if (!_isLastSection) {
         _goToSection(_sectionIndex + 1);
       } else if (!_isLastLesson) {
         _goToLesson(_lessonIndex + 1);
       } else {
-        context.pushReplacement('/exercice/${widget.matiereId}/${widget.notionId}/0');
+        // Fin de toutes les leçons de la notion :
+        // Marquer la lecture comme complétée et afficher la feuille de choix
+        if (context.mounted) {
+          await context.read<ProgressionProvider>().completeNotionSeries(
+            matiereId: widget.matiereId,
+            notionId: widget.notionId,
+            score: 0,
+            total: 0,
+          );
+        }
+        if (context.mounted) _showNotionCompletionSheet();
       }
     }
 
     if (_isLastSection) {
-      _showExplicationDialog(_currentLecon, advance);
+      _showExplicationDialog(_currentLecon, () => advance());
     } else {
       advance();
     }
+  }
+
+  void _showNotionCompletionSheet() {
+    final notions = ModulesRegistry.getNotions(widget.matiereId);
+    final currentIndex = notions.indexWhere((n) => n.id == widget.notionId);
+    final Notion? nextNotion =
+        (currentIndex >= 0 && currentIndex < notions.length - 1)
+            ? notions[currentIndex + 1]
+            : null;
+    final exercices = ModulesRegistry.getExercicesByNotion(widget.matiereId, widget.notionId);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = Theme.of(context).primaryColor;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => Container(
+        padding: EdgeInsets.fromLTRB(
+          28,
+          16,
+          28,
+          MediaQuery.of(context).padding.bottom + 28,
+        ),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1A1A2E) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 24),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey[700] : Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Trophy icon
+            Container(
+              width: 84,
+              height: 84,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.amber.shade300, Colors.amber.shade600],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.amber.withValues(alpha: 0.35),
+                    blurRadius: 20,
+                    spreadRadius: 4,
+                  )
+                ],
+              ),
+              child: const Icon(Icons.star_rounded, color: Colors.white, size: 48),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              'Leçon terminée ! 🎉',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              exercices.isNotEmpty
+                  ? 'Tu as parcouru tous les concepts !\nPrêt à tester tes connaissances ?'
+                  : (nextNotion != null
+                      ? 'Tu as maîtrisé cette notion.\nPrêt pour la suite ?'
+                      : 'Tu as terminé toutes les notions\nde ce cours. Bravo !'),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.4,
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 24),
+            // ── 1. Bouton Exercices (si existants) ──────────────────────
+            if (exercices.isNotEmpty) ...[
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 2,
+                  ),
+                  icon: const Icon(Icons.quiz_rounded),
+                  label: Text(
+                    'S\'entraîner avec les exercices (${exercices.length})',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(sheetCtx);
+                    context.pushReplacement('/exercice/${widget.matiereId}/${widget.notionId}/0');
+                  },
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+            // ── 2. Bouton Leçon suivante (si existante) ─────────────────
+            if (nextNotion != null) ...[
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.tonalIcon(
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  icon: const Icon(Icons.arrow_forward_rounded),
+                  label: Text(
+                    'Leçon suivante : ${nextNotion.titre}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onPressed: () {
+                    Navigator.pop(sheetCtx);
+                    context.pushReplacement('/cours/${widget.matiereId}/${nextNotion.id}');
+                  },
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+            // ── 3. Bouton Retour au cours ──────────────────────────────
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  side: BorderSide(
+                    color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
+                  ),
+                ),
+                icon: Icon(
+                  Icons.menu_book_rounded,
+                  color: isDark ? Colors.grey[300] : Colors.grey[700],
+                ),
+                label: Text(
+                  'Retour à la liste des leçons',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: isDark ? Colors.grey[300] : Colors.grey[700],
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.pop(sheetCtx);
+                  context.go('/cours/${widget.matiereId}');
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+            // ── 4. Revoir la leçon ────────────────────────────────────
+            TextButton.icon(
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Revoir cette leçon depuis le début'),
+              onPressed: () {
+                Navigator.pop(sheetCtx);
+                _goToLesson(0, sectionIndex: 0);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _openAiTutor() {
@@ -302,8 +493,7 @@ class _LeconPageState extends State<LeconPage> {
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final lessonProgress = (_lessonIndex + 1) / lecons.length;
-    final sectionProgress = (_sectionIndex + 1) / _currentSections.length;
+    final primary = Theme.of(context).primaryColor;
     final combinedProgress = (_currentConceptOffset) / _totalConcepts;
 
     return Scaffold(
@@ -312,36 +502,67 @@ class _LeconPageState extends State<LeconPage> {
         elevation: 0,
         backgroundColor: Colors.transparent,
         iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Retour au cours',
+          onPressed: () => context.go('/cours/${widget.matiereId}'),
+        ),
+        title: Row(
           children: [
-            Text(
-              'Leçon ${_lessonIndex + 1}/${lecons.length} · Concept ${_sectionIndex + 1}/${_currentSections.length}',
-              style: TextStyle(
-                fontSize: 13,
-                color: isDark ? Colors.grey[400] : Colors.grey[600],
-                fontWeight: FontWeight.w500,
-              ),
+            // Anneau circulaire moderne avec pourcentage
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: CircularProgressIndicator(
+                    value: combinedProgress.clamp(0.0, 1.0),
+                    strokeWidth: 3.5,
+                    backgroundColor: isDark
+                        ? Colors.white.withValues(alpha: 0.1)
+                        : Colors.black.withValues(alpha: 0.08),
+                    color: primary,
+                  ),
+                ),
+                Text(
+                  '${(combinedProgress * 100).toInt()}%',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 2),
-            Text(
-              _currentLecon.titre,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 6),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: combinedProgress,
-                minHeight: 4,
-                backgroundColor: isDark ? Colors.grey[800] : Colors.grey[300],
-                color: Theme.of(context).primaryColor,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _currentLecon.titre,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    lecons.length > 1
+                        ? 'Leçon ${_lessonIndex + 1}/${lecons.length} · Concept ${_sectionIndex + 1}/${_currentSections.length}'
+                        : 'Concept ${_sectionIndex + 1} sur ${_currentSections.length}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -359,12 +580,12 @@ class _LeconPageState extends State<LeconPage> {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF3498DB).withOpacity(0.3),
+                      color: const Color(0xFF3498DB).withValues(alpha: 0.3),
                       blurRadius: 8,
                       offset: const Offset(-1, 2),
                     ),
                     BoxShadow(
-                      color: const Color(0xFFF1C40F).withOpacity(0.2),
+                      color: const Color(0xFFF1C40F).withValues(alpha: 0.2),
                       blurRadius: 8,
                       offset: const Offset(1, 2),
                     ),
@@ -397,37 +618,167 @@ class _LeconPageState extends State<LeconPage> {
         ],
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(3),
-                    child: LinearProgressIndicator(
-                      value: lessonProgress,
-                      minHeight: 3,
-                      backgroundColor: isDark ? Colors.grey[850] : Colors.grey[200],
-                      color: Theme.of(context).primaryColor.withValues(alpha: 0.5),
-                    ),
+          // ── Barre de progression interactive par étapes ─────────────
+          if (_currentSections.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+              child: Container(
+                  margin: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E1E28) : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Sélecteur de leçons (si la notion contient plusieurs leçons)
+                      if (lecons.length > 1) ...[
+                        Row(
+                          children: [
+                            for (var l = 0; l < lecons.length; l++) ...[
+                              if (l > 0) const SizedBox(width: 8),
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () => _goToLesson(l),
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 250),
+                                    padding: const EdgeInsets.symmetric(vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: l == _lessonIndex
+                                          ? primary.withValues(alpha: isDark ? 0.25 : 0.12)
+                                          : (isDark ? Colors.grey[850] : Colors.grey[100]),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: l == _lessonIndex ? primary : Colors.transparent,
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    child: Center(
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (l < _lessonIndex) ...[
+                                            Icon(Icons.check_circle_rounded, size: 14, color: primary),
+                                            const SizedBox(width: 4),
+                                          ],
+                                          Text(
+                                            'Leçon ${l + 1}',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: l == _lessonIndex ? FontWeight.bold : FontWeight.w500,
+                                              color: l == _lessonIndex
+                                                  ? primary
+                                                  : (isDark ? Colors.grey[400] : Colors.grey[600]),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+
+                      // Capsules interactives des concepts
+                      Row(
+                        children: [
+                          for (var i = 0; i < _currentSections.length; i++) ...[
+                            if (i > 0) const SizedBox(width: 6),
+                            Expanded(
+                              flex: i == _sectionIndex ? 3 : 1,
+                              child: InkWell(
+                                onTap: () => _goToSection(i),
+                                borderRadius: BorderRadius.circular(12),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 250),
+                                  curve: Curves.easeInOut,
+                                  padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 4),
+                                  decoration: BoxDecoration(
+                                    color: i < _sectionIndex
+                                        ? primary.withValues(alpha: isDark ? 0.35 : 0.18)
+                                        : (i == _sectionIndex
+                                            ? primary
+                                            : (isDark ? Colors.grey[800] : Colors.grey[200])),
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: i == _sectionIndex
+                                        ? [
+                                            BoxShadow(
+                                              color: primary.withValues(alpha: 0.35),
+                                              blurRadius: 6,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ]
+                                        : null,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      if (i < _sectionIndex)
+                                        Icon(
+                                          Icons.check_rounded,
+                                          size: 14,
+                                          color: isDark ? Colors.white : primary,
+                                        )
+                                      else if (i == _sectionIndex) ...[
+                                        Container(
+                                          width: 6,
+                                          height: 6,
+                                          decoration: const BoxDecoration(
+                                            color: Colors.white,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Flexible(
+                                          child: Text(
+                                            'Concept ${i + 1}',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ] else
+                                        Text(
+                                          '${i + 1}',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(3),
-                    child: LinearProgressIndicator(
-                      value: sectionProgress,
-                      minHeight: 3,
-                      backgroundColor: isDark ? Colors.grey[850] : Colors.grey[200],
-                      color: Theme.of(context).primaryColor,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+              ),
+
+          // PageView vertical pour lire les concepts
           Expanded(
             child: PageView.builder(
               key: ValueKey('lesson_$_lessonIndex'),
@@ -449,11 +800,13 @@ class _LeconPageState extends State<LeconPage> {
           if (_currentSections.length > 1)
             Padding(
               padding: const EdgeInsets.only(bottom: 4),
-              child: Text(
-                'Glisse vers le haut ou le bas pour naviguer',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark ? Colors.grey[600] : Colors.grey[500],
+              child: Center(
+                child: Text(
+                  'Glisse vers le haut ou le bas pour naviguer',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.grey[600] : Colors.grey[500],
+                  ),
                 ),
               ),
             ),
@@ -465,8 +818,8 @@ class _LeconPageState extends State<LeconPage> {
           padding: EdgeInsets.only(
             left: 24,
             right: 24,
-            top: 16,
-            bottom: 16 + MediaQuery.of(context).viewInsets.bottom,
+            top: 14,
+            bottom: 14 + MediaQuery.of(context).viewInsets.bottom,
           ),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
@@ -495,7 +848,7 @@ class _LeconPageState extends State<LeconPage> {
               ElevatedButton.icon(
                 onPressed: _handleNext,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor,
+                  backgroundColor: primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -504,10 +857,15 @@ class _LeconPageState extends State<LeconPage> {
                 label: Text(
                   !_isLastSection
                       ? 'Concept suivant'
-                      : (_isLastLesson ? 'Passer aux exercices' : 'Leçon suivante'),
+                      : (_isLastLesson ? 'Terminer la leçon 🎉' : 'Leçon suivante'),
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
-                icon: const Icon(Icons.arrow_forward_rounded, size: 20),
+                icon: Icon(
+                  _isLastSection && _isLastLesson
+                      ? Icons.check_circle_outline_rounded
+                      : Icons.arrow_forward_rounded,
+                  size: 20,
+                ),
               ),
             ],
           ),

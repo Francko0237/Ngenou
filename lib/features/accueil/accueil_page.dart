@@ -9,6 +9,7 @@ import '../../core/providers/schedule_provider.dart';
 import '../../core/providers/theme_provider.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/services/teacher_courses_service.dart';
 import '../../core/widgets/connection_status_indicator.dart';
 import 'tabs/cours_tab.dart';
 import 'tabs/quotidien_tab.dart';
@@ -40,15 +41,9 @@ class _AccueilPageState extends State<AccueilPage> {
 
     _wasSyncing = SyncService.instance.isSyncing;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (SyncService.instance.isSyncing) return;
-      await context.read<CustomCoursesProvider>().loadCustomCourses();
-      await context.read<ProjetsProvider>().loadProjets();
-      await context.read<ScheduleProvider>().load();
-      if (mounted) {
-        context.read<ProgressionProvider>().loadAllProgressions();
-        context.read<DefisProvider>().loadTodaySession();
-      }
+      _refreshAllDataQuietly();
     });
   }
 
@@ -61,20 +56,30 @@ class _AccueilPageState extends State<AccueilPage> {
   void _onSyncChanged() {
     final isSyncing = SyncService.instance.isSyncing;
     if (_wasSyncing && !isSyncing && mounted) {
-      _loadUsername();
-      context.read<CustomCoursesProvider>().loadCustomCourses().then((_) {
-        if (!mounted) return;
-        context.read<ProjetsProvider>().loadProjets();
+      _refreshAllDataQuietly();
+    }
+    _wasSyncing = isSyncing;
+  }
+
+  Future<void> _refreshAllDataQuietly() async {
+    if (!mounted) return;
+    try {
+      await Future.wait([
+        _loadUsername(),
+        TeacherCoursesService.syncPublicCourseIds(),
+        context.read<CustomCoursesProvider>().loadCustomCourses(),
+        context.read<ProjetsProvider>().loadProjets(),
         context.read<ScheduleProvider>().load().then((_) {
           if (mounted) {
             context.read<ScheduleProvider>().rescheduleAllTasks();
           }
-        });
-        context.read<ProgressionProvider>().loadAllProgressions();
-        context.read<DefisProvider>().loadTodaySession();
-      });
+        }),
+        context.read<ProgressionProvider>().loadAllProgressions(),
+        context.read<DefisProvider>().loadTodaySession(),
+      ]);
+    } catch (e) {
+      debugPrint('Erreur refreshAllDataQuietly : $e');
     }
-    _wasSyncing = isSyncing;
   }
 
   Future<void> _loadUsername() async {
@@ -180,8 +185,7 @@ class _AccueilPageState extends State<AccueilPage> {
             selectedSubTab: _selectedSubTab,
             onSubTabChanged: (val) => setState(() => _selectedSubTab = val),
             onRefresh: () {
-              _loadUsername();
-              setState(() {});
+              _refreshAllDataQuietly();
             },
           ),
           const QuotidienTab(),

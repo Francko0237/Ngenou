@@ -75,20 +75,25 @@ class TeacherCourseItem {
 
   CustomCoursePackage toPackage() {
     final pkg = CustomCoursePackage.fromJson(jsonData);
-    if (coverImageUrl != null &&
-        coverImageUrl!.isNotEmpty &&
-        (pkg.matiere.coverImageUrl == null ||
-            pkg.matiere.coverImageUrl!.isEmpty)) {
-      return CustomCoursePackage(
-        schemaVersionValue: pkg.schemaVersionValue,
-        meta: pkg.meta,
-        matiere: pkg.matiere.copyWith(coverImageUrl: coverImageUrl),
-        notions: pkg.notions,
-        lecons: pkg.lecons,
-        exercices: pkg.exercices,
-      );
-    }
-    return pkg;
+    final finalCover = (coverImageUrl != null &&
+            coverImageUrl!.isNotEmpty &&
+            (pkg.matiere.coverImageUrl == null ||
+                pkg.matiere.coverImageUrl!.isEmpty))
+        ? coverImageUrl
+        : pkg.matiere.coverImageUrl;
+
+    return CustomCoursePackage(
+      schemaVersionValue: pkg.schemaVersionValue,
+      meta: pkg.meta.copyWith(
+        isPublic: true,
+        authorName: teacherName.isNotEmpty ? teacherName : null,
+        teacherId: teacherId,
+      ),
+      matiere: pkg.matiere.copyWith(coverImageUrl: finalCover),
+      notions: pkg.notions,
+      lecons: pkg.lecons,
+      exercices: pkg.exercices,
+    );
   }
 
   Map<String, dynamic> toMap() => {
