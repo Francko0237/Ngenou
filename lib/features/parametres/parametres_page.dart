@@ -15,6 +15,7 @@ import '../../core/services/sync_service.dart';
 import '../../core/services/connectivity_service.dart';
 import 'package:go_router/go_router.dart';
 import '../auth/login_page.dart';
+import 'edit_profile_page.dart';
 
 class ParametresPage extends StatefulWidget {
   const ParametresPage({super.key});
@@ -80,282 +81,50 @@ class _ParametresPageState extends State<ParametresPage>
     }
   }
 
-  Future<void> _editUsername() async {
-    final controller = TextEditingController(text: _username);
-    final newName = await showDialog<String>(
+  Future<void> _openEditProfile() async {
+    final updated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (context) => const EditProfilePage()),
+    );
+    if (updated == true || mounted) {
+      await _loadUsername();
+      setState(() {});
+    }
+  }
+
+  Future<void> _handleLogout() async {
+    final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: const Text(
-          "Modifier mon nom d'utilisateur",
+          'Se déconnecter ?',
           style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
         ),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            hintText: "Entrez votre nom",
-            labelText: "Nom d'utilisateur",
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          autofocus: true,
-          maxLength: 30,
+        content: const Text(
+          'Vos données locales seront effacées. Elles seront restaurées à la prochaine connexion.',
+          style: TextStyle(height: 1.4),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Annuler"),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
           ),
           ElevatedButton(
-            onPressed: () {
-              final val = controller.text.trim();
-              Navigator.pop(ctx, val.isNotEmpty ? val : null);
-            },
-            child: const Text("Enregistrer"),
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE74C3C),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Déconnecter'),
           ),
         ],
       ),
     );
-
-    if (newName != null && newName.trim().isNotEmpty) {
-      await AuthService.updateUsername(newName.trim());
+    if (confirm == true) {
+      await AuthService.signOut();
       await _loadUsername();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Nom d'utilisateur mis à jour !"),
-            backgroundColor: Color(0xFF2ECC71),
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _changeRoleAndLevel() async {
-    String tempRole = _userRole;
-    String tempLevel = _schoolLevel;
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            final isDark = Theme.of(context).brightness == Brightness.dark;
-            final primary = Theme.of(context).primaryColor;
-
-            return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-              title: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(Icons.manage_accounts_rounded, color: primary, size: 24),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Modifier mon profil',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Choisissez votre profil :',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
-                    ),
-                    const SizedBox(height: 12),
-                    // Option Élève / Étudiant
-                    InkWell(
-                      onTap: () => setModalState(() => tempRole = 'student'),
-                      borderRadius: BorderRadius.circular(14),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: tempRole == 'student'
-                              ? primary.withValues(alpha: 0.12)
-                              : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: tempRole == 'student' ? primary : Colors.transparent,
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.school_rounded,
-                              color: tempRole == 'student' ? primary : Colors.grey,
-                              size: 26,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Élève / Étudiant',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      color: tempRole == 'student' ? primary : null,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Accès aux cours, devoirs et révisions',
-                                    style: TextStyle(
-                                      fontSize: 11.5,
-                                      color: isDark ? Colors.white60 : Colors.black54,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (tempRole == 'student')
-                              Icon(Icons.check_circle_rounded, color: primary, size: 20),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    // Option Enseignant
-                    InkWell(
-                      onTap: () => setModalState(() => tempRole = 'teacher'),
-                      borderRadius: BorderRadius.circular(14),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: tempRole == 'teacher'
-                              ? const Color(0xFF9B59B6).withValues(alpha: 0.12)
-                              : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: tempRole == 'teacher' ? const Color(0xFF9B59B6) : Colors.transparent,
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.cast_for_education_rounded,
-                              color: Color(0xFF9B59B6),
-                              size: 26,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Enseignant',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      color: tempRole == 'teacher' ? const Color(0xFF9B59B6) : null,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Création assistée par IA & publication de cours',
-                                    style: TextStyle(
-                                      fontSize: 11.5,
-                                      color: isDark ? Colors.white60 : Colors.black54,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (tempRole == 'teacher')
-                              const Icon(Icons.check_circle_rounded, color: Color(0xFF9B59B6), size: 20),
-                          ],
-                        ),
-                      ),
-                    ),
-                    if (tempRole == 'student') ...[
-                      const SizedBox(height: 18),
-                      const Text(
-                        'Niveau scolaire :',
-                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          ChoiceChip(
-                            label: const Text('Primaire'),
-                            selected: tempLevel == 'primaire',
-                            onSelected: (val) {
-                              if (val) setModalState(() => tempLevel = 'primaire');
-                            },
-                          ),
-                          ChoiceChip(
-                            label: const Text('Secondaire (6e - Tle)'),
-                            selected: tempLevel == 'secondaire',
-                            onSelected: (val) {
-                              if (val) setModalState(() => tempLevel = 'secondaire');
-                            },
-                          ),
-                          ChoiceChip(
-                            label: const Text('Supérieur'),
-                            selected: tempLevel == 'superieur',
-                            onSelected: (val) {
-                              if (val) setModalState(() => tempLevel = 'superieur');
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('Annuler'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(ctx, true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  child: const Text('Enregistrer'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    if (result == true) {
-      await AuthService.updateUserRole(tempRole);
-      if (tempRole == 'student') {
-        await AuthService.updateSchoolLevel(tempLevel);
-      }
-      await _loadUsername();
-      if (mounted) {
-        final roleLabel = tempRole == 'teacher' ? 'Enseignant' : 'Élève ($_schoolLevelLabel)';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Profil mis à jour : $roleLabel'),
-            backgroundColor: const Color(0xFF2ECC71),
-          ),
-        );
-      }
+      if (mounted) context.go('/login');
     }
   }
 
@@ -713,230 +482,194 @@ class _ParametresPageState extends State<ParametresPage>
           child: Container(height: 1, color: dividerColor),
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-        children: [
-          _sectionLabel('Compte', isDark),
-          _card(
-            isDark: isDark,
-            cardColor: cardColor,
-            dividerColor: dividerColor,
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: Row(
-                    children: [
-                      Stack(
-                        clipBehavior: Clip.none,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 900),
+          child: ListView(
+            padding: EdgeInsets.symmetric(
+              horizontal: MediaQuery.of(context).size.width > 600 ? 24 : 16,
+              vertical: 16,
+            ),
+            children: [
+              _sectionLabel('Compte', isDark),
+              _card(
+                isDark: isDark,
+                cardColor: cardColor,
+                dividerColor: dividerColor,
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(18),
+                      child: Row(
                         children: [
-                          Container(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                colors: [
-                                  primary,
-                                  primary.withValues(alpha: 0.65),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
+                          Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Container(
+                                width: 56,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      primary,
+                                      primary.withValues(alpha: 0.65),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: primary.withValues(alpha: 0.35),
+                                      blurRadius: 14,
+                                      offset: const Offset(0, 6),
+                                    ),
+                                  ],
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  _username.isNotEmpty
+                                      ? _username[0].toUpperCase()
+                                      : 'A',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 23,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: primary.withValues(alpha: 0.35),
-                                  blurRadius: 14,
-                                  offset: const Offset(0, 6),
+                              if (user != null)
+                                Positioned(
+                                  right: 0,
+                                  bottom: 0,
+                                  child: Container(
+                                    width: 15,
+                                    height: 15,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF2ECC71),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: cardColor,
+                                        width: 2.5,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _username,
+                                  style: TextStyle(
+                                    fontSize: 16.5,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -0.2,
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF15151C),
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  user != null
+                                      ? (user.phone ?? user.email ?? 'Connecté')
+                                      : 'Non connecté',
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w500,
+                                    color: textSecondary,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2.5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        (_userRole == 'teacher'
+                                                ? const Color(0xFF9B59B6)
+                                                : primary)
+                                            .withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color:
+                                          (_userRole == 'teacher'
+                                                  ? const Color(0xFF9B59B6)
+                                                  : primary)
+                                              .withValues(alpha: 0.25),
+                                      width: 0.8,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        _userRole == 'teacher'
+                                            ? Icons.cast_for_education_rounded
+                                            : Icons.school_rounded,
+                                        size: 12,
+                                        color: _userRole == 'teacher'
+                                            ? const Color(0xFF9B59B6)
+                                            : primary,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        _userRole == 'teacher'
+                                            ? 'Enseignant'
+                                            : 'Élève • $_schoolLevelLabel',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: _userRole == 'teacher'
+                                              ? const Color(0xFF9B59B6)
+                                              : primary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              _username.isNotEmpty
-                                  ? _username[0].toUpperCase()
-                                  : 'A',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 23,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
                           ),
-                          if (user != null)
-                            Positioned(
-                              right: 0,
-                              bottom: 0,
-                              child: Container(
-                                width: 15,
-                                height: 15,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF2ECC71),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: cardColor,
-                                    width: 2.5,
-                                  ),
+                          Material(
+                            color: primary.withValues(alpha: 0.1),
+                            shape: const CircleBorder(),
+                            child: InkWell(
+                              onTap: _openEditProfile,
+                              customBorder: const CircleBorder(),
+                              child: Padding(
+                                padding: const EdgeInsets.all(9),
+                                child: Icon(
+                                  Icons.edit_outlined,
+                                  size: 18,
+                                  color: primary,
                                 ),
                               ),
                             ),
+                          ),
                         ],
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _username,
-                              style: TextStyle(
-                                fontSize: 16.5,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -0.2,
-                                color: isDark
-                                    ? Colors.white
-                                    : const Color(0xFF15151C),
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              user != null
-                                  ? (user.phone ?? user.email ?? 'Connecté')
-                                  : 'Non connecté',
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w500,
-                                color: textSecondary,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
-                              decoration: BoxDecoration(
-                                color: (_userRole == 'teacher'
-                                        ? const Color(0xFF9B59B6)
-                                        : primary)
-                                    .withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: (_userRole == 'teacher'
-                                          ? const Color(0xFF9B59B6)
-                                          : primary)
-                                      .withValues(alpha: 0.25),
-                                  width: 0.8,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    _userRole == 'teacher'
-                                        ? Icons.cast_for_education_rounded
-                                        : Icons.school_rounded,
-                                    size: 12,
-                                    color: _userRole == 'teacher'
-                                        ? const Color(0xFF9B59B6)
-                                        : primary,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    _userRole == 'teacher'
-                                        ? 'Enseignant'
-                                        : 'Élève • $_schoolLevelLabel',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: _userRole == 'teacher'
-                                          ? const Color(0xFF9B59B6)
-                                          : primary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Material(
-                        color: primary.withValues(alpha: 0.1),
-                        shape: const CircleBorder(),
-                        child: InkWell(
-                          onTap: _editUsername,
-                          customBorder: const CircleBorder(),
-                          child: Padding(
-                            padding: const EdgeInsets.all(9),
-                            child: Icon(
-                              Icons.edit_outlined,
-                              size: 18,
-                              color: primary,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Divider(height: 1, color: dividerColor),
-                _settingsTile(
-                  icon: _userRole == 'teacher'
-                      ? Icons.cast_for_education_rounded
-                      : Icons.school_rounded,
-                  iconColor: _userRole == 'teacher'
-                      ? const Color(0xFF9B59B6)
-                      : primary,
-                  title: 'Type de profil',
-                  subtitle: _userRole == 'teacher'
-                      ? 'Enseignant (Créateur de cours)'
-                      : 'Élève / Étudiant • $_schoolLevelLabel',
-                  isDark: isDark,
-                  trailing: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: (_userRole == 'teacher' ? const Color(0xFF9B59B6) : primary)
-                          .withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Changer',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: _userRole == 'teacher'
-                                ? const Color(0xFF9B59B6)
-                                : primary,
-                          ),
+
+                    if (user != null) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
                         ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          Icons.chevron_right_rounded,
-                          size: 16,
-                          color: _userRole == 'teacher'
-                              ? const Color(0xFF9B59B6)
-                              : primary,
-                        ),
-                      ],
-                    ),
-                  ),
-                  onTap: _changeRoleAndLevel,
-                ),
-                if (user != null) ...[
-                  Divider(height: 1, color: dividerColor),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
+                        child: SizedBox(
+                          width: double.infinity,
                           child: _actionButton(
                             label: syncService.isSyncing
-                                ? 'Sync...'
-                                : 'Synchroniser',
+                                ? 'Synchronisation en cours...'
+                                : 'Synchroniser mes données',
                             icon: syncService.isSyncing
                                 ? const SizedBox(
                                     width: 16,
@@ -973,327 +706,312 @@ class _ParametresPageState extends State<ParametresPage>
                                   },
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _actionButton(
-                            label: 'Déconnexion',
-                            icon: const Icon(
-                              Icons.logout_rounded,
-                              size: 18,
-                              color: Colors.white,
-                            ),
-                            color: const Color(0xFFE74C3C),
-                            onPressed: () async {
-                              final confirm = await showDialog<bool>(
-                                context: context,
-                                builder: (ctx) => AlertDialog(
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(18),
-                                  ),
-                                  title: const Text(
-                                    'Se déconnecter ?',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 17,
-                                    ),
-                                  ),
-                                  content: const Text(
-                                    'Vos données locales seront effacées. Elles seront restaurées à la prochaine connexion.',
-                                    style: TextStyle(height: 1.4),
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(ctx, false),
-                                      child: const Text('Annuler'),
-                                    ),
-                                    ElevatedButton(
-                                      onPressed: () => Navigator.pop(ctx, true),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(
-                                          0xFFE74C3C,
-                                        ),
-                                        foregroundColor: Colors.white,
-                                      ),
-                                      child: const Text('Déconnecter'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                              if (confirm == true) {
-                                await AuthService.signOut();
-                                await _loadUsername();
-                                if (mounted) context.go('/login');
-                              }
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ] else ...[
-                  Divider(height: 1, color: dividerColor),
-                  Padding(
-                    padding: const EdgeInsets.all(18),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Créez un compte pour synchroniser vos cours et votre progression.',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: textSecondary,
-                            height: 1.5,
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        SizedBox(
-                          width: double.infinity,
-                          child: _actionButton(
-                            label: 'Se connecter / Créer un compte',
-                            icon: const Icon(
-                              Icons.login_rounded,
-                              size: 18,
-                              color: Colors.white,
-                            ),
-                            color: primary,
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const LoginPage(),
+                      ),
+                    ] else ...[
+                      Divider(height: 1, color: dividerColor),
+                      Padding(
+                        padding: const EdgeInsets.all(18),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Créez un compte pour synchroniser vos cours et votre progression.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: textSecondary,
+                                height: 1.5,
                               ),
-                            ).then((_) => _loadUsername()),
-                          ),
+                            ),
+                            const SizedBox(height: 14),
+                            SizedBox(
+                              width: double.infinity,
+                              child: _actionButton(
+                                label: 'Se connecter / Créer un compte',
+                                icon: const Icon(
+                                  Icons.login_rounded,
+                                  size: 18,
+                                  color: Colors.white,
+                                ),
+                                color: primary,
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const LoginPage(),
+                                  ),
+                                ).then((_) => _loadUsername()),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          _sectionLabel('Apparence', isDark),
-          _card(
-            isDark: isDark,
-            cardColor: cardColor,
-            dividerColor: dividerColor,
-            child: _settingsTile(
-              icon: isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-              iconColor: isDark
-                  ? const Color(0xFF6C63FF)
-                  : const Color(0xFFF39C12),
-              title: 'Thème',
-              subtitle: isDark ? 'Mode sombre' : 'Mode clair',
-              isDark: isDark,
-              trailing: Switch(
-                value: isDark,
-                activeThumbColor: Colors.white,
-                activeTrackColor: primary,
-                inactiveThumbColor: isDark ? Colors.grey[400] : Colors.grey[600],
-                inactiveTrackColor: isDark ? const Color(0xFF2C2C35) : const Color(0xFFE2E8F0),
-                trackOutlineColor: WidgetStateProperty.resolveWith<Color?>((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return Colors.transparent;
-                  }
-                  return isDark ? Colors.grey[700] : Colors.grey[400];
-                }),
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                onChanged: (val) => themeProvider.toggleTheme(
-                  val ? ThemeMode.dark : ThemeMode.light,
+                      ),
+                    ],
+                  ],
                 ),
               ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          _sectionLabel('Concentration', isDark),
-          _card(
-            isDark: isDark,
-            cardColor: cardColor,
-            dividerColor: dividerColor,
-            child: Column(
-              children: [
-                _settingsTile(
-                  icon: Icons.center_focus_strong_rounded,
-                  iconColor: const Color(0xFF3498DB),
-                  title: 'Mode Focus',
-                  subtitle: themeProvider.isFocusMode
-                      ? (themeProvider.notificationsSilenced
-                            ? 'Actif — notifications silencieuses'
-                            : 'Actif — accordez "Ne pas déranger"')
-                      : 'Plein écran + silence des distractions',
+              const SizedBox(height: 20),
+              _sectionLabel('Apparence', isDark),
+              _card(
+                isDark: isDark,
+                cardColor: cardColor,
+                dividerColor: dividerColor,
+                child: _settingsTile(
+                  icon: isDark
+                      ? Icons.dark_mode_rounded
+                      : Icons.light_mode_rounded,
+                  iconColor: isDark
+                      ? const Color(0xFF6C63FF)
+                      : const Color(0xFFF39C12),
+                  title: 'Thème',
+                  subtitle: isDark ? 'Mode sombre' : 'Mode clair',
                   isDark: isDark,
                   trailing: Switch(
-                    value: themeProvider.isFocusMode,
+                    value: isDark,
                     activeThumbColor: Colors.white,
                     activeTrackColor: primary,
-                    inactiveThumbColor: isDark ? Colors.grey[400] : Colors.grey[600],
-                    inactiveTrackColor: isDark ? const Color(0xFF2C2C35) : const Color(0xFFE2E8F0),
-                    trackOutlineColor: WidgetStateProperty.resolveWith<Color?>((states) {
+                    inactiveThumbColor: isDark
+                        ? Colors.grey[400]
+                        : Colors.grey[600],
+                    inactiveTrackColor: isDark
+                        ? const Color(0xFF2C2C35)
+                        : const Color(0xFFE2E8F0),
+                    trackOutlineColor: WidgetStateProperty.resolveWith<Color?>((
+                      states,
+                    ) {
                       if (states.contains(WidgetState.selected)) {
                         return Colors.transparent;
                       }
                       return isDark ? Colors.grey[700] : Colors.grey[400];
                     }),
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    onChanged: (val) =>
-                        _onFocusModeChanged(context, themeProvider, val),
+                    onChanged: (val) => themeProvider.toggleTheme(
+                      val ? ThemeMode.dark : ThemeMode.light,
+                    ),
                   ),
                 ),
-                if (Platform.isAndroid &&
-                    themeProvider.isFocusMode &&
-                    !themeProvider.notificationsSilenced) ...[
-                  Divider(height: 1, color: dividerColor),
-                  _settingsTile(
-                    icon: Icons.notifications_off_outlined,
-                    iconColor: const Color(0xFFE67E22),
-                    title: 'Autoriser le silence',
-                    subtitle: 'Accès "Ne pas déranger" requis',
-                    isDark: isDark,
-                    onTap: () => _openNotificationPermissionSettings(context),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          _sectionLabel('Alarmes', isDark),
-          _card(
-            isDark: isDark,
-            cardColor: cardColor,
-            dividerColor: dividerColor,
-            child: Column(
-              children: [
-                _settingsTile(
-                  icon: Icons.alarm_rounded,
-                  iconColor: const Color(0xFF9B59B6),
-                  title: 'Sonnerie',
-                  subtitle: _getSoundDisplayName(themeProvider.alarmSound),
-                  isDark: isDark,
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      GestureDetector(
-                        onTap: () => _togglePreview(themeProvider.alarmSound),
-                        child: Container(
-                          width: 34,
-                          height: 34,
-                          decoration: BoxDecoration(
-                            color: primary.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            _isPlaying &&
-                                    _playingSound == themeProvider.alarmSound
-                                ? Icons.stop_rounded
-                                : Icons.play_arrow_rounded,
-                            size: 20,
-                            color: primary,
-                          ),
-                        ),
+              ),
+              const SizedBox(height: 20),
+              _sectionLabel('Concentration', isDark),
+              _card(
+                isDark: isDark,
+                cardColor: cardColor,
+                dividerColor: dividerColor,
+                child: Column(
+                  children: [
+                    _settingsTile(
+                      icon: Icons.center_focus_strong_rounded,
+                      iconColor: const Color(0xFF3498DB),
+                      title: 'Mode Focus',
+                      subtitle: themeProvider.isFocusMode
+                          ? (themeProvider.notificationsSilenced
+                                ? 'Actif — notifications silencieuses'
+                                : 'Actif — accordez "Ne pas déranger"')
+                          : 'Plein écran + silence des distractions',
+                      isDark: isDark,
+                      trailing: Switch(
+                        value: themeProvider.isFocusMode,
+                        activeThumbColor: Colors.white,
+                        activeTrackColor: primary,
+                        inactiveThumbColor: isDark
+                            ? Colors.grey[400]
+                            : Colors.grey[600],
+                        inactiveTrackColor: isDark
+                            ? const Color(0xFF2C2C35)
+                            : const Color(0xFFE2E8F0),
+                        trackOutlineColor:
+                            WidgetStateProperty.resolveWith<Color?>((states) {
+                              if (states.contains(WidgetState.selected)) {
+                                return Colors.transparent;
+                              }
+                              return isDark
+                                  ? Colors.grey[700]
+                                  : Colors.grey[400];
+                            }),
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        onChanged: (val) =>
+                            _onFocusModeChanged(context, themeProvider, val),
                       ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: textSecondary,
-                        size: 20,
+                    ),
+                    if (Platform.isAndroid &&
+                        themeProvider.isFocusMode &&
+                        !themeProvider.notificationsSilenced) ...[
+                      Divider(height: 1, color: dividerColor),
+                      _settingsTile(
+                        icon: Icons.notifications_off_outlined,
+                        iconColor: const Color(0xFFE67E22),
+                        title: 'Autoriser le silence',
+                        subtitle: 'Accès "Ne pas déranger" requis',
+                        isDark: isDark,
+                        onTap: () =>
+                            _openNotificationPermissionSettings(context),
                       ),
                     ],
-                  ),
-                  onTap: () => _showSoundSelectorDialog(context, themeProvider),
+                  ],
                 ),
-                if (Platform.isAndroid) ...[
-                  Divider(height: 1, color: dividerColor),
-                  _settingsTile(
-                    icon: _batteryExempted
-                        ? Icons.battery_charging_full_rounded
-                        : Icons.battery_alert_rounded,
-                    iconColor: _batteryExempted
-                        ? const Color(0xFF2ECC71)
-                        : const Color(0xFFE74C3C),
-                    title: 'Optimisation batterie',
-                    subtitle: _batteryExempted
-                        ? 'Non bloquée par la batterie ✓'
-                        : 'Désactiver pour que les alarmes sonnent',
-                    isDark: isDark,
-                    trailing: _batteryExempted
-                        ? Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: const Color(
-                                0xFF2ECC71,
-                              ).withValues(alpha: 0.12),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.check_circle_rounded,
-                              color: Color(0xFF2ECC71),
-                              size: 18,
-                            ),
-                          )
-                        : TextButton(
-                            onPressed: () =>
-                                _showBatteryOptimizationDialog(context),
-                            style: TextButton.styleFrom(
-                              backgroundColor: primary.withValues(alpha: 0.1),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 8,
+              ),
+              const SizedBox(height: 20),
+              _sectionLabel('Alarmes', isDark),
+              _card(
+                isDark: isDark,
+                cardColor: cardColor,
+                dividerColor: dividerColor,
+                child: Column(
+                  children: [
+                    _settingsTile(
+                      icon: Icons.alarm_rounded,
+                      iconColor: const Color(0xFF9B59B6),
+                      title: 'Sonnerie',
+                      subtitle: _getSoundDisplayName(themeProvider.alarmSound),
+                      isDark: isDark,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GestureDetector(
+                            onTap: () =>
+                                _togglePreview(themeProvider.alarmSound),
+                            child: Container(
+                              width: 34,
+                              height: 34,
+                              decoration: BoxDecoration(
+                                color: primary.withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
                               ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                            child: Text(
-                              'Configurer',
-                              style: TextStyle(
+                              child: Icon(
+                                _isPlaying &&
+                                        _playingSound ==
+                                            themeProvider.alarmSound
+                                    ? Icons.stop_rounded
+                                    : Icons.play_arrow_rounded,
+                                size: 20,
                                 color: primary,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 12.5,
                               ),
                             ),
                           ),
-                    onTap: _batteryExempted
-                        ? null
-                        : () => _showBatteryOptimizationDialog(context),
+                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            color: textSecondary,
+                            size: 20,
+                          ),
+                        ],
+                      ),
+                      onTap: () =>
+                          _showSoundSelectorDialog(context, themeProvider),
+                    ),
+                    if (Platform.isAndroid) ...[
+                      Divider(height: 1, color: dividerColor),
+                      _settingsTile(
+                        icon: _batteryExempted
+                            ? Icons.battery_charging_full_rounded
+                            : Icons.battery_alert_rounded,
+                        iconColor: _batteryExempted
+                            ? const Color(0xFF2ECC71)
+                            : const Color(0xFFE74C3C),
+                        title: 'Optimisation batterie',
+                        subtitle: _batteryExempted
+                            ? 'Non bloquée par la batterie ✓'
+                            : 'Désactiver pour que les alarmes sonnent',
+                        isDark: isDark,
+                        trailing: _batteryExempted
+                            ? Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFF2ECC71,
+                                  ).withValues(alpha: 0.12),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.check_circle_rounded,
+                                  color: Color(0xFF2ECC71),
+                                  size: 18,
+                                ),
+                              )
+                            : TextButton(
+                                onPressed: () =>
+                                    _showBatteryOptimizationDialog(context),
+                                style: TextButton.styleFrom(
+                                  backgroundColor: primary.withValues(
+                                    alpha: 0.1,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 8,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                child: Text(
+                                  'Configurer',
+                                  style: TextStyle(
+                                    color: primary,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12.5,
+                                  ),
+                                ),
+                              ),
+                        onTap: _batteryExempted
+                            ? null
+                            : () => _showBatteryOptimizationDialog(context),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              _sectionLabel('À propos', isDark),
+              _card(
+                isDark: isDark,
+                cardColor: cardColor,
+                dividerColor: dividerColor,
+                child: _settingsTile(
+                  icon: Icons.info_outline_rounded,
+                  iconColor: const Color(0xFF4A90D9),
+                  title: 'Ngenou',
+                  subtitle: 'Version 1.1.1 • Par Yamgai Mokube Francko Daniel',
+                  isDark: isDark,
+                ),
+              ),
+              if (user != null) ...[
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton.icon(
+                    onPressed: _handleLogout,
+                    icon: const Icon(
+                      Icons.logout_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    label: const Text(
+                      'Se déconnecter',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
+                        color: Colors.white,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFE74C3C),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shadowColor: const Color(
+                        0xFFE74C3C,
+                      ).withValues(alpha: 0.35),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
                   ),
-                ],
+                ),
               ],
-            ),
+              const SizedBox(height: 48),
+            ],
           ),
-          const SizedBox(height: 20),
-          _sectionLabel('Extensions & Outils', isDark),
-          _card(
-            isDark: isDark,
-            cardColor: cardColor,
-            dividerColor: dividerColor,
-            child: _settingsTile(
-              icon: Icons.extension_rounded,
-              iconColor: const Color(0xFF2ECC71),
-              title: 'Gestionnaire d\'extensions',
-              subtitle: 'Interpréteur algorithmique, simulateurs, kits GitHub',
-              isDark: isDark,
-              trailing: const Icon(Icons.chevron_right_rounded, color: Colors.grey),
-              onTap: () => context.push('/extensions'),
-            ),
-          ),
-          const SizedBox(height: 20),
-          _sectionLabel('À propos', isDark),
-          _card(
-            isDark: isDark,
-            cardColor: cardColor,
-            dividerColor: dividerColor,
-            child: _settingsTile(
-              icon: Icons.info_outline_rounded,
-              iconColor: const Color(0xFF4A90D9),
-              title: 'Ngenou',
-              subtitle: 'Version 1.1.1 • Par Yamgai Mokube Francko Daniel',
-              isDark: isDark,
-            ),
-          ),
-          const SizedBox(height: 32),
-        ],
+        ),
       ),
     );
   }
@@ -1421,10 +1139,7 @@ class _ParametresPageState extends State<ParametresPage>
                   ],
                 ),
               ),
-              if (trailing != null) ...[
-                const SizedBox(width: 10),
-                trailing,
-              ],
+              if (trailing != null) ...[const SizedBox(width: 10), trailing],
             ],
           ),
         ),
@@ -1451,18 +1166,22 @@ class _ParametresPageState extends State<ParametresPage>
           color: Colors.white,
         ),
       ),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: disabled ? color.withValues(alpha: 0.35) : color,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        shadowColor: color.withValues(alpha: 0.4),
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
-      ).copyWith(
-        elevation: WidgetStateProperty.resolveWith(
-          (states) => disabled ? 0 : (states.contains(WidgetState.pressed) ? 0 : 2),
-        ),
-      ),
+      style:
+          ElevatedButton.styleFrom(
+            backgroundColor: disabled ? color.withValues(alpha: 0.35) : color,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shadowColor: color.withValues(alpha: 0.4),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(13),
+            ),
+          ).copyWith(
+            elevation: WidgetStateProperty.resolveWith(
+              (states) =>
+                  disabled ? 0 : (states.contains(WidgetState.pressed) ? 0 : 2),
+            ),
+          ),
     );
   }
 
@@ -1479,7 +1198,9 @@ class _ParametresPageState extends State<ParametresPage>
       final grant = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
           title: const Text(
             'Silence des notifications',
             style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
