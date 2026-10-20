@@ -123,7 +123,7 @@ class _CoursTabState extends State<CoursTab> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Bonjour ${widget.username} 👋',
+                                'Bonjour ${widget.username} 👋🏾 ',
                                 style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.w900,

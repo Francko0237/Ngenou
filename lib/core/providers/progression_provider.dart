@@ -124,9 +124,58 @@ class ProgressionProvider with ChangeNotifier {
     );
 
     await _dbHelper.upsertProgression(newProgression);
-    await loadProgression(matiereId, notify: false);
+    await loadProgression(matiereId, notify: true);
     // Les badges sont déclenchés uniquement depuis exercice_page.dart
     // après navigation vers /resultat — pas ici pour éviter les doublons.
+  }
+
+  /// Marque une notion comme 'en_cours' dès que l'utilisateur commence à lire la leçon,
+  /// sauf si elle est déjà 'termine'.
+  Future<void> markNotionInProgress(String matiereId, String notionId) async {
+    final list = await _dbHelper.getProgressionsByMatiere(matiereId);
+    final current = list.where((p) => p.notionId == notionId).firstOrNull;
+
+    // Si déjà terminée, on ne la rétrograde jamais
+    if (current != null && current.statut == 'termine') return;
+
+    // Si déjà en cours, pas besoin de réécrire
+    if (current != null && current.statut == 'en_cours') return;
+
+    final newProg = Progression(
+      id: current?.id,
+      matiereId: matiereId,
+      notionId: notionId,
+      statut: 'en_cours',
+      nbExercicesReussis: current?.nbExercicesReussis ?? 0,
+      nbExercicesTotal: current?.nbExercicesTotal ?? 0,
+      derniereActivite: DateTime.now(),
+    );
+
+    await _dbHelper.upsertProgression(newProg);
+    await loadProgression(matiereId, notify: true);
+  }
+
+  /// Marque une notion comme 'termine' (100%) dès que la lecture de toutes les leçons est achevée,
+  /// sans obliger à faire les exercices qui sont facultatifs.
+  Future<void> markNotionCompleted(String matiereId, String notionId) async {
+    Progression? current;
+    try {
+      final list = await _dbHelper.getProgressionsByMatiere(matiereId);
+      current = list.where((p) => p.notionId == notionId).firstOrNull;
+    } catch (_) {}
+
+    final newProg = Progression(
+      id: current?.id,
+      matiereId: matiereId,
+      notionId: notionId,
+      statut: 'termine',
+      nbExercicesReussis: current?.nbExercicesReussis ?? 0,
+      nbExercicesTotal: current?.nbExercicesTotal ?? 0,
+      derniereActivite: DateTime.now(),
+    );
+
+    await _dbHelper.upsertProgression(newProg);
+    await loadProgression(matiereId, notify: true);
   }
 
   /// Marque la complétion d'une série d'exercices pour une notion,
@@ -146,8 +195,9 @@ class ProgressionProvider with ChangeNotifier {
     }
 
     final double successRate = total > 0 ? score / total : 1.0;
-    // La notion est considérée terminée si au moins 50% de réussite ou si tous réussis
-    final bool isCompleted = successRate >= 0.5;
+    // La notion reste terminée si elle l'était déjà (par lecture) ou si réussite >= 50%
+    final bool isCompleted =
+        (current?.statut == 'termine') || (successRate >= 0.5);
 
     final newProgression = Progression(
       id: current?.id,
