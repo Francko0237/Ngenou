@@ -27,12 +27,14 @@ class DatabaseHelper {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
-    return await openDatabase(
+    final db = await openDatabase(
       path,
-      version: 12,
+      version: 13,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
+    await _ensureProgressionColumns(db);
+    return db;
   }
 
   Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
@@ -192,6 +194,21 @@ class DatabaseHelper {
         )
       ''');
     }
+    if (oldVersion < 13) {
+      await _ensureProgressionColumns(db);
+    }
+  }
+
+  Future<void> _ensureProgressionColumns(Database db) async {
+    try {
+      await db.execute('ALTER TABLE progression ADD COLUMN progression_lecture REAL DEFAULT 0.0');
+    } catch (_) {}
+    try {
+      await db.execute('ALTER TABLE progression ADD COLUMN last_section_index INTEGER DEFAULT 0');
+    } catch (_) {}
+    try {
+      await db.execute('ALTER TABLE progression ADD COLUMN last_lesson_index INTEGER DEFAULT 0');
+    } catch (_) {}
   }
 
   Future<void> _ensureManualSchedule(Database db) async {
@@ -237,6 +254,9 @@ class DatabaseHelper {
         statut TEXT NOT NULL,
         nb_exercices_reussis INTEGER DEFAULT 0,
         nb_exercices_total INTEGER DEFAULT 0,
+        progression_lecture REAL DEFAULT 0.0,
+        last_section_index INTEGER DEFAULT 0,
+        last_lesson_index INTEGER DEFAULT 0,
         derniere_activite TEXT,
         id_distant TEXT,
         updated_at TEXT,

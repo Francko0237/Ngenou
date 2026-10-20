@@ -5,6 +5,9 @@ class Progression {
   final String statut; // 'non_commence', 'en_cours', 'termine'
   final int nbExercicesReussis;
   final int nbExercicesTotal;
+  final double progressionLecture; // Entre 0.0 et 1.0 (ex: 0.25 pour 25%)
+  final int lastSectionIndex;
+  final int lastLessonIndex;
   final DateTime? derniereActivite;
 
   Progression({
@@ -14,6 +17,9 @@ class Progression {
     required this.statut,
     this.nbExercicesReussis = 0,
     this.nbExercicesTotal = 0,
+    this.progressionLecture = 0.0,
+    this.lastSectionIndex = 0,
+    this.lastLessonIndex = 0,
     this.derniereActivite,
   });
 
@@ -25,6 +31,9 @@ class Progression {
       'statut': statut,
       'nb_exercices_reussis': nbExercicesReussis,
       'nb_exercices_total': nbExercicesTotal,
+      'progression_lecture': progressionLecture,
+      'last_section_index': lastSectionIndex,
+      'last_lesson_index': lastLessonIndex,
       'derniere_activite': derniereActivite?.toIso8601String(),
     };
   }
@@ -37,7 +46,13 @@ class Progression {
       statut: map['statut'],
       nbExercicesReussis: map['nb_exercices_reussis'] ?? 0,
       nbExercicesTotal: map['nb_exercices_total'] ?? 0,
-      derniereActivite: map['derniere_activite'] != null ? DateTime.parse(map['derniere_activite']) : null,
+      progressionLecture: (map['progression_lecture'] as num?)?.toDouble() ??
+          (map['statut'] == 'termine' ? 1.0 : 0.0),
+      lastSectionIndex: (map['last_section_index'] as num?)?.toInt() ?? 0,
+      lastLessonIndex: (map['last_lesson_index'] as num?)?.toInt() ?? 0,
+      derniereActivite: map['derniere_activite'] != null
+          ? DateTime.parse(map['derniere_activite'])
+          : null,
     );
   }
 }
