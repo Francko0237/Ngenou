@@ -182,6 +182,126 @@ class _EnseignantDashboardPageState extends State<EnseignantDashboardPage> {
     ).then((_) => _loadTeacherData());
   }
 
+  void _showCourseActionsSheet(TeacherCourseItem course) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final couleur = CustomCoursePackage.colorFromHex(course.couleur);
+    final icone = CustomCoursePackage.iconFromKey(course.icone);
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.grey[700] : Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(icone, color: couleur, size: 20),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        course.titre,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6C63FF).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.edit_note_rounded, color: Color(0xFF6C63FF)),
+                ),
+                title: const Text('Modifier dans le Studio',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: const Text('Éditer les leçons, sections et contenus'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _openStudioForCourse(course);
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.drive_file_rename_outline, color: Colors.blue),
+                ),
+                title: const Text('Renommer le cours',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _renameCourse(course);
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.visibility_outlined, color: Colors.green),
+                ),
+                title: const Text('Tester le cours',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.push('/cours/${course.matiereId}');
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                ),
+                title: const Text('Supprimer le cours',
+                    style: TextStyle(fontWeight: FontWeight.w600, color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _deleteCourse(course);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -485,10 +605,12 @@ class _EnseignantDashboardPageState extends State<EnseignantDashboardPage> {
     final couleur = CustomCoursePackage.colorFromHex(course.couleur);
     final icone = CustomCoursePackage.iconFromKey(course.icone);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
+    return GestureDetector(
+      onLongPress: () => _showCourseActionsSheet(course),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
@@ -547,49 +669,6 @@ class _EnseignantDashboardPageState extends State<EnseignantDashboardPage> {
                   ],
                 ),
               ),
-              // Menu Options
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert),
-                onSelected: (val) {
-                  if (val == 'delete') _deleteCourse(course);
-                  if (val == 'rename') _renameCourse(course);
-                  if (val == 'studio') _openStudioForCourse(course);
-                },
-                itemBuilder: (ctx) => [
-                  const PopupMenuItem(
-                    value: 'studio',
-                    child: Row(
-                      children: [
-                        Icon(Icons.edit_note_rounded, size: 20),
-                        SizedBox(width: 8),
-                        Text('Modifier dans le Studio'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'rename',
-                    child: Row(
-                      children: [
-                        Icon(Icons.drive_file_rename_outline, size: 20),
-                        SizedBox(width: 8),
-                        Text('Renommer'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuDivider(),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                        SizedBox(width: 8),
-                        Text('Supprimer',
-                            style: TextStyle(color: Colors.red)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -631,6 +710,7 @@ class _EnseignantDashboardPageState extends State<EnseignantDashboardPage> {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 }

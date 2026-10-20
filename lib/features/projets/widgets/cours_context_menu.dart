@@ -5,6 +5,7 @@ import '../../../core/models/matiere.dart';
 import '../../../core/providers/projets_provider.dart';
 import '../../../core/providers/custom_courses_provider.dart';
 import '../../../modules/modules_registry.dart';
+import '../../course_builder/course_studio_page.dart';
 
 /// Affiche un menu contextuel (bottom sheet) au long-press sur un cours dans un projet.
 Future<void> showCoursContextMenu(
@@ -119,6 +120,21 @@ class _CoursContextMenuContent extends StatelessWidget {
             ),
             const Divider(),
             if (isCustom) ...[
+              _MenuItem(
+                icon: Icons.edit_note_rounded,
+                label: 'Modifier le contenu (Studio)',
+                color: const Color(0xFF6C63FF),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CourseStudioPage(matiereId: matiereId),
+                      fullscreenDialog: true,
+                    ),
+                  ).then((_) => onRefresh());
+                },
+              ),
               _MenuItem(
                 icon: Icons.edit_rounded,
                 label: 'Renommer le cours',

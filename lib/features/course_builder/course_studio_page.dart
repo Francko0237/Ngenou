@@ -786,13 +786,13 @@ class _EditableWrapperState extends State<_EditableWrapper> {
                       color: widget.accent,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.edit_rounded,
+                        Icon(Icons.edit_rounded,
                             size: 12, color: Colors.white),
-                        const SizedBox(width: 4),
-                        const Text(
+                        SizedBox(width: 4),
+                        Text(
                           'Double-clic pour modifier',
                           style: TextStyle(
                             color: Colors.white,
@@ -824,9 +824,9 @@ class _EditableSection {
   _EditableSection({
     required this.title,
     required this.bodyText,
-    required this.reveals,
+    List<RevealBlock>? reveals,
     required this.blockType,
-  });
+  }) : reveals = reveals ?? [];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -850,12 +850,14 @@ class _SectionEditorSheet extends StatefulWidget {
 class _SectionEditorSheetState extends State<_SectionEditorSheet> {
   late TextEditingController _titleCtrl;
   late TextEditingController _bodyCtrl;
+  late List<RevealBlock> _reveals;
 
   @override
   void initState() {
     super.initState();
     _titleCtrl = TextEditingController(text: widget.section.title);
     _bodyCtrl = TextEditingController(text: widget.section.bodyText);
+    _reveals = List.from(widget.section.reveals);
   }
 
   @override
@@ -932,7 +934,7 @@ class _SectionEditorSheetState extends State<_SectionEditorSheet> {
                             ? _titleCtrl.text.trim()
                             : widget.section.title,
                         bodyText: _bodyCtrl.text,
-                        reveals: widget.section.reveals,
+                        reveals: List.from(_reveals),
                         blockType: widget.section.blockType,
                       ),
                     );
@@ -1034,6 +1036,14 @@ class _SectionEditorSheetState extends State<_SectionEditorSheet> {
                 ],
               ),
             ),
+          ),
+
+          // ── « Le savais-tu ? » reveals ────────────────────────────────────
+          _RevealsEditor(
+            reveals: _reveals,
+            isDark: widget.isDark,
+            accent: widget.accent,
+            onChanged: () => setState(() {}),
           ),
 
           // Body text editor
@@ -1139,6 +1149,318 @@ class _ToolBtn extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Éditeur des blocs « Le savais-tu ? »
+// ─────────────────────────────────────────────────────────────────────────────
+class _RevealsEditor extends StatelessWidget {
+  final List<RevealBlock> reveals;
+  final bool isDark;
+  final Color accent;
+  final VoidCallback onChanged;
+
+  const _RevealsEditor({
+    required this.reveals,
+    required this.isDark,
+    required this.accent,
+    required this.onChanged,
+  });
+
+  static const _kRevealColor = Color(0xFF8E44AD);
+
+  void _addReveal(BuildContext context) async {
+    final result = await _showRevealDialog(
+      context,
+      isDark: isDark,
+      accent: accent,
+      initial: null,
+    );
+    if (result != null) {
+      reveals.add(result);
+      onChanged();
+    }
+  }
+
+  void _editReveal(BuildContext context, int idx) async {
+    final result = await _showRevealDialog(
+      context,
+      isDark: isDark,
+      accent: accent,
+      initial: reveals[idx],
+    );
+    if (result != null) {
+      reveals[idx] = result;
+      onChanged();
+    }
+  }
+
+  void _deleteReveal(int idx) {
+    reveals.removeAt(idx);
+    onChanged();
+  }
+
+  static Future<RevealBlock?> _showRevealDialog(
+    BuildContext context, {
+    required bool isDark,
+    required Color accent,
+    RevealBlock? initial,
+  }) async {
+    final titleCtrl = TextEditingController(text: initial?.title ?? '');
+    final contentCtrl = TextEditingController(text: initial?.content ?? '');
+    return showDialog<RevealBlock>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1C1C28) : Colors.white,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: _kRevealColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.lightbulb_rounded,
+                  color: _kRevealColor, size: 18),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              initial == null
+                  ? 'Ajouter un « Le savais-tu ? »'
+                  : 'Modifier',
+              style: const TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.w800),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleCtrl,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: 'Question / Titre',
+                hintText: 'Ex: Le savais-tu ?',
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide:
+                      const BorderSide(color: _kRevealColor, width: 2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: contentCtrl,
+              maxLines: 4,
+              decoration: InputDecoration(
+                labelText: 'Contenu (réponse / explication)',
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide:
+                      const BorderSide(color: _kRevealColor, width: 2),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Annuler',
+                style: TextStyle(color: Colors.grey.shade500)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final t = titleCtrl.text.trim();
+              final c = contentCtrl.text.trim();
+              if (t.isEmpty) return;
+              Navigator.pop(
+                ctx,
+                RevealBlock(
+                  title: t,
+                  content: c,
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _kRevealColor,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+              elevation: 0,
+            ),
+            child: Text(
+              initial == null ? 'Ajouter' : 'Enregistrer',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark
+            ? _kRevealColor.withValues(alpha: 0.08)
+            : _kRevealColor.withValues(alpha: 0.05),
+        border: Border(
+          top: BorderSide(
+            color: _kRevealColor.withValues(alpha: 0.2),
+          ),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                const Icon(Icons.lightbulb_rounded,
+                    color: _kRevealColor, size: 16),
+                const SizedBox(width: 6),
+                const Expanded(
+                  child: Text(
+                    '« Le savais-tu ? »',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: _kRevealColor,
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => _addReveal(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: _kRevealColor,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add_rounded,
+                            size: 14, color: Colors.white),
+                        SizedBox(width: 4),
+                        Text(
+                          'Ajouter',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Reveal list
+          if (reveals.isNotEmpty)
+            ...reveals.asMap().entries.map((entry) {
+              final idx = entry.key;
+              final r = entry.value;
+              return Container(
+                margin: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF1E1E2A)
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: _kRevealColor.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.lightbulb_outline_rounded,
+                        color: _kRevealColor, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            r.title,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: _kRevealColor,
+                            ),
+                          ),
+                          if (r.content.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              r.content,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isDark
+                                    ? Colors.white60
+                                    : Colors.black54,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.edit_rounded, size: 16),
+                      color: _kRevealColor,
+                      tooltip: 'Modifier',
+                      onPressed: () => _editReveal(context, idx),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline_rounded,
+                          size: 16),
+                      color: Colors.redAccent,
+                      tooltip: 'Supprimer',
+                      onPressed: () => _deleteReveal(idx),
+                    ),
+                  ],
+                ),
+              );
+            }),
+
+          if (reveals.isEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+              child: Text(
+                'Aucun bloc « Le savais-tu ? » — appuie sur Ajouter pour en créer un.',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: isDark ? Colors.white38 : Colors.black38,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+
+          const SizedBox(height: 8),
+        ],
       ),
     );
   }
