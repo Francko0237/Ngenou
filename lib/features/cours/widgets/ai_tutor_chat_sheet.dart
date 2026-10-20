@@ -716,7 +716,7 @@ class _AiTutorChatSheetState extends State<AiTutorChatSheet> {
           ),
           const SizedBox(height: 20),
           Text(
-            'Bonjour ! Je suis Ngenou 👋',
+            'Bonjour ! Je suis Ngenou 👋🏾 ',
             style: TextStyle(
               fontWeight: FontWeight.w900,
               fontSize: 20,

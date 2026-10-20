@@ -1149,7 +1149,7 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
           ),
           const SizedBox(height: 20),
           Text(
-            'Bienvenue chez Ngenou 👋',
+            'Bienvenue chez Ngenou 👋🏾',
             style: TextStyle(
               fontWeight: FontWeight.w900,
               fontSize: 20,

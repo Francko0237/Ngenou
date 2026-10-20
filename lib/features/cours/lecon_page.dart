@@ -54,11 +54,17 @@ class _LeconPageState extends State<LeconPage> {
         .map((l) => LessonContentParser.parse(l.contenu, fallbackTitle: l.titre))
         .toList();
 
-    if (widget.openChat) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<ProgressionProvider>().markNotionInProgress(
+          widget.matiereId,
+          widget.notionId,
+        );
+      }
+      if (widget.openChat) {
         _openAiTutor();
-      });
-    }
+      }
+    });
   }
 
   @override
@@ -257,13 +263,11 @@ class _LeconPageState extends State<LeconPage> {
         _goToLesson(_lessonIndex + 1);
       } else {
         // Fin de toutes les leçons de la notion :
-        // Marquer la lecture comme complétée et afficher la feuille de choix
+        // Marquer la notion comme complétée (100% sans forcer les exercices)
         if (context.mounted) {
-          await context.read<ProgressionProvider>().completeNotionSeries(
-            matiereId: widget.matiereId,
-            notionId: widget.notionId,
-            score: 0,
-            total: 0,
+          await context.read<ProgressionProvider>().markNotionCompleted(
+            widget.matiereId,
+            widget.notionId,
           );
         }
         if (context.mounted) _showNotionCompletionSheet();
