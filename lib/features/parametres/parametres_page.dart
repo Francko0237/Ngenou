@@ -14,7 +14,9 @@ import '../../core/services/auth_service.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/services/connectivity_service.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../auth/login_page.dart';
+import '../splash/onboarding_page.dart';
 import 'edit_profile_page.dart';
 
 class ParametresPage extends StatefulWidget {
@@ -971,6 +973,65 @@ class _ParametresPageState extends State<ParametresPage>
                   title: 'Ngenou',
                   subtitle: 'Version 1.1.1 • Par Yamgai Mokube Francko Daniel',
                   isDark: isDark,
+                ),
+              ),
+              const SizedBox(height: 20),
+              _sectionLabel('Aide & Découverte', isDark),
+              _card(
+                isDark: isDark,
+                cardColor: cardColor,
+                dividerColor: dividerColor,
+                child: Column(
+                  children: [
+                    _settingsTile(
+                      icon: Icons.rocket_launch_rounded,
+                      iconColor: const Color(0xFF6C63FF),
+                      title: "Revoir l'introduction",
+                      subtitle: "Relancer la visite guidée et les conseils Ngenou",
+                      isDark: isDark,
+                      trailing: Icon(
+                        Icons.chevron_right_rounded,
+                        color: textSecondary,
+                        size: 20,
+                      ),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (ctx) => OnboardingPage(
+                              onDone: () => Navigator.pop(ctx),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    Divider(height: 1, color: dividerColor),
+                    _settingsTile(
+                      icon: Icons.checklist_rounded,
+                      iconColor: const Color(0xFF10B981),
+                      title: "Réinitialiser la checklist 'Premiers pas'",
+                      subtitle:
+                          "Réafficher la carte des objectifs sur le tableau de bord",
+                      isDark: isDark,
+                      onTap: () async {
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.remove('ngenou_first_steps_dismissed_v1');
+                        await prefs.remove('ngenou_first_steps_chat_visited');
+                        await prefs.remove(
+                            'ngenou_first_steps_progression_visited');
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  "Checklist 'Premiers pas' réinitialisée sur votre tableau de bord !"),
+                              behavior: SnackBarBehavior.floating,
+                              duration: Duration(seconds: 3),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ],
                 ),
               ),
               if (user != null) ...[

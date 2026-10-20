@@ -12,6 +12,7 @@ import '../../projets/widgets/projet_card.dart';
 import '../../projets/widgets/projet_context_menu.dart';
 import '../../projets/create_project_wizard_page.dart';
 import '../../projets/projet_detail_page.dart';
+import '../widgets/first_steps_checklist_card.dart';
 
 class CoursTab extends StatefulWidget {
   final String username;
@@ -203,6 +204,12 @@ class _CoursTabState extends State<CoursTab> {
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 18),
+
+                    // Guide interactif Premiers pas (onboarding dashboard)
+                    FirstStepsChecklistCard(
+                      onExploreCourses: () => widget.onSubTabChanged(0),
                     ),
                     const SizedBox(height: 18),
 
