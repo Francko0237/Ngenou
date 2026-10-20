@@ -55,27 +55,31 @@ class ProgressionProvider with ChangeNotifier {
 
     int completedNotions = 0;
     int inProgressNotions = 0;
+    double currentWeight = 0.0;
 
     for (final notion in notions) {
       try {
         final p = list.firstWhere((e) => e.notionId == notion.id);
         if (p.statut == 'termine') {
           completedNotions++;
+          currentWeight += 1.0;
         } else if (p.statut == 'en_cours') {
           inProgressNotions++;
+          // Progression réelle de lecture (entre 0.0 et 1.0, ex: 0.25 pour 1/4)
+          final lectureP = p.progressionLecture > 0.0 ? p.progressionLecture : 0.25;
+          currentWeight += lectureP;
         }
       } catch (e) {
         // Notion not started
       }
     }
 
-    // Progression calculation:
-    // - Completed notions = 100% of their weight
-    // - In-progress notions = 50% of their weight
-    // - Not started = 0%
+    // Calcul de la progression globale basé sur les poids réels :
+    // - Notion terminée = 100% (1.0)
+    // - Notion en cours = pourcentage réel de concepts lus (ex: 25%, 50%, 75%)
+    // - Notion non commencée = 0%
     double totalWeight = notions.length.toDouble();
-    double currentWeight = completedNotions + (inProgressNotions * 0.5);
-    double prog = (currentWeight / totalWeight) * 100.0;
+    double prog = totalWeight > 0 ? (currentWeight / totalWeight) * 100.0 : 0.0;
 
     _progressionGlobaleParMatiere[matiereId] = prog.clamp(0.0, 100.0);
 
@@ -120,26 +124,68 @@ class ProgressionProvider with ChangeNotifier {
       statut: statut,
       nbExercicesReussis: reussis,
       nbExercicesTotal: total,
+      progressionLecture: current?.progressionLecture ?? (statut == 'termine' ? 1.0 : 0.0),
+      lastSectionIndex: current?.lastSectionIndex ?? 0,
+      lastLessonIndex: current?.lastLessonIndex ?? 0,
       derniereActivite: DateTime.now(),
     );
 
     await _dbHelper.upsertProgression(newProgression);
     await loadProgression(matiereId, notify: true);
-    // Les badges sont déclenchés uniquement depuis exercice_page.dart
-    // après navigation vers /resultat — pas ici pour éviter les doublons.
+  }
+
+  /// Met à jour la progression réelle de lecture au fur et à mesure que l'apprenant avance dans la leçon.
+  Future<void> updateReadingProgress({
+    required String matiereId,
+    required String notionId,
+    required double progress, // 0.0 à 1.0
+    int sectionIndex = 0,
+    int lessonIndex = 0,
+  }) async {
+    final list = await _dbHelper.getProgressionsByMatiere(matiereId);
+    final current = list.where((p) => p.notionId == notionId).firstOrNull;
+
+    // Si déjà marquée comme terminée (100%), on garde 'termine'
+    if (current != null && current.statut == 'termine') return;
+
+    final clampedProgress = progress.clamp(0.0, 1.0);
+    final prevProgress = current?.progressionLecture ?? 0.0;
+    final bestProgress = clampedProgress > prevProgress ? clampedProgress : prevProgress;
+
+    final newProg = Progression(
+      id: current?.id,
+      matiereId: matiereId,
+      notionId: notionId,
+      statut: bestProgress >= 1.0 ? 'termine' : 'en_cours',
+      nbExercicesReussis: current?.nbExercicesReussis ?? 0,
+      nbExercicesTotal: current?.nbExercicesTotal ?? 0,
+      progressionLecture: bestProgress,
+      lastSectionIndex: sectionIndex,
+      lastLessonIndex: lessonIndex,
+      derniereActivite: DateTime.now(),
+    );
+
+    await _dbHelper.upsertProgression(newProg);
+    await loadProgression(matiereId, notify: true);
   }
 
   /// Marque une notion comme 'en_cours' dès que l'utilisateur commence à lire la leçon,
-  /// sauf si elle est déjà 'termine'.
-  Future<void> markNotionInProgress(String matiereId, String notionId) async {
+  /// sans forcer un faux 50% arbitraire.
+  Future<void> markNotionInProgress(
+    String matiereId,
+    String notionId, {
+    double initialProgress = 0.0,
+    int sectionIndex = 0,
+    int lessonIndex = 0,
+  }) async {
     final list = await _dbHelper.getProgressionsByMatiere(matiereId);
     final current = list.where((p) => p.notionId == notionId).firstOrNull;
 
     // Si déjà terminée, on ne la rétrograde jamais
     if (current != null && current.statut == 'termine') return;
 
-    // Si déjà en cours, pas besoin de réécrire
-    if (current != null && current.statut == 'en_cours') return;
+    final prevProg = current?.progressionLecture ?? 0.0;
+    final bestProgress = initialProgress > prevProg ? initialProgress : prevProg;
 
     final newProg = Progression(
       id: current?.id,
@@ -148,6 +194,9 @@ class ProgressionProvider with ChangeNotifier {
       statut: 'en_cours',
       nbExercicesReussis: current?.nbExercicesReussis ?? 0,
       nbExercicesTotal: current?.nbExercicesTotal ?? 0,
+      progressionLecture: bestProgress,
+      lastSectionIndex: current?.lastSectionIndex ?? sectionIndex,
+      lastLessonIndex: current?.lastLessonIndex ?? lessonIndex,
       derniereActivite: DateTime.now(),
     );
 
@@ -171,6 +220,9 @@ class ProgressionProvider with ChangeNotifier {
       statut: 'termine',
       nbExercicesReussis: current?.nbExercicesReussis ?? 0,
       nbExercicesTotal: current?.nbExercicesTotal ?? 0,
+      progressionLecture: 1.0,
+      lastSectionIndex: current?.lastSectionIndex ?? 0,
+      lastLessonIndex: current?.lastLessonIndex ?? 0,
       derniereActivite: DateTime.now(),
     );
 
