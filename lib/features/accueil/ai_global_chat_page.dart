@@ -468,59 +468,6 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
     });
   }
 
-  void _showAttachmentOptions() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: isDark ? Colors.grey[700] : Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: Icon(
-                Icons.image_rounded,
-                color: Theme.of(context).primaryColor,
-              ),
-              title: const Text('Photo / Image'),
-              subtitle: const Text('Depuis la galerie'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: implémenter la sélection d'image
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.attach_file_rounded,
-                color: Theme.of(context).primaryColor,
-              ),
-              title: const Text('Fichier'),
-              subtitle: const Text('PDF, document…'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: implémenter la sélection de fichier
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _onInputChanged() {
     final isLong = _input.text.length > 80;
     if (isLong != _isLongInput) {
