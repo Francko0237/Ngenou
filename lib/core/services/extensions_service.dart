@@ -183,7 +183,11 @@ class ExtensionsService extends ChangeNotifier {
       }
 
       // Téléchargement des fichiers déclarés + bundle.json
-      final filesToDownload = <String>{...ext.files, 'bundle.json', 'README.md'};
+      final filesToDownload = <String>{
+        ...ext.files,
+        'bundle.json',
+        'README.md',
+      };
       for (final fileName in filesToDownload) {
         final fileUrl = '$repoRawBaseUrl/extensions/${ext.id}/$fileName';
         try {
@@ -262,5 +266,6 @@ class ExtensionsService extends ChangeNotifier {
   }
 
   // Fallback vide si aucun cache ni réseau n'est disponible au 1er lancement
-  static const String _bundledFallbackManifest = '{"version": "1.0.0", "extensions": []}';
+  static const String _bundledFallbackManifest =
+      '{"version": "1.0.0", "extensions": []}';
 }

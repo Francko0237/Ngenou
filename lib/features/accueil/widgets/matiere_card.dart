@@ -78,7 +78,7 @@ class MatiereCard extends StatelessWidget {
                   children: [
                     // ─── Visuel haut : Image de couverture ou SVG de fallback ───
                     Expanded(
-                      flex: 55,
+                      flex: 62,
                       child: ClipRRect(
                         borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(19),
@@ -94,12 +94,12 @@ class MatiereCard extends StatelessWidget {
                     ),
                     // ─── Contenu bas : Titre et Progression ───
                     Expanded(
-                      flex: 45,
+                      flex: 38,
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          mainAxisAlignment: MainAxisAlignment.start,
                           children: [
                             Text(
                               titre,
@@ -114,6 +114,7 @@ class MatiereCard extends StatelessWidget {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
+                            const SizedBox(height: 6),
                             if (isAvailable && progression > 0) ...[
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,

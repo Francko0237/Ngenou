@@ -13,7 +13,7 @@ import '../../projets/widgets/projet_context_menu.dart';
 import '../../projets/create_project_wizard_page.dart';
 import '../../projets/projet_detail_page.dart';
 
-class CoursTab extends StatelessWidget {
+class CoursTab extends StatefulWidget {
   final String username;
   final String userRole;
   final int selectedSubTab; // 0 = Mes cours, 1 = Projets
@@ -28,6 +28,38 @@ class CoursTab extends StatelessWidget {
     required this.onSubTabChanged,
     required this.onRefresh,
   });
+
+  @override
+  State<CoursTab> createState() => _CoursTabState();
+}
+
+class _CoursTabState extends State<CoursTab> {
+  late final PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: widget.selectedSubTab);
+  }
+
+  @override
+  void didUpdateWidget(CoursTab old) {
+    super.didUpdateWidget(old);
+    // Si le parent change l'onglet (tap sur le toggle), on anime le PageView
+    if (old.selectedSubTab != widget.selectedSubTab) {
+      _pageController.animateToPage(
+        widget.selectedSubTab,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,258 +93,224 @@ class CoursTab extends StatelessWidget {
     final avgProg = matieres.isNotEmpty && evaluatedCount > 0
         ? (totalProg / matieres.length).clamp(0.0, 100.0)
         : 0.0;
-    final streak = defisProvider.history.length; // sessions de défi validées
+    final streak = defisProvider.history.length;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final w = constraints.maxWidth;
         final hPad = w > 1200 ? w * 0.08 : w > 700 ? w * 0.05 : 18.0;
         final cols = w > 1100 ? 4 : w > 700 ? 3 : 2;
-        final ratio = w > 900 ? 1.05 : 0.85;
+        // Ratio ajusté pour coller au contenu de MatiereCard (cover 55% + texte 45%)
+        // sans laisser d'espace blanc en bas
+        final ratio = w > 900 ? 1.15 : 0.95;
 
-        return SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ─── Salutation épurée ─────────────────────────────────────────
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+        return Column(
+          children: [
+            // ─── Partie fixe : salutation + stats + toggle ─────────────────
+            SingleChildScrollView(
+              physics: const NeverScrollableScrollPhysics(),
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Salutation
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(
-                          'Bonjour $username 👋',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.3,
-                            color: isDark ? Colors.white : const Color(0xFF15151C),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          "Prêt pour votre apprentissage aujourd'hui ?",
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: isDark ? Colors.white60 : Colors.black54,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (userRole == 'teacher')
-                    GestureDetector(
-                      onTap: () => context.push('/enseignant').then((_) => onRefresh()),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: primary.withValues(alpha: isDark ? 0.2 : 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: primary.withValues(alpha: 0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.co_present_rounded, size: 16, color: primary),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Espace Prof',
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.bold,
-                                color: primary,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Bonjour ${widget.username} 👋',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.3,
+                                  color: isDark ? Colors.white : const Color(0xFF15151C),
+                                ),
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 2),
+                              Text(
+                                "Prêt pour votre apprentissage aujourd'hui ?",
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: isDark ? Colors.white60 : Colors.black54,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // ─── Mini-Stats Bar (3 capsules légères et stimulantes) ──────────
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildMiniStatCard(
-                      icon: Icons.menu_book_rounded,
-                      iconColor: const Color(0xFF3498DB),
-                      value: '${matieres.length}',
-                      label: 'Matières',
-                      isDark: isDark,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildMiniStatCard(
-                      icon: Icons.check_circle_rounded,
-                      iconColor: const Color(0xFF2ECC71),
-                      value: '${avgProg.toStringAsFixed(0)}%',
-                      label: 'Maîtrisé',
-                      isDark: isDark,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildMiniStatCard(
-                      icon: Icons.local_fire_department_rounded,
-                      iconColor: const Color(0xFFE67E22),
-                      value: streak > 0 ? '$streak j' : 'Actif',
-                      label: 'Série',
-                      isDark: isDark,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
-
-              // ─── Toggle : Mes cours / Projets ──────────────────────────────
-              Center(
-                child: Container(
-                  width: double.infinity,
-                  constraints: const BoxConstraints(maxWidth: 440),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.05)
-                        : Colors.black.withValues(alpha: 0.04),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  padding: const EdgeInsets.all(3.5),
-                  child: LayoutBuilder(
-                    builder: (context, boxConstraints) {
-                      final indicatorWidth = boxConstraints.maxWidth / 2;
-                      return Stack(
-                        children: [
-                          AnimatedPositioned(
-                            duration: const Duration(milliseconds: 220),
-                            curve: Curves.easeOutCubic,
-                            left: selectedSubTab == 0 ? 0 : indicatorWidth,
-                            top: 0,
-                            bottom: 0,
-                            width: indicatorWidth,
-                            child: DecoratedBox(
+                        if (widget.userRole == 'teacher')
+                          GestureDetector(
+                            onTap: () => context.push('/enseignant').then((_) => widget.onRefresh()),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                               decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF262630) : Colors.white,
-                                borderRadius: BorderRadius.circular(13),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
+                                color: primary.withValues(alpha: isDark ? 0.2 : 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: primary.withValues(alpha: 0.3), width: 1),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.co_present_rounded, size: 16, color: primary),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Espace Prof',
+                                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: primary),
                                   ),
                                 ],
                               ),
                             ),
                           ),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _SubTabButton(
-                                  label: 'Mes cours',
-                                  icon: Icons.auto_stories_rounded,
-                                  selected: selectedSubTab == 0,
-                                  primary: primary,
-                                  isDark: isDark,
-                                  onTap: () => onSubTabChanged(0),
-                                ),
-                              ),
-                              Expanded(
-                                child: _SubTabButton(
-                                  label: 'Projets',
-                                  icon: Icons.folder_special_rounded,
-                                  selected: selectedSubTab == 1,
-                                  primary: primary,
-                                  isDark: isDark,
-                                  onTap: () => onSubTabChanged(1),
-                                ),
-                              ),
-                            ],
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Mini-Stats Bar
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildMiniStatCard(
+                            icon: Icons.menu_book_rounded,
+                            iconColor: const Color(0xFF3498DB),
+                            value: '${matieres.length}',
+                            label: 'Matières',
+                            isDark: isDark,
                           ),
-                        ],
-                      );
-                    },
-                  ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _buildMiniStatCard(
+                            icon: Icons.check_circle_rounded,
+                            iconColor: const Color(0xFF2ECC71),
+                            value: '${avgProg.toStringAsFixed(0)}%',
+                            label: 'Maîtrisé',
+                            isDark: isDark,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _buildMiniStatCard(
+                            icon: Icons.local_fire_department_rounded,
+                            iconColor: const Color(0xFFE67E22),
+                            value: streak > 0 ? '$streak j' : 'Actif',
+                            label: 'Série',
+                            isDark: isDark,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+
+                    // Toggle Mes cours / Projets
+                    Center(
+                      child: Container(
+                        width: double.infinity,
+                        constraints: const BoxConstraints(maxWidth: 440),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.05)
+                              : Colors.black.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        padding: const EdgeInsets.all(3.5),
+                        child: LayoutBuilder(
+                          builder: (context, boxConstraints) {
+                            final indicatorWidth = boxConstraints.maxWidth / 2;
+                            return Stack(
+                              children: [
+                                AnimatedPositioned(
+                                  duration: const Duration(milliseconds: 220),
+                                  curve: Curves.easeOutCubic,
+                                  left: widget.selectedSubTab == 0 ? 0 : indicatorWidth,
+                                  top: 0,
+                                  bottom: 0,
+                                  width: indicatorWidth,
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF262630) : Colors.white,
+                                      borderRadius: BorderRadius.circular(13),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _SubTabButton(
+                                        label: 'Mes cours',
+                                        icon: Icons.auto_stories_rounded,
+                                        selected: widget.selectedSubTab == 0,
+                                        primary: primary,
+                                        isDark: isDark,
+                                        onTap: () => widget.onSubTabChanged(0),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: _SubTabButton(
+                                        label: 'Projets',
+                                        icon: Icons.folder_special_rounded,
+                                        selected: widget.selectedSubTab == 1,
+                                        primary: primary,
+                                        isDark: isDark,
+                                        onTap: () => widget.onSubTabChanged(1),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                  ],
                 ),
               ),
-              const SizedBox(height: 18),
+            ),
 
-              // ─── Contenu du sous-onglet ────────────────────────────────────
-              if (selectedSubTab == 0) ...[
-                // GRILLE DES MATIÈRES
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: cols,
-                    mainAxisSpacing: 14,
-                    crossAxisSpacing: 14,
-                    childAspectRatio: ratio,
+            // ─── PageView swipeable ────────────────────────────────────────
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                physics: const ClampingScrollPhysics(),
+                onPageChanged: (index) {
+                  // Notifie le parent pour que le toggle se mette à jour
+                  widget.onSubTabChanged(index);
+                },
+                children: [
+                  // Page 0 : Mes cours
+                  _CoursPage(
+                    matieres: matieres,
+                    progProvider: progProvider,
+                    hPad: hPad,
+                    cols: cols,
+                    ratio: ratio,
+                    isDark: isDark,
                   ),
-                  itemCount: matieres.length,
-                  itemBuilder: (context, index) {
-                    final matiere = matieres[index];
-                    final prog = progProvider.getProgressionGlobale(matiere.id);
-                    final isCustom = ModulesRegistry.isCustomMatiere(matiere.id);
-                    final isPublic = ModulesRegistry.isPublicCourse(matiere.id);
-                    return MatiereCard(
-                      titre: matiere.nom,
-                      icon: matiere.icone,
-                      isAvailable: matiere.isAvailable,
-                      progression: prog,
-                      isCustom: isCustom,
-                      isPublic: isPublic,
-                      matiereId: matiere.id,
-                      coverImageUrl: matiere.coverImageUrl,
-                      couleur: matiere.couleur,
-                      onTap: () => context.push('/cours/${matiere.id}'),
-                    );
-                  },
-                ),
-              ] else ...[
-                // LISTE DES PROJETS
-                _buildCreateProjectCard(context, isDark),
-                const SizedBox(height: 16),
-                if (projetsProvider.projets.isEmpty)
-                  _buildEmptyProjetState(isDark)
-                else
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: projetsProvider.projets.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (_, i) {
-                      final projet = projetsProvider.projets[i];
-                      final progression = projetsProvider.getProgressionProjet(
-                        projet,
-                        progProvider,
-                      );
-                      return ProjetCard(
-                        projet: projet,
-                        progression: progression,
-                        onTap: () => _openProjet(context, projet),
-                        onLongPress: projet.isSystem
-                            ? null
-                            : () => showProjetContextMenu(
-                                  context,
-                                  projet: projet,
-                                  onRefresh: onRefresh,
-                                ),
-                      );
-                    },
+                  // Page 1 : Projets
+                  _ProjetsPage(
+                    projetsProvider: projetsProvider,
+                    progProvider: progProvider,
+                    hPad: hPad,
+                    isDark: isDark,
+                    onRefresh: widget.onRefresh,
                   ),
-              ],
-              const SizedBox(height: 80),
-            ],
-          ),
+                ],
+              ),
+            ),
+          ],
         );
       },
     );
@@ -387,8 +385,119 @@ class CoursTab extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildCreateProjectCard(BuildContext context, bool isDark) {
+// ── Page Mes cours ────────────────────────────────────────────────────────────
+
+class _CoursPage extends StatelessWidget {
+  final List<dynamic> matieres;
+  final ProgressionProvider progProvider;
+  final double hPad;
+  final int cols;
+  final double ratio;
+  final bool isDark;
+
+  const _CoursPage({
+    required this.matieres,
+    required this.progProvider,
+    required this.hPad,
+    required this.cols,
+    required this.ratio,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 80),
+      physics: const BouncingScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: cols,
+        mainAxisSpacing: 14,
+        crossAxisSpacing: 14,
+        childAspectRatio: ratio,
+      ),
+      itemCount: matieres.length,
+      itemBuilder: (context, index) {
+        final matiere = matieres[index];
+        final prog = progProvider.getProgressionGlobale(matiere.id);
+        final isCustom = ModulesRegistry.isCustomMatiere(matiere.id);
+        final isPublic = ModulesRegistry.isPublicCourse(matiere.id);
+        return MatiereCard(
+          titre: matiere.nom,
+          icon: matiere.icone,
+          isAvailable: matiere.isAvailable,
+          progression: prog,
+          isCustom: isCustom,
+          isPublic: isPublic,
+          matiereId: matiere.id,
+          coverImageUrl: matiere.coverImageUrl,
+          couleur: matiere.couleur,
+          onTap: () => context.push('/cours/${matiere.id}'),
+        );
+      },
+    );
+  }
+}
+
+// ── Page Projets ──────────────────────────────────────────────────────────────
+
+class _ProjetsPage extends StatelessWidget {
+  final ProjetsProvider projetsProvider;
+  final ProgressionProvider progProvider;
+  final double hPad;
+  final bool isDark;
+  final VoidCallback onRefresh;
+
+  const _ProjetsPage({
+    required this.projetsProvider,
+    required this.progProvider,
+    required this.hPad,
+    required this.isDark,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 80),
+      physics: const BouncingScrollPhysics(),
+      children: [
+        _buildCreateProjectCard(context),
+        const SizedBox(height: 16),
+        if (projetsProvider.projets.isEmpty)
+          _buildEmptyProjetState()
+        else
+          ...projetsProvider.projets.asMap().entries.map((entry) {
+            final i = entry.key;
+            final projet = entry.value;
+            final progression = projetsProvider.getProgressionProjet(
+              projet,
+              progProvider,
+            );
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: i < projetsProvider.projets.length - 1 ? 12 : 0,
+              ),
+              child: ProjetCard(
+                projet: projet,
+                progression: progression,
+                onTap: () => _openProjet(context, projet),
+                onLongPress: projet.isSystem
+                    ? null
+                    : () => showProjetContextMenu(
+                          context,
+                          projet: projet,
+                          onRefresh: onRefresh,
+                        ),
+              ),
+            );
+          }),
+      ],
+    );
+  }
+
+  Widget _buildCreateProjectCard(BuildContext context) {
     return GestureDetector(
       onTap: () async {
         final projetId = await Navigator.push<String?>(
@@ -428,7 +537,11 @@ class CoursTab extends StatelessWidget {
                 color: Colors.white.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.create_new_folder_rounded, size: 22, color: Colors.white),
+              child: const Icon(
+                Icons.create_new_folder_rounded,
+                size: 22,
+                color: Colors.white,
+              ),
             ),
             const SizedBox(width: 14),
             const Expanded(
@@ -437,24 +550,32 @@ class CoursTab extends StatelessWidget {
                 children: [
                   Text(
                     'Nouveau projet',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                   SizedBox(height: 2),
                   Text(
-                    'L\'IA génère un programme de cours personnalisé',
+                    "L'IA génère un programme de cours personnalisé",
                     style: TextStyle(fontSize: 11.5, color: Colors.white70),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.white),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 14,
+              color: Colors.white,
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildEmptyProjetState(bool isDark) {
+  Widget _buildEmptyProjetState() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(32),
@@ -462,12 +583,18 @@ class CoursTab extends StatelessWidget {
         color: isDark ? const Color(0xFF1A1A22) : Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04),
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.05)
+              : Colors.black.withValues(alpha: 0.04),
         ),
       ),
       child: Column(
         children: [
-          Icon(Icons.folder_open_rounded, size: 48, color: isDark ? Colors.white24 : Colors.black26),
+          Icon(
+            Icons.folder_open_rounded,
+            size: 48,
+            color: isDark ? Colors.white24 : Colors.black26,
+          ),
           const SizedBox(height: 12),
           Text(
             'Aucun projet pour le moment',
@@ -480,7 +607,10 @@ class CoursTab extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             'Créez un projet pour organiser vos matières par objectif.',
-            style: TextStyle(fontSize: 12, color: isDark ? Colors.white54 : Colors.black45),
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? Colors.white54 : Colors.black45,
+            ),
             textAlign: TextAlign.center,
           ),
         ],

@@ -22,6 +22,7 @@ import '../../core/services/auth_service.dart';
 import '../../core/utils/image_compression_helper.dart';
 import '../../core/models/ngenou_extension.dart';
 import '../../core/services/extensions_service.dart';
+import 'course_studio_page.dart';
 
 class CourseBuilderWizardPage extends StatefulWidget {
   /// Si fourni, le cours créé sera automatiquement rattaché à ce projet.
@@ -1954,16 +1955,31 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              userRole == 'teacher'
-                  ? 'Cours « ${pkg.matiere.nom} » créé et publié sur le catalogue !'
-                  : 'Cours « ${pkg.matiere.nom} » généré et importé avec succès !',
-            ),
+        // Afficher le dialog de choix : Studio ou Terminer
+        final goStudio = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => _CourseCreatedDialog(
+            courseName: pkg.matiere.nom,
+            isTeacher: userRole == 'teacher',
           ),
         );
-        Navigator.pop(context, pkg.matiere.id); // retourne l'ID du cours créé
+        if (!mounted) return;
+        if (goStudio == true) {
+          // Ouvrir le Studio directement
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CourseStudioPage(
+                matiereId: pkg.matiere.id,
+              ),
+              fullscreenDialog: true,
+            ),
+          );
+          if (mounted) Navigator.pop(context, pkg.matiere.id);
+        } else {
+          Navigator.pop(context, pkg.matiere.id);
+        }
       }
     } on QuotaExceededException catch (e) {
       // Quota Pro bloqué → dialog clair, aucun appel API n'a été fait
@@ -2209,6 +2225,159 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dialog affiché juste après la génération du cours
+// ─────────────────────────────────────────────────────────────────────────────
+class _CourseCreatedDialog extends StatelessWidget {
+  final String courseName;
+  final bool isTeacher;
+
+  const _CourseCreatedDialog({
+    required this.courseName,
+    required this.isTeacher,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = Theme.of(context).primaryColor;
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 380),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1C1C28) : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: accent.withValues(alpha: 0.2),
+              blurRadius: 40,
+              spreadRadius: 4,
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Success icon
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFF2ECC71),
+                      accent,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.check_rounded,
+                  color: Colors.white,
+                  size: 38,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Cours créé avec succès !',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '«\u00a0$courseName\u00a0»',
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: accent,
+                ),
+              ),
+              if (isTeacher) ...[
+                const SizedBox(height: 6),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2ECC71).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    '✅ Publié sur le catalogue',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF2ECC71),
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 28),
+              // Studio button (primary)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => Navigator.pop(context, true),
+                  icon: const Icon(Icons.edit_note_rounded, size: 20),
+                  label: const Text(
+                    'Ouvrir dans le Studio',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: accent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Finish button (secondary)
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor:
+                        isDark ? Colors.white70 : Colors.black54,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    side: BorderSide(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.15)
+                          : Colors.black.withValues(alpha: 0.12),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text(
+                    'Terminer',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

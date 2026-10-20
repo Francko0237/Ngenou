@@ -1,10 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../core/models/teacher_course_item.dart';
 import '../../core/models/custom_course_package.dart';
 import '../../core/services/teacher_courses_service.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/providers/custom_courses_provider.dart';
+import '../course_builder/course_studio_page.dart';
 
 class EnseignantDashboardPage extends StatefulWidget {
   const EnseignantDashboardPage({super.key});
@@ -102,6 +105,81 @@ class _EnseignantDashboardPageState extends State<EnseignantDashboardPage> {
       await TeacherCoursesService.deleteCourse(course.id);
       _loadTeacherData();
     }
+  }
+
+  Future<void> _renameCourse(TeacherCourseItem course) async {
+    final titreCtrl = TextEditingController(text: course.titre);
+    final descCtrl = TextEditingController(text: course.description);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Renommer le cours'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titreCtrl,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Titre',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: descCtrl,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Description',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      final newTitre = titreCtrl.text.trim();
+      final newDesc = descCtrl.text.trim();
+      if (newTitre.isEmpty) return;
+      await TeacherCoursesService.renameCourse(
+        courseId: course.id,
+        titre: newTitre,
+        description: newDesc,
+      );
+      _loadTeacherData();
+    }
+  }
+
+  void _openStudioForCourse(TeacherCourseItem course) {
+    final provider = context.read<CustomCoursesProvider>();
+    final isLoaded = provider.isCustomMatiere(course.matiereId);
+    if (!isLoaded && course.jsonData.isNotEmpty) {
+      try {
+        final pkg = CustomCoursePackage.fromJson(course.jsonData);
+        provider.saveEditedPackage(pkg);
+      } catch (_) {}
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CourseStudioPage(
+          matiereId: course.matiereId,
+          teacherCourseId: course.id,
+        ),
+        fullscreenDialog: true,
+      ),
+    ).then((_) => _loadTeacherData());
   }
 
   @override
@@ -469,20 +547,44 @@ class _EnseignantDashboardPageState extends State<EnseignantDashboardPage> {
                   ],
                 ),
               ),
-              // Menu Options (Supprimer)
+              // Menu Options
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert),
                 onSelected: (val) {
                   if (val == 'delete') _deleteCourse(course);
+                  if (val == 'rename') _renameCourse(course);
+                  if (val == 'studio') _openStudioForCourse(course);
                 },
                 itemBuilder: (ctx) => [
+                  const PopupMenuItem(
+                    value: 'studio',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit_note_rounded, size: 20),
+                        SizedBox(width: 8),
+                        Text('Modifier dans le Studio'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'rename',
+                    child: Row(
+                      children: [
+                        Icon(Icons.drive_file_rename_outline, size: 20),
+                        SizedBox(width: 8),
+                        Text('Renommer'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuDivider(),
                   const PopupMenuItem(
                     value: 'delete',
                     child: Row(
                       children: [
                         Icon(Icons.delete_outline, color: Colors.red, size: 20),
                         SizedBox(width: 8),
-                        Text('Supprimer', style: TextStyle(color: Colors.red)),
+                        Text('Supprimer',
+                            style: TextStyle(color: Colors.red)),
                       ],
                     ),
                   ),
