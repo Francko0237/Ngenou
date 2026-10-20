@@ -15,6 +15,12 @@ Future<void> markOnboardingDone() async {
   await prefs.setBool(_kOnboardingDone, true);
 }
 
+/// Permet de réinitialiser l'onboarding (ex: pour revoir le guide)
+Future<void> resetOnboarding() async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.remove(_kOnboardingDone);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 class OnboardingPage extends StatefulWidget {
@@ -33,56 +39,56 @@ class _OnboardingPageState extends State<OnboardingPage>
   late AnimationController _pulseController;
   late AnimationController _particleController;
 
-  final List<_OnboardingStep> _steps = [
+  final List<_OnboardingStep> _steps = const [
     _OnboardingStep(
       emoji: '🚀',
       title: 'Bienvenue sur Ngenou',
       subtitle: 'Ton assistant d\'apprentissage intelligent',
       body:
-          'Ngenou t\'aide à apprendre plus vite, mieux organiser tes révisions et suivre ta progression en temps réel.',
-      gradient: [Color(0xFF6C63FF), Color(0xFF4A90D9)],
-      accentColor: Color(0xFF6C63FF),
+          'Une méthode moderne, stimulante et sans stress pour apprendre, pratiquer et exceller dans toutes tes matières.',
+      gradient: [Color(0xFF4F46E5), Color(0xFF06B6D4)],
+      accentColor: Color(0xFF4F46E5),
       illustrationKey: 'welcome',
     ),
     _OnboardingStep(
-      emoji: '🎓',
+      emoji: '📚',
       title: 'Cours & Notions',
-      subtitle: 'Apprends à ton rythme',
+      subtitle: 'Apprends à ton propre rythme',
       body:
-          'Parcours des cours structurés par notions, pratique avec des exercices interactifs et suis ta maîtrise de chaque sujet.',
-      gradient: [Color(0xFF4A90D9), Color(0xFF3498DB)],
-      accentColor: Color(0xFF4A90D9),
+          'Chaque cours est découpé en notions claires. Lis la leçon, pratique quand tu le souhaites (les exercices sont facultatifs) et valide ta progression.',
+      gradient: [Color(0xFF0EA5E9), Color(0xFF2563EB)],
+      accentColor: Color(0xFF0EA5E9),
       illustrationKey: 'cours',
     ),
     _OnboardingStep(
+      emoji: '🤖',
+      title: 'Tuteur IA Ngenou',
+      subtitle: 'Une réponse claire 24h/24',
+      body:
+          'Un doute sur un théorème, un code ou une méthode ? Pose ta question à ton tuteur IA pour des explications simples, avec des exemples concrets.',
+      gradient: [Color(0xFF7C3AED), Color(0xFFEC4899)],
+      accentColor: Color(0xFF7C3AED),
+      illustrationKey: 'ai',
+    ),
+    _OnboardingStep(
+      emoji: '🔥',
+      title: 'Séries & Progression',
+      subtitle: 'Reste motivé au quotidien',
+      body:
+          'Suis tes séries de jours actifs, le pourcentage de notions maîtrisées et synchronise tes révisions avec ton planning intelligent.',
+      gradient: [Color(0xFFF59E0B), Color(0xFFEF4444)],
+      accentColor: Color(0xFFF59E0B),
+      illustrationKey: 'progression',
+    ),
+    _OnboardingStep(
       emoji: '🎯',
-      title: 'Défis Quotidiens',
-      subtitle: 'Reste dans le flow chaque jour',
+      title: 'Prêt pour le premier pas ?',
+      subtitle: '3 missions simples pour démarrer',
       body:
-          'Chaque jour, un nouveau défi pour tester tes connaissances. Enchaîne les streaks et débloque des badges exclusifs !',
-      gradient: [Color(0xFF9B59B6), Color(0xFF6C63FF)],
-      accentColor: Color(0xFF9B59B6),
-      illustrationKey: 'defis',
-    ),
-    _OnboardingStep(
-      emoji: '📅',
-      title: 'Planning Intelligent',
-      subtitle: 'Organise-toi comme un pro',
-      body:
-          'Crée ton emploi du temps de révision. Ngenou planifie automatiquement tes sessions et t\'envoie des rappels au bon moment.',
-      gradient: [Color(0xFF5B52FF), Color(0xFF9B59B6)],
-      accentColor: Color(0xFF5B52FF),
-      illustrationKey: 'planning',
-    ),
-    _OnboardingStep(
-      emoji: '☁️',
-      title: 'Synchronisation Cloud',
-      subtitle: 'Tes données, partout',
-      body:
-          'Connecte-toi avec Google pour sauvegarder ta progression automatiquement et y accéder depuis n\'importe quel appareil.',
-      gradient: [Color(0xFF4A90D9), Color(0xFF6C63FF)],
-      accentColor: Color(0xFF4A90D9),
-      illustrationKey: 'cloud',
+          'Ton tableau de bord t\'attend avec une checklist guidée : ouvre un cours, teste l\'IA et découvre ton bilan.',
+      gradient: [Color(0xFF10B981), Color(0xFF0284C7)],
+      accentColor: Color(0xFF10B981),
+      illustrationKey: 'launch',
     ),
   ];
 
@@ -91,7 +97,7 @@ class _OnboardingPageState extends State<OnboardingPage>
     super.initState();
     _slideController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 550),
     )..forward();
 
     _pulseController = AnimationController(
@@ -117,7 +123,7 @@ class _OnboardingPageState extends State<OnboardingPage>
   void _nextPage() {
     if (_currentPage < _steps.length - 1) {
       _pageController.nextPage(
-        duration: const Duration(milliseconds: 450),
+        duration: const Duration(milliseconds: 400),
         curve: Curves.easeInOutCubic,
       );
     } else {
@@ -128,7 +134,7 @@ class _OnboardingPageState extends State<OnboardingPage>
   void _prevPage() {
     if (_currentPage > 0) {
       _pageController.previousPage(
-        duration: const Duration(milliseconds: 450),
+        duration: const Duration(milliseconds: 400),
         curve: Curves.easeInOutCubic,
       );
     }
@@ -145,20 +151,20 @@ class _OnboardingPageState extends State<OnboardingPage>
     _slideController.forward();
   }
 
-  List<Widget> _buildFloatingParticles(Color color) {
+  List<Widget> _buildFloatingParticles() {
     return List.generate(8, (i) {
       return AnimatedBuilder(
         animation: _particleController,
         builder: (context, _) {
-          final t = (_particleController.value + i * 0.13) % 1.0;
+          final t = (_particleController.value + i * 0.125) % 1.0;
           final size = MediaQuery.of(context).size;
           final x =
-              (i * 0.15 + 0.05 + math.sin(t * 2 * math.pi + i) * 0.1)
+              (i * 0.13 + 0.05 + math.sin(t * 2 * math.pi + i) * 0.08)
                   .clamp(0.0, 1.0);
           final y = 1.0 - t;
           final opacity =
-              (math.sin(t * math.pi)).clamp(0.0, 1.0) * 0.25;
-          final particleSize = 6.0 + (i % 4) * 4.0;
+              (math.sin(t * math.pi)).clamp(0.0, 1.0) * 0.22;
+          final particleSize = 5.0 + (i % 3) * 4.0;
 
           return Positioned(
             left: x * size.width,
@@ -201,36 +207,40 @@ class _OnboardingPageState extends State<OnboardingPage>
           child: Stack(
             children: [
               // Particules flottantes
-              ..._buildFloatingParticles(step.accentColor),
+              ..._buildFloatingParticles(),
 
-              // Contenu
+              // Contenu principal
               Column(
                 children: [
-                  // Skip
+                  // Barre du haut : Bouton passer
                   Align(
                     alignment: Alignment.topRight,
                     child: Padding(
-                      padding: const EdgeInsets.only(right: 20, top: 8),
-                      child: TextButton(
+                      padding: const EdgeInsets.only(right: 20, top: 10),
+                      child: TextButton.icon(
                         onPressed: _finish,
                         style: TextButton.styleFrom(
-                          foregroundColor:
-                              Colors.white.withValues(alpha: 0.8),
+                          foregroundColor: Colors.white.withValues(alpha: 0.85),
+                          backgroundColor: Colors.white.withValues(alpha: 0.12),
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
+                              horizontal: 14, vertical: 6),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
                         ),
-                        child: Text(
+                        icon: const Icon(Icons.close_rounded, size: 16),
+                        label: Text(
                           'Passer',
                           style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                     ),
                   ),
 
-                  // Pages
+                  // Carousel de pages
                   Expanded(
                     child: PageView.builder(
                       controller: _pageController,
@@ -247,15 +257,15 @@ class _OnboardingPageState extends State<OnboardingPage>
                     ),
                   ),
 
-                  // Indicateurs
+                  // Indicateurs de pagination
                   _PageIndicators(
                     count: _steps.length,
                     current: _currentPage,
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 28),
 
-                  // Boutons navigation
+                  // Barre d'actions du bas
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Row(
@@ -266,13 +276,13 @@ class _OnboardingPageState extends State<OnboardingPage>
                           child: IgnorePointer(
                             ignoring: _currentPage == 0,
                             child: Container(
-                              width: 52,
-                              height: 52,
+                              width: 50,
+                              height: 50,
                               decoration: BoxDecoration(
                                 color: Colors.white.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.3),
+                                  color: Colors.white.withValues(alpha: 0.35),
                                 ),
                               ),
                               child: IconButton(
@@ -294,7 +304,7 @@ class _OnboardingPageState extends State<OnboardingPage>
                       ],
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
                 ],
               ),
             ],
@@ -305,7 +315,7 @@ class _OnboardingPageState extends State<OnboardingPage>
   }
 }
 
-// ─── Vue d'étape ─────────────────────────────────────────────────────────────
+// ─── Vue d'une étape ──────────────────────────────────────────────────────────
 
 class _OnboardingStepView extends StatelessWidget {
   final _OnboardingStep step;
@@ -324,30 +334,32 @@ class _OnboardingStepView extends StatelessWidget {
       begin: const Offset(0, 0.08),
       end: Offset.zero,
     ).animate(
-        CurvedAnimation(parent: slideController, curve: Curves.easeOut));
+        CurvedAnimation(parent: slideController, curve: Curves.easeOutCubic));
 
     final fadeIn = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: slideController, curve: Curves.easeOut),
     );
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 28),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Illustration animée (pulsation)
+          const SizedBox(height: 12),
+          // Illustration visuelle stylisée
           AnimatedBuilder(
             animation: pulseController,
             builder: (context, child) {
-              final scale = 1.0 + pulseController.value * 0.04;
+              final scale = 1.0 + pulseController.value * 0.03;
               return Transform.scale(scale: scale, child: child);
             },
-            child: _IllustrationWidget(step: step),
+            child: _VisualIllustration(step: step),
           ),
 
-          const SizedBox(height: 40),
+          const SizedBox(height: 36),
 
-          // Textes
+          // Textes et badges
           SlideTransition(
             position: slideUp,
             child: FadeTransition(
@@ -359,19 +371,26 @@ class _OnboardingStepView extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
+                      color: Colors.white.withValues(alpha: 0.22),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.3)),
+                          color: Colors.white.withValues(alpha: 0.35)),
                     ),
-                    child: Text(
-                      step.subtitle,
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white.withValues(alpha: 0.95),
-                        letterSpacing: 0.5,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(step.emoji, style: const TextStyle(fontSize: 14)),
+                        const SizedBox(width: 6),
+                        Text(
+                          step.subtitle,
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white.withValues(alpha: 0.95),
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -379,149 +398,370 @@ class _OnboardingStepView extends StatelessWidget {
                     step.title,
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
-                      fontSize: 28,
+                      fontSize: 26,
                       fontWeight: FontWeight.w900,
                       color: Colors.white,
-                      height: 1.2,
+                      height: 1.22,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    step.body,
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.poppins(
-                      fontSize: 15,
-                      height: 1.65,
-                      color: Colors.white.withValues(alpha: 0.85),
-                      fontWeight: FontWeight.w400,
+                  const SizedBox(height: 14),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: Text(
+                      step.body,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        fontSize: 14.5,
+                        height: 1.6,
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontWeight: FontWeight.w400,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
           ),
+          const SizedBox(height: 16),
         ],
       ),
     );
   }
 }
 
-// ─── Illustration ─────────────────────────────────────────────────────────────
+// ─── Illustrations Interactives Mockup Style ───────────────────────────────────
 
-class _IllustrationWidget extends StatelessWidget {
+class _VisualIllustration extends StatelessWidget {
   final _OnboardingStep step;
 
-  const _IllustrationWidget({required this.step});
+  const _VisualIllustration({required this.step});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 200,
-      height: 200,
+      width: 250,
+      height: 210,
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
         color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(28),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.25),
-          width: 2,
+          color: Colors.white.withValues(alpha: 0.3),
+          width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
+            color: Colors.black.withValues(alpha: 0.18),
             blurRadius: 30,
-            spreadRadius: 0,
-            offset: const Offset(0, 10),
+            offset: const Offset(0, 12),
           ),
         ],
       ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Container(
-            width: 150,
-            height: 150,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withValues(alpha: 0.1),
-            ),
-          ),
-          _buildContent(),
-        ],
+      padding: const EdgeInsets.all(18),
+      child: Center(
+        child: _buildMockupContent(step.illustrationKey),
       ),
     );
   }
 
-  Widget _buildContent() {
-    final configs = <String, _IllustrationConfig>{
-      'welcome': _IllustrationConfig(
-        mainEmoji: '🚀',
-        decorators: [
-          _Decorator(emoji: '⭐', top: 22, right: 30),
-          _Decorator(emoji: '✨', bottom: 26, left: 26),
-          _Decorator(emoji: '💡', top: 30, left: 28),
-        ],
-      ),
-      'cours': _IllustrationConfig(
-        mainEmoji: '🎓',
-        decorators: [
-          _Decorator(emoji: '📚', top: 22, right: 28),
-          _Decorator(emoji: '✏️', bottom: 26, left: 28),
-          _Decorator(emoji: '📝', top: 32, left: 24),
-        ],
-      ),
-      'defis': _IllustrationConfig(
-        mainEmoji: '🎯',
-        decorators: [
-          _Decorator(emoji: '🔥', top: 22, right: 28),
-          _Decorator(emoji: '⚡', bottom: 24, left: 28),
-          _Decorator(emoji: '🏆', top: 30, left: 24),
-        ],
-      ),
-      'planning': _IllustrationConfig(
-        mainEmoji: '📅',
-        decorators: [
-          _Decorator(emoji: '⏰', top: 22, right: 28),
-          _Decorator(emoji: '✅', bottom: 24, left: 26),
-          _Decorator(emoji: '🗓️', top: 28, left: 22),
-        ],
-      ),
-      'cloud': _IllustrationConfig(
-        mainEmoji: '☁️',
-        decorators: [
-          _Decorator(emoji: '🔄', top: 20, right: 26),
-          _Decorator(emoji: '🔐', bottom: 24, left: 26),
-          _Decorator(emoji: '📱', top: 30, left: 24),
-        ],
-      ),
-    };
+  Widget _buildMockupContent(String key) {
+    switch (key) {
+      case 'cours':
+        return _buildCourseMockup();
+      case 'ai':
+        return _buildAiMockup();
+      case 'progression':
+        return _buildProgressionMockup();
+      case 'launch':
+        return _buildLaunchMockup();
+      case 'welcome':
+      default:
+        return _buildWelcomeMockup();
+    }
+  }
 
-    final config =
-        configs[step.illustrationKey] ?? _IllustrationConfig(mainEmoji: step.emoji, decorators: []);
+  Widget _buildWelcomeMockup() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.25),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
+          ),
+          alignment: Alignment.center,
+          child: const Text('🎓', style: TextStyle(fontSize: 38)),
+        ),
+        const SizedBox(height: 14),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            'Ngenou Study v2.0',
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF4F46E5),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
-    return SizedBox(
-      width: 200,
-      height: 200,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Text(config.mainEmoji, style: const TextStyle(fontSize: 76)),
-          ...config.decorators.map((d) => Positioned(
-                top: d.top,
-                bottom: d.bottom,
-                left: d.left,
-                right: d.right,
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(d.emoji,
-                      style: const TextStyle(fontSize: 16)),
+  Widget _buildCourseMockup() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.25),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.menu_book_rounded, color: Colors.white, size: 18),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Algorithmique & Code',
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
                 ),
-              )),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Color(0xFF4ADE80), size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Notion : Les Variables',
+                  style: GoogleFonts.poppins(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: const LinearProgressIndicator(
+            value: 0.85,
+            minHeight: 6,
+            backgroundColor: Colors.white24,
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4ADE80)),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Exercices facultatifs • Maîtrise 85%',
+          style: GoogleFonts.poppins(fontSize: 10, color: Colors.white70),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAiMockup() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Bulle élève
+        Align(
+          alignment: Alignment.centerRight,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.25),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              'Un conseil pour l\'examen ?',
+              style: GoogleFonts.poppins(fontSize: 11, color: Colors.white),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        // Bulle IA
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(5),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: const Text('🤖', style: TextStyle(fontSize: 12)),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'Fais 2 notions par jour et garde ta série active ! ✨',
+                  style: GoogleFonts.poppins(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF1E293B),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProgressionMockup() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        // Flamme Série
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4444).withValues(alpha: 0.3),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+              ),
+              alignment: Alignment.center,
+              child: const Text('🔥', style: TextStyle(fontSize: 28)),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '3 Jours',
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+            Text(
+              'Série active',
+              style: GoogleFonts.poppins(fontSize: 9.5, color: Colors.white70),
+            ),
+          ],
+        ),
+        Container(width: 1, height: 60, color: Colors.white24),
+        // Score Maîtrise
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+              ),
+              alignment: Alignment.center,
+              child: const Text('🏆', style: TextStyle(fontSize: 26)),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Niveau 2',
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+            Text(
+              'Apprenant',
+              style: GoogleFonts.poppins(fontSize: 9.5, color: Colors.white70),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLaunchMockup() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          'Missions de départ :',
+          style: GoogleFonts.poppins(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 8),
+        _miniMissionRow('1. Ouvrir un 1er cours', true),
+        const SizedBox(height: 6),
+        _miniMissionRow('2. Poser une question à l\'IA', false),
+        const SizedBox(height: 6),
+        _miniMissionRow('3. Consulter mon bilan', false),
+      ],
+    );
+  }
+
+  Widget _miniMissionRow(String title, bool done) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: done
+            ? Colors.white.withValues(alpha: 0.28)
+            : Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            done ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+            size: 14,
+            color: done ? const Color(0xFF4ADE80) : Colors.white70,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              title,
+              style: GoogleFonts.poppins(
+                fontSize: 11,
+                color: Colors.white,
+                fontWeight: done ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -546,8 +786,8 @@ class _PageIndicators extends StatelessWidget {
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
           margin: const EdgeInsets.symmetric(horizontal: 4),
-          width: isActive ? 28 : 8,
-          height: 8,
+          width: isActive ? 26 : 7,
+          height: 7,
           decoration: BoxDecoration(
             color: isActive
                 ? Colors.white
@@ -578,19 +818,21 @@ class _NextButton extends StatelessWidget {
     return AnimatedBuilder(
       animation: pulseController,
       builder: (context, _) {
-        final glow = pulseController.value * 0.3 + 0.1;
+        final glow = pulseController.value * 0.25 + 0.1;
         return GestureDetector(
           onTap: onTap,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+            padding: EdgeInsets.symmetric(
+              horizontal: isLast ? 24 : 26,
+              vertical: 14,
+            ),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: glow),
-                  blurRadius: 20 + pulseController.value * 8,
-                  spreadRadius: 0,
+                  blurRadius: 16 + pulseController.value * 6,
                   offset: const Offset(0, 4),
                 ),
               ],
@@ -601,17 +843,17 @@ class _NextButton extends StatelessWidget {
                 Text(
                   isLast ? 'C\'est parti ! 🚀' : 'Suivant',
                   style: GoogleFonts.poppins(
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF2C3E50),
+                    color: const Color(0xFF1E293B),
                   ),
                 ),
                 if (!isLast) ...[
                   const SizedBox(width: 8),
                   const Icon(
                     Icons.arrow_forward_rounded,
-                    color: Color(0xFF2C3E50),
-                    size: 18,
+                    color: Color(0xFF1E293B),
+                    size: 16,
                   ),
                 ],
               ],
@@ -642,26 +884,5 @@ class _OnboardingStep {
     required this.gradient,
     required this.accentColor,
     required this.illustrationKey,
-  });
-}
-
-class _IllustrationConfig {
-  final String mainEmoji;
-  final List<_Decorator> decorators;
-  _IllustrationConfig({required this.mainEmoji, required this.decorators});
-}
-
-class _Decorator {
-  final String emoji;
-  final double? top;
-  final double? bottom;
-  final double? left;
-  final double? right;
-  _Decorator({
-    required this.emoji,
-    this.top,
-    this.bottom,
-    this.left,
-    this.right,
   });
 }
