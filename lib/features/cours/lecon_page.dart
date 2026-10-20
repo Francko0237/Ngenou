@@ -3,11 +3,13 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../core/models/lecon.dart';
 import '../../core/models/notion.dart';
+import '../../core/providers/custom_courses_provider.dart';
 import '../../core/providers/progression_provider.dart';
 import '../../core/services/ai_tutor_service.dart';
 import '../../core/utils/lesson_content_parser.dart';
 import '../../modules/modules_registry.dart';
 import '../../core/widgets/extension_download_dialog.dart';
+import '../course_builder/course_studio_page.dart';
 import 'widgets/ai_tutor_chat_sheet.dart';
 import 'widgets/lesson_section_card.dart';
 
@@ -453,6 +455,30 @@ class _LeconPageState extends State<LeconPage> {
     );
   }
 
+  void _openStudio() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CourseStudioPage(
+          matiereId: widget.matiereId,
+        ),
+        fullscreenDialog: true,
+      ),
+    ).then((_) {
+      // Reload lesson list after possible edits
+      if (mounted) {
+        setState(() {
+          lecons = ModulesRegistry.getLeconsByNotion(
+              widget.matiereId, widget.notionId);
+          sectionsPerLesson = lecons
+              .map((l) => LessonContentParser.parse(l.contenu,
+                  fallbackTitle: l.titre))
+              .toList();
+        });
+      }
+    });
+  }
+
   void _openAiTutor() {
     // Récupère le nom de la matière et de la notion pour le contexte
     final matieres = ModulesRegistry.matieres;
@@ -568,6 +594,13 @@ class _LeconPageState extends State<LeconPage> {
           ],
         ),
         actions: [
+          // ── Studio crayon (cours personnalisé uniquement) ─────────────
+          if (context.read<CustomCoursesProvider>().isCustomMatiere(widget.matiereId))
+            IconButton(
+              icon: const Icon(Icons.edit_note_rounded),
+              tooltip: 'Ouvrir dans le Studio',
+              onPressed: _openStudio,
+            ),
           // ── Bulle tuteur IA ────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.only(right: 8),

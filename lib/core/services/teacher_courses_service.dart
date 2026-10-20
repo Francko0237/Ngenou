@@ -194,6 +194,35 @@ class TeacherCoursesService {
         .eq('id', courseId);
   }
 
+  /// Met à jour un cours existant (json_data + titre + description)
+  static Future<void> updateCourse({
+    required String courseId,
+    required CustomCoursePackage package,
+  }) async {
+    await _client.from('teacher_courses').update({
+      'json_data': package.toJson(),
+      'titre': package.matiere.nom.trim(),
+      'description': package.matiere.description,
+      'matiere_nom': package.matiere.nom,
+      'icone': CustomCoursePackage.iconToKey(package.matiere.icone),
+      'couleur': CustomCoursePackage.colorToHex(package.matiere.couleur),
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', courseId);
+  }
+
+  /// Renomme un cours (titre + description) sans toucher au json_data
+  static Future<void> renameCourse({
+    required String courseId,
+    required String titre,
+    required String description,
+  }) async {
+    await _client.from('teacher_courses').update({
+      'titre': titre.trim(),
+      'description': description,
+      'matiere_nom': titre.trim(),
+    }).eq('id', courseId);
+  }
+
   /// Supprime un cours enseignant
   static Future<void> deleteCourse(String courseId) async {
     await _client

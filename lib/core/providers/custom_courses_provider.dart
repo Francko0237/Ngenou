@@ -88,6 +88,26 @@ class CustomCoursesProvider with ChangeNotifier {
     await loadCustomCourses();
   }
 
+  /// Sauvegarde un package modifié complet (contenu des leçons, chapitres, etc.)
+  Future<String?> saveEditedPackage(
+    CustomCoursePackage package, {
+    String? teacherCourseId, // ID Supabase si l'enseignant veut sync distante
+  }) async {
+    try {
+      await _db.insertCustomCourse(package); // replace via conflictAlgorithm
+      if (teacherCourseId != null) {
+        await TeacherCoursesService.updateCourse(
+          courseId: teacherCourseId,
+          package: package,
+        );
+      }
+      await loadCustomCourses();
+      return null;
+    } catch (e) {
+      return 'Erreur lors de la sauvegarde : $e';
+    }
+  }
+
   bool isCustomMatiere(String matiereId) =>
       matiereId.startsWith('custom_') ||
       _modules.any((m) => m.matiere.id == matiereId);
