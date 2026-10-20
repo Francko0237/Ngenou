@@ -310,8 +310,8 @@ class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
                         child: LayoutBuilder(
                           builder: (context, constraints) {
                             final w = constraints.maxWidth;
-                            // Responsive : 1 col mobile, 2 tablette, 3 desktop
-                            final cols = w > 1100 ? 3 : w > 650 ? 2 : 1;
+                            // Responsive : 1 col mobile, 2 tablette, 3 desktop, 4 large
+                            final cols = w > 1400 ? 4 : w > 1050 ? 3 : w > 650 ? 2 : 1;
                             final hPad = w > 1200
                                 ? w * 0.08
                                 : w > 800
@@ -337,10 +337,18 @@ class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
                                     primary: primary,
                                     isInstalled: isInstalled,
                                     isDownloading: isDownloading,
+                                    isGrid: false,
                                   );
                                 },
                               );
                             }
+
+                            final colWidth =
+                                (w - (2 * hPad) - ((cols - 1) * 16)) / cols;
+                            // Hauteur ciblée pour éviter tout espace blanc en bas
+                            const targetHeight = 365.0;
+                            final childAspectRatio =
+                                (colWidth / targetHeight).clamp(0.60, 2.0);
 
                             return GridView.builder(
                               padding: EdgeInsets.symmetric(
@@ -352,9 +360,7 @@ class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
                                 crossAxisCount: cols,
                                 mainAxisSpacing: 16,
                                 crossAxisSpacing: 16,
-                                // Ratio adapté : la card a une hauteur fixe
-                                // cover 140px + corps ~210px ≈ 350px
-                                childAspectRatio: w > 1100 ? 0.72 : 0.70,
+                                childAspectRatio: childAspectRatio,
                               ),
                               itemCount: _courses.length,
                               itemBuilder: (context, index) {
@@ -369,6 +375,7 @@ class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
                                   primary: primary,
                                   isInstalled: isInstalled,
                                   isDownloading: isDownloading,
+                                  isGrid: true,
                                 );
                               },
                             );
@@ -387,9 +394,137 @@ class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
     required Color primary,
     required bool isInstalled,
     required bool isDownloading,
+    required bool isGrid,
   }) {
     final couleur = CustomCoursePackage.colorFromHex(course.couleur);
     final icone = CustomCoursePackage.iconFromKey(course.icone);
+
+    final bodyContent = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Titre du cours
+        Text(
+          course.titre,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            letterSpacing: -0.2,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 4),
+
+        // Enseignant créateur
+        Row(
+          children: [
+            CircleAvatar(
+              radius: 9,
+              backgroundColor: primary.withValues(alpha: 0.2),
+              child: Icon(Icons.person, size: 12, color: primary),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                'Par ${course.teacherName}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? Colors.white70 : Colors.black87,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const Icon(Icons.verified, size: 13, color: Color(0xFF3498DB)),
+          ],
+        ),
+        const SizedBox(height: 6),
+
+        // Description
+        if (course.description.isNotEmpty) ...[
+          Text(
+            course.description,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12.5,
+              height: 1.35,
+              color: isDark ? Colors.white60 : Colors.black54,
+            ),
+          ),
+          const SizedBox(height: 6),
+        ],
+
+        if (isGrid) const Spacer() else const SizedBox(height: 10),
+
+        // Métriques : Durée & Téléchargements
+        Row(
+          children: [
+            _buildStatPill(
+              icon: Icons.schedule_rounded,
+              label: '${course.durationMinutes} min',
+              isDark: isDark,
+            ),
+            const SizedBox(width: 8),
+            _buildStatPill(
+              icon: Icons.download_done_rounded,
+              label: '${course.downloadsCount} téléchargements',
+              isDark: isDark,
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // Bouton d'action
+        SizedBox(
+          width: double.infinity,
+          height: 44,
+          child: isInstalled
+              ? OutlinedButton.icon(
+                  onPressed: () => context.push('/cours/${course.matiereId}'),
+                  icon: const Icon(Icons.check_circle_rounded, size: 18),
+                  label: const Text(
+                    'Déjà installé — Ouvrir le cours',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF2ECC71),
+                    side: const BorderSide(color: Color(0xFF2ECC71), width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                )
+              : ElevatedButton.icon(
+                  onPressed: isDownloading ? null : () => _downloadCourse(course),
+                  icon: isDownloading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.download_rounded, size: 18),
+                  label: Text(
+                    isDownloading
+                        ? 'Téléchargement...'
+                        : 'Télécharger le cours (Gratuit)',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+        ),
+      ],
+    );
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -530,133 +665,18 @@ class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
           ),
 
           // ── Corps de la carte ───────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Titre du cours
-                Text(
-                  course.titre,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: -0.2,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 5),
-
-                // Enseignant créateur
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 10,
-                      backgroundColor: primary.withValues(alpha: 0.2),
-                      child: Icon(Icons.person, size: 13, color: primary),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Par ${course.teacherName}',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w500,
-                          color: isDark ? Colors.white70 : Colors.black87,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const Icon(Icons.verified, size: 14, color: Color(0xFF3498DB)),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                // Description
-                if (course.description.isNotEmpty) ...[
-                  Text(
-                    course.description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      height: 1.4,
-                      color: isDark ? Colors.white60 : Colors.black54,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-
-                // Métriques : Durée & Téléchargements
-                Row(
-                  children: [
-                    _buildStatPill(
-                      icon: Icons.schedule_rounded,
-                      label: '${course.durationMinutes} min',
-                      isDark: isDark,
-                    ),
-                    const SizedBox(width: 10),
-                    _buildStatPill(
-                      icon: Icons.download_done_rounded,
-                      label: '${course.downloadsCount} téléchargements',
-                      isDark: isDark,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Bouton d'action
-                SizedBox(
-                  width: double.infinity,
-                  height: 46,
-                  child: isInstalled
-                      ? OutlinedButton.icon(
-                          onPressed: () => context.push('/cours/${course.matiereId}'),
-                          icon: const Icon(Icons.check_circle_rounded, size: 18),
-                          label: const Text(
-                            'Déjà installé — Ouvrir le cours',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF2ECC71),
-                            side: const BorderSide(color: Color(0xFF2ECC71), width: 1.5),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                        )
-                      : ElevatedButton.icon(
-                          onPressed: isDownloading ? null : () => _downloadCourse(course),
-                          icon: isDownloading
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Icon(Icons.download_rounded, size: 18),
-                          label: Text(
-                            isDownloading
-                                ? 'Téléchargement...'
-                                : 'Télécharger le cours (Gratuit)',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primary,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                        ),
-                ),
-              ],
+          if (isGrid)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+                child: bodyContent,
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+              child: bodyContent,
             ),
-          ),
         ],
       ),
     );
