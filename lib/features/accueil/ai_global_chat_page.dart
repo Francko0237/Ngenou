@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
+import '../../core/widgets/speech_button.dart';
 import '../../core/services/ai_tutor_history_service.dart';
 import '../../core/services/ai_tutor_service.dart';
 import '../../core/models/deep_seek_model.dart';
@@ -857,25 +858,30 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
                         ),
                       ),
                     ),
-                    // Bouton + en bas à gauche
+                    // Bouton micro en bas à gauche
                     Positioned(
                       bottom: 6,
                       left: 6,
-                      child: GestureDetector(
-                        onTap: _showAttachmentOptions,
-                        child: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: isDark ? Colors.grey[800] : Colors.grey[200],
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.add_rounded,
-                            color: isDark ? Colors.grey[300] : Colors.grey[600],
-                            size: 20,
-                          ),
-                        ),
+                      child: SpeechButton(
+                        primary: primary,
+                        isDark: isDark,
+                        size: 36,
+                        onPartialResult: (partial) {
+                          _input.value = TextEditingValue(
+                            text: partial,
+                            selection: TextSelection.collapsed(
+                              offset: partial.length,
+                            ),
+                          );
+                        },
+                        onResult: (text) {
+                          _input.value = TextEditingValue(
+                            text: text,
+                            selection: TextSelection.collapsed(
+                              offset: text.length,
+                            ),
+                          );
+                        },
                       ),
                     ),
                     // Bouton d'envoi / Stop

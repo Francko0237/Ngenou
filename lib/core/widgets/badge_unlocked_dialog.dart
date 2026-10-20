@@ -22,8 +22,9 @@ class _BadgeUnlockedDialogState extends State<BadgeUnlockedDialog>
   @override
   void initState() {
     super.initState();
-    _confettiController =
-        ConfettiController(duration: const Duration(seconds: 3));
+    _confettiController = ConfettiController(
+      duration: const Duration(seconds: 3),
+    );
     _confettiController.play();
 
     _animationController = AnimationController(
@@ -61,9 +62,7 @@ class _BadgeUnlockedDialogState extends State<BadgeUnlockedDialog>
         // Glassmorphic background blur
         BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-          child: Container(
-            color: Colors.black.withOpacity(0.65),
-          ),
+          child: Container(color: Colors.black.withOpacity(0.65)),
         ),
 
         // Confetti Widget
@@ -106,7 +105,7 @@ class _BadgeUnlockedDialogState extends State<BadgeUnlockedDialog>
                     color: theme.primaryColor.withOpacity(0.3),
                     blurRadius: 30,
                     spreadRadius: 2,
-                  )
+                  ),
                 ],
                 border: Border.all(
                   color: theme.primaryColor.withOpacity(0.2),

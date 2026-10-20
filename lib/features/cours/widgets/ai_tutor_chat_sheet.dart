@@ -9,6 +9,7 @@ import '../../../core/services/ai_tutor_service.dart';
 import '../../../core/models/deep_seek_model.dart';
 import '../../../core/services/quota_guard.dart';
 import '../../../core/widgets/ai_markdown_text.dart';
+import '../../../core/widgets/speech_button.dart';
 
 /// Bottom sheet de chat avec Ngenou, contextuel à la leçon en cours.
 class AiTutorChatSheet extends StatefulWidget {
@@ -281,15 +282,17 @@ class _AiTutorChatSheetState extends State<AiTutorChatSheet> {
     if (!_scroll.hasClients) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scroll.hasClients && (force || _isNearBottom())) {
-        _scroll.animateTo(
-          0.0,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        ).then((_) {
-          if (force && mounted && _scroll.hasClients) {
-            _scroll.jumpTo(0.0);
-          }
-        });
+        _scroll
+            .animateTo(
+              0.0,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            )
+            .then((_) {
+              if (force && mounted && _scroll.hasClients) {
+                _scroll.jumpTo(0.0);
+              }
+            });
       }
     });
   }
@@ -573,6 +576,27 @@ class _AiTutorChatSheetState extends State<AiTutorChatSheet> {
                     ),
                   ),
                   const SizedBox(width: 10),
+                  // Bouton micro
+                  SpeechButton(
+                    primary: primary,
+                    isDark: isDark,
+                    size: 42,
+                    onPartialResult: (partial) {
+                      _input.value = TextEditingValue(
+                        text: partial,
+                        selection: TextSelection.collapsed(
+                          offset: partial.length,
+                        ),
+                      );
+                    },
+                    onResult: (text) {
+                      _input.value = TextEditingValue(
+                        text: text,
+                        selection: TextSelection.collapsed(offset: text.length),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 8),
                   GestureDetector(
                     onTap: _isLoading ? _stop : () => _send(_input.text),
                     child: AnimatedContainer(
