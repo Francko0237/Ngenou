@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Ngenou utilise le microphone pour la saisie vocale dans l'assistant IA.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Ngenou utilise la reconnaissance vocale pour dicter vos questions à l'assistant IA.</string>
 </dict>
 </plist>
