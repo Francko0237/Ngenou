@@ -415,34 +415,190 @@ class _CoursPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 80),
+    final recent = progProvider.getMostRecentInProgressNotion();
+    final primary = Theme.of(context).primaryColor;
+
+    return CustomScrollView(
       physics: const BouncingScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: cols,
-        mainAxisSpacing: 14,
-        crossAxisSpacing: 14,
-        childAspectRatio: ratio,
+      slivers: [
+        if (recent != null)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 14),
+              child: _buildResumeCard(context, recent, primary, isDark),
+            ),
+          ),
+        SliverPadding(
+          padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 80),
+          sliver: SliverGrid(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: cols,
+              mainAxisSpacing: 14,
+              crossAxisSpacing: 14,
+              childAspectRatio: ratio,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final matiere = matieres[index];
+                final prog = progProvider.getProgressionGlobale(matiere.id);
+                final isCustom = ModulesRegistry.isCustomMatiere(matiere.id);
+                final isPublic = ModulesRegistry.isPublicCourse(matiere.id);
+                return MatiereCard(
+                  titre: matiere.nom,
+                  icon: matiere.icone,
+                  isAvailable: matiere.isAvailable,
+                  progression: prog,
+                  isCustom: isCustom,
+                  isPublic: isPublic,
+                  matiereId: matiere.id,
+                  coverImageUrl: matiere.coverImageUrl,
+                  couleur: matiere.couleur,
+                  onTap: () => context.push('/cours/${matiere.id}'),
+                );
+              },
+              childCount: matieres.length,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildResumeCard(
+    BuildContext context,
+    Map<String, dynamic> recent,
+    Color primary,
+    bool isDark,
+  ) {
+    final matiere = recent['matiere'];
+    final notion = recent['notion'];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E26) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: primary.withValues(alpha: 0.35),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: primary.withValues(alpha: isDark ? 0.15 : 0.08),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      itemCount: matieres.length,
-      itemBuilder: (context, index) {
-        final matiere = matieres[index];
-        final prog = progProvider.getProgressionGlobale(matiere.id);
-        final isCustom = ModulesRegistry.isCustomMatiere(matiere.id);
-        final isPublic = ModulesRegistry.isPublicCourse(matiere.id);
-        return MatiereCard(
-          titre: matiere.nom,
-          icon: matiere.icone,
-          isAvailable: matiere.isAvailable,
-          progression: prog,
-          isCustom: isCustom,
-          isPublic: isPublic,
-          matiereId: matiere.id,
-          coverImageUrl: matiere.coverImageUrl,
-          couleur: matiere.couleur,
-          onTap: () => context.push('/cours/${matiere.id}'),
-        );
-      },
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () => context.push('/cours/${matiere.id}/${notion.id}'),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.play_circle_filled_rounded,
+                    color: primary,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: primary.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'EN COURS',
+                              style: TextStyle(
+                                color: primary,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.4,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              matiere.nom,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isDark ? Colors.white60 : Colors.black54,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        notion.titre,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color:
+                              isDark ? Colors.white : const Color(0xFF15151C),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton.tonal(
+                  onPressed: () =>
+                      context.push('/cours/${matiere.id}/${notion.id}'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: primary.withValues(alpha: 0.14),
+                    foregroundColor: primary,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Reprendre',
+                        style: TextStyle(
+                            fontSize: 11.5, fontWeight: FontWeight.w700),
+                      ),
+                      SizedBox(width: 4),
+                      Icon(Icons.arrow_forward_rounded, size: 13),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

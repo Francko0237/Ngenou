@@ -222,4 +222,39 @@ class ProgressionProvider with ChangeNotifier {
     );
     await loadProgression(matiereId);
   }
+
+  /// Retourne la dernière notion marquée 'en_cours' pour proposer une reprise immédiate
+  Map<String, dynamic>? getMostRecentInProgressNotion() {
+    Progression? mostRecent;
+    String? mostRecentMatiereId;
+
+    for (final entry in _progressionsParMatiere.entries) {
+      for (final p in entry.value) {
+        if (p.statut == 'en_cours') {
+          if (mostRecent == null ||
+              (p.derniereActivite != null &&
+                  (mostRecent.derniereActivite == null ||
+                      p.derniereActivite!.isAfter(mostRecent.derniereActivite!)))) {
+            mostRecent = p;
+            mostRecentMatiereId = entry.key;
+          }
+        }
+      }
+    }
+
+    if (mostRecent != null && mostRecentMatiereId != null) {
+      final notions = ModulesRegistry.getNotions(mostRecentMatiereId);
+      final notion =
+          notions.where((n) => n.id == mostRecent!.notionId).firstOrNull;
+      final matiere = ModulesRegistry.getMatiere(mostRecentMatiereId);
+      if (notion != null && matiere != null) {
+        return {
+          'progression': mostRecent,
+          'matiere': matiere,
+          'notion': notion,
+        };
+      }
+    }
+    return null;
+  }
 }
