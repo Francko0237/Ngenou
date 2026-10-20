@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../core/providers/progression_provider.dart';
@@ -168,6 +169,7 @@ class _GlobalView extends StatelessWidget {
       final progs = progProvider.getProgressions(m.id);
       totalNotions += notions.length;
       int mCompleted = 0;
+      int mInProgress = 0;
       for (final notion in notions) {
         try {
           final p = progs.firstWhere((e) => e.notionId == notion.id);
@@ -175,6 +177,7 @@ class _GlobalView extends StatelessWidget {
             mCompleted++;
             completedNotions++;
           } else if (p.statut == 'en_cours') {
+            mInProgress++;
             inProgressNotions++;
           }
           totalExercises += p.nbExercicesTotal;
@@ -185,6 +188,7 @@ class _GlobalView extends StatelessWidget {
         'matiere': m,
         'percent': globPct,
         'completed': mCompleted,
+        'inProgress': mInProgress,
         'total': notions.length,
       });
     }
@@ -211,15 +215,33 @@ class _GlobalView extends StatelessWidget {
               _HeroCard(
                 percent: overallPct,
                 label: 'Maîtrise générale',
-                subLabel: '$completedNotions / $totalNotions notions terminées',
+                subLabel: inProgressNotions > 0
+                    ? '$completedNotions terminées • $inProgressNotions en cours'
+                    : '$completedNotions / $totalNotions notions terminées',
                 isDark: isDark,
                 primary: primary,
               ),
               const SizedBox(height: 14),
 
-              // ── 3 KPI ────────────────────────────────────────────────────
+              // ── 4 KPI ────────────────────────────────────────────────────
               Row(
                 children: [
+                  _KpiTile(
+                    icon: Icons.play_circle_rounded,
+                    color: primary,
+                    value: inProgressNotions.toString(),
+                    label: 'En cours',
+                    isDark: isDark,
+                  ),
+                  const SizedBox(width: 8),
+                  _KpiTile(
+                    icon: Icons.check_circle_rounded,
+                    color: const Color(0xFF2ECC71),
+                    value: completedNotions.toString(),
+                    label: 'Complétées',
+                    isDark: isDark,
+                  ),
+                  const SizedBox(width: 8),
                   _KpiTile(
                     icon: Icons.menu_book_rounded,
                     color: const Color(0xFF3498DB),
@@ -227,23 +249,25 @@ class _GlobalView extends StatelessWidget {
                     label: 'Matières actives',
                     isDark: isDark,
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   _KpiTile(
-                    icon: Icons.check_circle_rounded,
-                    color: const Color(0xFF2ECC71),
-                    value: '$successRate%',
-                    label: 'Taux de réussite',
-                    isDark: isDark,
-                  ),
-                  const SizedBox(width: 10),
-                  _KpiTile(
-                    icon: Icons.auto_graph_rounded,
+                    icon: Icons.emoji_events_rounded,
                     color: const Color(0xFFE67E22),
-                    value: totalExercises.toString(),
-                    label: 'Exercices faits',
+                    value: '$successRate%',
+                    label: 'Taux réussite',
                     isDark: isDark,
                   ),
                 ],
+              ),
+              const SizedBox(height: 20),
+
+              // ── Donut de répartition globale ─────────────────────────────
+              _DonutCard(
+                completed: completedNotions,
+                inProgress: inProgressNotions,
+                notStarted: totalNotions - completedNotions - inProgressNotions,
+                isDark: isDark,
+                primary: primary,
               ),
               const SizedBox(height: 20),
 
@@ -275,6 +299,7 @@ class _GlobalView extends StatelessWidget {
                   matiere: item['matiere'],
                   percent: item['percent'],
                   completed: item['completed'],
+                  inProgress: item['inProgress'] as int? ?? 0,
                   total: item['total'],
                   isDark: isDark,
                   primary: primary,
@@ -333,7 +358,9 @@ class _MatiereView extends StatelessWidget {
           _HeroCard(
             percent: globPct,
             label: 'Progression globale',
-            subLabel: '$completedNotions/${notions.length} chapitres complétés',
+            subLabel: inProgressNotions > 0
+                ? '$completedNotions complétées • $inProgressNotions en cours'
+                : '$completedNotions/${notions.length} notions complétées',
             isDark: isDark,
             primary: primary,
             trailing: GestureDetector(
@@ -420,6 +447,7 @@ class _MatiereView extends StatelessWidget {
                 .firstOrNull;
             return _NotionTile(
               notion: notion,
+              matiereId: matiereId,
               prog: prog,
               index: entry.key + 1,
               isDark: isDark,
@@ -846,6 +874,7 @@ class _MatiereProgressRow extends StatelessWidget {
   final dynamic matiere;
   final double percent;
   final int completed;
+  final int inProgress;
   final int total;
   final bool isDark;
   final Color primary;
@@ -854,6 +883,7 @@ class _MatiereProgressRow extends StatelessWidget {
     required this.matiere,
     required this.percent,
     required this.completed,
+    required this.inProgress,
     required this.total,
     required this.isDark,
     required this.primary,
@@ -923,13 +953,44 @@ class _MatiereProgressRow extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 5),
-          Text(
-            '$completed sur $total notions terminées',
-            style: TextStyle(
-              fontSize: 11,
-              color: isDark ? Colors.white38 : Colors.black38,
-            ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  inProgress > 0
+                      ? '$completed terminées sur $total'
+                      : '$completed sur $total notions terminées',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
+                ),
+              ),
+              if (inProgress > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.play_circle_fill_rounded, size: 10, color: primary),
+                      const SizedBox(width: 3),
+                      Text(
+                        '$inProgress en cours',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
           ),
         ],
       ),
@@ -940,6 +1001,7 @@ class _MatiereProgressRow extends StatelessWidget {
 /// Tile d'une notion dans la vue détail matière
 class _NotionTile extends StatelessWidget {
   final dynamic notion;
+  final String matiereId;
   final dynamic prog;
   final int index;
   final bool isDark;
@@ -947,6 +1009,7 @@ class _NotionTile extends StatelessWidget {
 
   const _NotionTile({
     required this.notion,
+    required this.matiereId,
     required this.prog,
     required this.index,
     required this.isDark,
@@ -959,88 +1022,183 @@ class _NotionTile extends StatelessWidget {
     final reussis = prog?.nbExercicesReussis ?? 0;
     final total = prog?.nbExercicesTotal ?? 0;
 
-    late IconData statusIcon;
-    late Color statusColor;
-    late String statusText;
+    late Widget statusBadge;
+    late String subtitleText;
 
     switch (statut) {
       case 'termine':
-        statusIcon = Icons.check_circle_rounded;
-        statusColor = const Color(0xFF2ECC71);
-        statusText = 'Complété';
+        statusBadge = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFF2ECC71).withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: const Color(0xFF2ECC71).withValues(alpha: 0.3),
+            ),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF2ECC71)),
+              SizedBox(width: 4),
+              Text(
+                'Terminé',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF2ECC71),
+                ),
+              ),
+            ],
+          ),
+        );
+        subtitleText = total > 0
+            ? 'Complété • $reussis/$total exercices'
+            : 'Leçon complétée • 100%';
         break;
+
       case 'en_cours':
-        statusIcon = Icons.play_circle_rounded;
-        statusColor = primary;
-        statusText = 'En cours';
+        statusBadge = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: primary.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: primary.withValues(alpha: 0.4),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.play_circle_fill_rounded, size: 12, color: primary),
+              const SizedBox(width: 4),
+              Text(
+                'En cours',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: primary,
+                ),
+              ),
+            ],
+          ),
+        );
+        subtitleText = total > 0
+            ? 'En cours de lecture • $reussis/$total exercices'
+            : 'En cours de lecture (50%)';
         break;
+
       default:
-        statusIcon = Icons.radio_button_unchecked_rounded;
-        statusColor = isDark
-            ? Colors.white24
-            : Colors.black.withValues(alpha: 0.24);
-        statusText = 'Non commencé';
+        statusBadge = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.05)
+                : Colors.black.withValues(alpha: 0.04),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            'À faire',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white38 : Colors.black38,
+            ),
+          ),
+        );
+        subtitleText = total > 0
+            ? '$total exercices disponibles'
+            : 'Pas encore commencé';
     }
 
     final contexte = notion.contexte;
     final iconData = contexte != null
         ? CourseContextMapper.getIconForContext(contexte)
-        : statusIcon;
+        : (statut == 'termine'
+            ? Icons.check_circle_rounded
+            : (statut == 'en_cours'
+                ? Icons.play_circle_rounded
+                : Icons.menu_book_rounded));
     final iconColor = contexte != null
         ? CourseContextMapper.getColorForContext(contexte)
-        : statusColor;
+        : (statut == 'termine'
+            ? const Color(0xFF2ECC71)
+            : (statut == 'en_cours' ? primary : Colors.grey));
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-      decoration: BoxDecoration(
-        color: isDark ? _kSurface : _kSurfaceLight,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withValues(alpha: 0.06)
-              : Colors.black.withValues(alpha: 0.05),
+    final isInProgress = statut == 'en_cours';
+
+    return InkWell(
+      onTap: () async {
+        await context.push('/cours/$matiereId/${notion.id}');
+        if (context.mounted) {
+          context.read<ProgressionProvider>().loadProgression(matiereId);
+        }
+      },
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        decoration: BoxDecoration(
+          color: isInProgress
+              ? (isDark
+                  ? primary.withValues(alpha: 0.08)
+                  : primary.withValues(alpha: 0.05))
+              : (isDark ? _kSurface : _kSurfaceLight),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isInProgress
+                ? primary.withValues(alpha: 0.35)
+                : (isDark
+                    ? Colors.white.withValues(alpha: 0.06)
+                    : Colors.black.withValues(alpha: 0.05)),
+          ),
         ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: isDark ? 0.15 : 0.1),
-              borderRadius: BorderRadius.circular(10),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: isDark ? 0.15 : 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(iconData, size: 18, color: iconColor),
             ),
-            child: Icon(iconData, size: 18, color: iconColor),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  notion.titre,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13.5,
-                    color: isDark ? Colors.white : const Color(0xFF15151C),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    notion.titre,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13.5,
+                      color: isDark ? Colors.white : const Color(0xFF15151C),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  total > 0 ? '$reussis/$total exercices réussis' : statusText,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: isDark ? Colors.white38 : Colors.black38,
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitleText,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: isInProgress
+                          ? primary
+                          : (isDark ? Colors.white38 : Colors.black38),
+                      fontWeight: isInProgress
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Icon(statusIcon, color: statusColor, size: 18),
-        ],
+            const SizedBox(width: 8),
+            statusBadge,
+          ],
+        ),
       ),
     );
   }

@@ -462,6 +462,7 @@ class DatabaseHelper {
     map['updated_at'] = DateTime.now().toIso8601String();
     map['is_synced'] = 0;
     map['is_deleted'] = 0;
+    map.remove('id'); // Ne jamais écraser la clé primaire id avec null
 
     if (existing.isNotEmpty) {
       await db.update(

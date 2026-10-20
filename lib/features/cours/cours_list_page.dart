@@ -178,16 +178,22 @@ class CoursListPage extends StatelessWidget {
                 isUnlocked = true;
               }
 
-              int pct = prog != null && prog.nbExercicesTotal > 0
-                  ? ((prog.nbExercicesReussis /
-                                    ModulesRegistry.getExercicesByNotion(
-                                      matiereId,
-                                      notion.id,
-                                    ).length.toDouble())
-                                .clamp(0, 1) *
-                            100)
-                        .toInt()
-                  : 0;
+              final isTermine = prog?.statut == 'termine';
+              final isEnCours = prog?.statut == 'en_cours';
+
+              int pct = 0;
+              if (prog != null && prog.nbExercicesTotal > 0) {
+                final exList = ModulesRegistry.getExercicesByNotion(
+                  matiereId,
+                  notion.id,
+                );
+                final totalEx = exList.isNotEmpty ? exList.length.toDouble() : 1.0;
+                pct = ((prog.nbExercicesReussis / totalEx).clamp(0, 1) * 100).toInt();
+              } else if (isTermine) {
+                pct = 100;
+              } else if (isEnCours) {
+                pct = 50;
+              }
 
               final card = Opacity(
                 opacity: isUnlocked ? 1.0 : 0.6,
@@ -197,17 +203,25 @@ class CoursListPage extends StatelessWidget {
                     color: isDark ? const Color(0xFF1E1E26) : Colors.white,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: isDark
-                          ? Colors.white.withValues(alpha: 0.06)
-                          : Colors.black.withValues(alpha: 0.05),
-                      width: 1,
+                      color: isEnCours
+                          ? Theme.of(context).primaryColor.withValues(alpha: 0.85)
+                          : (isTermine
+                              ? const Color(0xFF2ECC71).withValues(alpha: 0.45)
+                              : (isDark
+                                  ? Colors.white.withValues(alpha: 0.06)
+                                  : Colors.black.withValues(alpha: 0.05))),
+                      width: isEnCours ? 1.6 : 1,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(
-                          alpha: isDark ? 0.25 : 0.04,
-                        ),
-                        blurRadius: 8,
+                        color: isEnCours
+                            ? Theme.of(context)
+                                .primaryColor
+                                .withValues(alpha: isDark ? 0.22 : 0.12)
+                            : Colors.black.withValues(
+                                alpha: isDark ? 0.25 : 0.04,
+                              ),
+                        blurRadius: isEnCours ? 12 : 8,
                         offset: const Offset(0, 3),
                       ),
                     ],
@@ -216,9 +230,15 @@ class CoursListPage extends StatelessWidget {
                     color: Colors.transparent,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(16),
-                      onTap: () {
+                      onTap: () async {
                         if (isUnlocked) {
-                          context.push('/cours/$matiereId/${notion.id}');
+                          await context.push('/cours/$matiereId/${notion.id}');
+                          // Rafraîchir immédiatement le statut au retour
+                          if (context.mounted) {
+                            context
+                                .read<ProgressionProvider>()
+                                .loadProgression(matiereId);
+                          }
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -327,8 +347,78 @@ class CoursListPage extends StatelessWidget {
                                           ),
                                         ),
                                       ),
+                                      if (isTermine) ...[
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 7,
+                                            vertical: 3,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF2ECC71)
+                                                .withValues(alpha: 0.15),
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                          ),
+                                          child: const Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.check_circle_rounded,
+                                                size: 11,
+                                                color: Color(0xFF2ECC71),
+                                              ),
+                                              SizedBox(width: 3),
+                                              Text(
+                                                'Terminé',
+                                                style: TextStyle(
+                                                  color: Color(0xFF2ECC71),
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ] else if (isEnCours) ...[
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 7,
+                                            vertical: 3,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context)
+                                                .primaryColor
+                                                .withValues(alpha: 0.15),
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.play_circle_filled_rounded,
+                                                size: 11,
+                                                color: Theme.of(context)
+                                                    .primaryColor,
+                                              ),
+                                              const SizedBox(width: 3),
+                                              Text(
+                                                'En cours',
+                                                style: TextStyle(
+                                                  color: Theme.of(context)
+                                                      .primaryColor,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                       const Spacer(),
-                                      if (isUnlocked && pct > 0)
+                                      if (isUnlocked && (isTermine || isEnCours || pct > 0))
                                         Row(
                                           children: [
                                             SizedBox(
@@ -342,8 +432,8 @@ class CoursListPage extends StatelessWidget {
                                                         .withValues(alpha: 0.1)
                                                     : Colors.black
                                                         .withValues(alpha: 0.08),
-                                                color: pct == 100
-                                                    ? Colors.amber
+                                                color: isTermine
+                                                    ? const Color(0xFF2ECC71)
                                                     : Theme.of(
                                                         context,
                                                       ).primaryColor,
@@ -354,8 +444,8 @@ class CoursListPage extends StatelessWidget {
                                               '$pct%',
                                               style: TextStyle(
                                                 fontSize: 11,
-                                                color: pct == 100
-                                                    ? Colors.amber
+                                                color: isTermine
+                                                    ? const Color(0xFF2ECC71)
                                                     : Theme.of(
                                                         context,
                                                       ).primaryColor,
