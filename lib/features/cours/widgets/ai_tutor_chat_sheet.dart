@@ -9,6 +9,7 @@ import '../../../core/services/ai_tutor_service.dart';
 import '../../../core/models/deep_seek_model.dart';
 import '../../../core/services/quota_guard.dart';
 import '../../../core/widgets/ai_markdown_text.dart';
+import '../../../core/widgets/tts_button.dart';
 
 /// Bottom sheet de chat avec Ngenou, contextuel à la leçon en cours.
 class AiTutorChatSheet extends StatefulWidget {
@@ -301,7 +302,6 @@ class _AiTutorChatSheetState extends State<AiTutorChatSheet> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = Theme.of(context).primaryColor;
     final bg = isDark ? const Color(0xFF161616) : const Color(0xFFF9FAFB);
-    final inputBg = isDark ? const Color(0xFF222222) : const Color(0xFFF3F4F6);
 
     return Padding(
       padding: EdgeInsets.only(
@@ -539,60 +539,14 @@ class _AiTutorChatSheetState extends State<AiTutorChatSheet> {
                   ),
                 ),
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: inputBg,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                          color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
-                          width: 1,
-                        ),
-                      ),
-                      child: TextField(
-                        controller: _input,
-                        maxLines: null,
-                        textCapitalization: TextCapitalization.sentences,
-                        style: TextStyle(
-                          color: isDark ? Colors.white : Colors.black87,
-                          fontSize: 15,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: 'Pose ta question à Ngenou…',
-                          hintStyle: TextStyle(
-                            color: isDark ? Colors.grey[500] : Colors.grey[500],
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 18,
-                            vertical: 12,
-                          ),
-                        ),
-                        onSubmitted: _isLoading ? null : _send,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  GestureDetector(
-                    onTap: _isLoading ? _stop : () => _send(_input.text),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: _isLoading ? Colors.red.shade400 : primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        _isLoading ? Icons.stop_rounded : Icons.send_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ],
+              child: SpeechInputBar(
+                controller: _input,
+                isDark: isDark,
+                primary: primary,
+                isLoading: _isLoading,
+                onSend: _send,
+                onStop: _stop,
+                hintText: 'Pose ta question à Ngenou…',
               ),
             ),
           ],
