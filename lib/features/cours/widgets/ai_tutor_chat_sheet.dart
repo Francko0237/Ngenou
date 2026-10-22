@@ -10,6 +10,7 @@ import '../../../core/models/deep_seek_model.dart';
 import '../../../core/services/quota_guard.dart';
 import '../../../core/widgets/ai_markdown_text.dart';
 import '../../../core/widgets/tts_button.dart';
+import '../../../core/widgets/speech_input_bar.dart';
 
 /// Bottom sheet de chat avec Ngenou, contextuel à la leçon en cours.
 class AiTutorChatSheet extends StatefulWidget {
@@ -832,20 +833,30 @@ class _AiTutorChatSheetState extends State<AiTutorChatSheet> {
             ),
           ),
           const SizedBox(height: 4),
-          // Bouton copie discret
+          // Boutons action : audio + copie
           Align(
             alignment: Alignment.centerRight,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(8),
-              onTap: () => _copyToClipboard(msg.content),
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Icon(
-                  Icons.copy_rounded,
-                  size: 15,
-                  color: isDark ? Colors.grey[600] : Colors.grey[400],
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TtsButton(
+                  msgId: msg.timestamp.millisecondsSinceEpoch.toString(),
+                  text: msg.content,
+                  isDark: isDark,
                 ),
-              ),
+                InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () => _copyToClipboard(msg.content),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.copy_rounded,
+                      size: 15,
+                      color: isDark ? Colors.grey[600] : Colors.grey[400],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

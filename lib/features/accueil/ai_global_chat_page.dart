@@ -17,6 +17,7 @@ import '../cours/widgets/ai_tutor_chat_sheet.dart';
 import '../../core/utils/error_formatter.dart';
 import '../../core/widgets/ai_markdown_text.dart';
 import '../../core/widgets/speech_input_bar.dart';
+import '../../core/widgets/tts_button.dart';
 
 /// Page entière dédiée à la discussion globale et l'historique avec Ngenou.
 class AiGlobalChatPage extends StatefulWidget {
@@ -1230,20 +1231,30 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
             ),
           ),
           const SizedBox(height: 4),
-          // Bouton copie discret
+          // Boutons action : audio + copie
           Align(
             alignment: Alignment.centerRight,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(8),
-              onTap: () => _copyToClipboard(msg.content),
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Icon(
-                  Icons.copy_rounded,
-                  size: 15,
-                  color: isDark ? Colors.grey[600] : Colors.grey[400],
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TtsButton(
+                  msgId: msg.timestamp.millisecondsSinceEpoch.toString(),
+                  text: msg.content,
+                  isDark: isDark,
                 ),
-              ),
+                InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () => _copyToClipboard(msg.content),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.copy_rounded,
+                      size: 15,
+                      color: isDark ? Colors.grey[600] : Colors.grey[400],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
