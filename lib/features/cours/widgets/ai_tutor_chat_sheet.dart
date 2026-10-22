@@ -109,6 +109,8 @@ class _AiTutorChatSheetState extends State<AiTutorChatSheet> {
         AiTutorHistoryService.saveHistory(widget.historyKey, _messages);
       }
     }
+    // Stopper la lecture TTS si le sheet est fermé
+    TtsService.instance.stop();
     _input.dispose();
     _scroll.dispose();
     super.dispose();
