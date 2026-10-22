@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
-import '../../core/widgets/speech_button.dart';
 import '../../core/services/ai_tutor_history_service.dart';
 import '../../core/services/ai_tutor_service.dart';
 import '../../core/models/deep_seek_model.dart';
@@ -468,6 +467,59 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
     });
   }
 
+  void _showAttachmentOptions() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey[700] : Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: Icon(
+                Icons.image_rounded,
+                color: Theme.of(context).primaryColor,
+              ),
+              title: const Text('Photo / Image'),
+              subtitle: const Text('Depuis la galerie'),
+              onTap: () {
+                Navigator.pop(context);
+                // TODO: implémenter la sélection d'image
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                Icons.attach_file_rounded,
+                color: Theme.of(context).primaryColor,
+              ),
+              title: const Text('Fichier'),
+              subtitle: const Text('PDF, document…'),
+              onTap: () {
+                Navigator.pop(context);
+                // TODO: implémenter la sélection de fichier
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _onInputChanged() {
     final isLong = _input.text.length > 80;
     if (isLong != _isLongInput) {
@@ -805,30 +857,25 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
                         ),
                       ),
                     ),
-                    // Bouton micro en bas à gauche
+                    // Bouton + en bas à gauche
                     Positioned(
                       bottom: 6,
                       left: 6,
-                      child: SpeechButton(
-                        primary: primary,
-                        isDark: isDark,
-                        size: 36,
-                        onPartialResult: (partial) {
-                          _input.value = TextEditingValue(
-                            text: partial,
-                            selection: TextSelection.collapsed(
-                              offset: partial.length,
-                            ),
-                          );
-                        },
-                        onResult: (text) {
-                          _input.value = TextEditingValue(
-                            text: text,
-                            selection: TextSelection.collapsed(
-                              offset: text.length,
-                            ),
-                          );
-                        },
+                      child: GestureDetector(
+                        onTap: _showAttachmentOptions,
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.grey[800] : Colors.grey[200],
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.add_rounded,
+                            color: isDark ? Colors.grey[300] : Colors.grey[600],
+                            size: 20,
+                          ),
+                        ),
                       ),
                     ),
                     // Bouton d'envoi / Stop
