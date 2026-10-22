@@ -118,6 +118,8 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
         AiTutorHistoryService.saveHistory('global_chat', _globalMessages);
       }
     }
+    // Stopper la lecture TTS si la page est quittée
+    TtsService.instance.stop();
     _scroll.dispose();
     super.dispose();
   }
