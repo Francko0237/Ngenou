@@ -16,6 +16,7 @@ import 'package:go_router/go_router.dart';
 import '../cours/widgets/ai_tutor_chat_sheet.dart';
 import '../../core/utils/error_formatter.dart';
 import '../../core/widgets/ai_markdown_text.dart';
+import '../../core/widgets/speech_input_bar.dart';
 
 /// Page entière dédiée à la discussion globale et l'historique avec Ngenou.
 class AiGlobalChatPage extends StatefulWidget {
@@ -793,119 +794,41 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
               ),
             ),
           ),
-          child: Builder(
-            builder: (context) {
-              final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
-              final minL = keyboardOpen ? 1 : 2;
-              // Container principal avec bordure arrondie + hauteur max
-              // Stack à l'intérieur pour superposer le bouton sur le texte
-              return Container(
-                constraints: BoxConstraints(
-                  maxHeight: keyboardOpen ? 120 : 160,
-                ),
-                decoration: BoxDecoration(
-                  color: inputBg,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
-                    width: 1,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              // Bouton pièce jointe
+              GestureDetector(
+                onTap: _showAttachmentOptions,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  margin: const EdgeInsets.only(bottom: 4, right: 8),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.grey[800] : Colors.grey[200],
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.add_rounded,
+                    color: isDark ? Colors.grey[300] : Colors.grey[600],
+                    size: 20,
                   ),
                 ),
-                child: Stack(
-                  children: [
-                    // Champ texte scrollable — prend toute la place du Container
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(19),
-                      child: ScrollConfiguration(
-                        behavior: const ScrollBehavior().copyWith(
-                          scrollbars: false,
-                          overscroll: false,
-                        ),
-                        child: SingleChildScrollView(
-                          reverse: true,
-                          child: TextField(
-                            controller: _input,
-                            maxLines: null,
-                            minLines: minL,
-                            keyboardType: TextInputType.multiline,
-                            textCapitalization: TextCapitalization.sentences,
-                            style: TextStyle(
-                              color: isDark ? Colors.white : Colors.black87,
-                              fontSize: 15,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: 'Demande quelque chose\nà Ngenou…',
-                              hintStyle: TextStyle(
-                                color: isDark
-                                    ? Colors.grey[500]
-                                    : Colors.grey[500],
-                                height: 1.5,
-                              ),
-                              hintMaxLines: 2,
-                              border: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              // Gauche pour bouton +, droite pour bouton envoi
-                              contentPadding: const EdgeInsets.fromLTRB(
-                                50,
-                                10,
-                                52,
-                                10,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Bouton + en bas à gauche
-                    Positioned(
-                      bottom: 6,
-                      left: 6,
-                      child: GestureDetector(
-                        onTap: _showAttachmentOptions,
-                        child: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: isDark ? Colors.grey[800] : Colors.grey[200],
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.add_rounded,
-                            color: isDark ? Colors.grey[300] : Colors.grey[600],
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Bouton d'envoi / Stop
-                    Positioned(
-                      bottom: 6,
-                      right: 6,
-                      child: GestureDetector(
-                        onTap: _isLoading ? _stop : () => _send(_input.text),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: _isLoading ? Colors.red.shade400 : primary,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            _isLoading
-                                ? Icons.stop_rounded
-                                : Icons.send_rounded,
-                            color: Colors.white,
-                            size: 17,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+              ),
+              // Barre de saisie avec STT
+              Expanded(
+                child: SpeechInputBar(
+                  controller: _input,
+                  isDark: isDark,
+                  primary: primary,
+                  isLoading: _isLoading,
+                  onSend: _send,
+                  onStop: _stop,
+                  hintText: 'Demande quelque chose à Ngenou…',
+                  maxLines: null,
                 ),
-              );
-            },
+              ),
+            ],
           ),
         ),
       ],
