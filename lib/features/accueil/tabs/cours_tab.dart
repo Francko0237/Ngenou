@@ -19,6 +19,7 @@ class CoursTab extends StatefulWidget {
   final int selectedSubTab; // 0 = Mes cours, 1 = Projets
   final ValueChanged<int> onSubTabChanged;
   final VoidCallback onRefresh;
+  final GlobalKey? toggleKey;
 
   const CoursTab({
     super.key,
@@ -27,6 +28,7 @@ class CoursTab extends StatefulWidget {
     required this.selectedSubTab,
     required this.onSubTabChanged,
     required this.onRefresh,
+    this.toggleKey,
   });
 
   @override
@@ -245,6 +247,7 @@ class _CoursTabState extends State<CoursTab> {
                     // Toggle Mes cours / Projets
                     Center(
                       child: Container(
+                        key: widget.toggleKey,
                         width: double.infinity,
                         constraints: const BoxConstraints(maxWidth: 440),
                         decoration: BoxDecoration(
@@ -703,11 +706,11 @@ class _ProjetsPage extends StatelessWidget {
           context,
           MaterialPageRoute(builder: (_) => const CreateProjectWizardPage()),
         );
-        if (projetId != null) {
+        if (projetId != null && context.mounted) {
           final projet = context.read<ProjetsProvider>().getProjetById(
             projetId,
           );
-          if (projet != null && context.mounted) {
+          if (projet != null) {
             _openProjet(context, projet);
           }
         }

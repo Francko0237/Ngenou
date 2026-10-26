@@ -32,10 +32,9 @@ class _AccueilPageState extends State<AccueilPage> {
 
   // ── Clés globales pour le tutoriel ──────────────────────────────────────
   final _keyTutorialBtn = GlobalKey();
-  final _keyMesCours = GlobalKey();
+  final _keyCourseToggle = GlobalKey();
   final _keyFab = GlobalKey();
-  final _keyNavQuotidien = GlobalKey();
-  final _keyNavExplorer = GlobalKey();
+  final _keyBottomBar = GlobalKey();
   final _keySettings = GlobalKey();
   final _keyThemeToggle = GlobalKey();
 
@@ -112,59 +111,82 @@ class _AccueilPageState extends State<AccueilPage> {
 
   List<TutorialStep> _buildSteps() => [
     TutorialStep(
-      targetKey: _keyTutorialBtn,
-      title: 'Guide interactif',
+      targetKey: _keyCourseToggle,
+      category: 'APPRENTISSAGE',
+      icon: Icons.auto_stories_rounded,
+      title: 'Explorez vos matières',
       description:
-          'Ce bouton vous permet de revoir ce guide à tout moment.\n'
-          'Appuyez dessus quand vous voulez retrouver vos repères dans l\'app.',
-      spotRadius: 22,
-      spotShape: SpotShape.circle,
-    ),
-    TutorialStep(
-      targetKey: _keyMesCours,
-      title: 'Mes cours',
-      description:
-          'Retrouvez tous vos cours ici.\n'
-          'Sélectionnez une matière pour accéder aux chapitres, leçons et exercices.',
-      spotRadius: 130,
-      spotShape: SpotShape.circle,
+          'Retrouvez tous vos cours interactifs par matière, vos leçons synthétisées et vos exercices. Basculez en un clic vers vos projets.',
+      highlights: ['Maths, Algorithme, Ordinateurs...', 'Mode hors-ligne disponible'],
+      spotShape: SpotShape.roundedRect,
+      spotRadius: 18,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
     ),
     TutorialStep(
       targetKey: _keyFab,
-      title: 'Ngenou IA',
+      category: 'INTELLIGENCE ARTIFICIELLE',
+      icon: Icons.psychology_rounded,
+      title: 'Votre Tuteur Ngenou IA',
       description:
-          'Votre assistant personnel IA, disponible à tout moment.\n'
-          'Posez des questions, obtenez des explications ou discutez de n\'importe quel sujet de cours.',
-      spotRadius: 28,
+          'Une question sur une notion ou un exercice ? Votre tuteur personnel est disponible 24h/24 pour vous guider et vous expliquer pas à pas.',
+      highlights: ['Explications sur mesure', 'Assistance continue'],
       spotShape: SpotShape.roundedRect,
+      spotRadius: 28,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
     ),
     TutorialStep(
-      targetKey: _keyNavQuotidien,
-      targetKey2: _keyNavExplorer,
+      targetKey: _keyBottomBar,
+      customTargetBuilder: (screen) {
+        final box = _keyBottomBar.currentContext?.findRenderObject() as RenderBox?;
+        if (box != null && box.hasSize && box.attached) {
+          final pos = box.localToGlobal(Offset.zero);
+          return Rect.fromLTWH(
+            pos.dx + box.size.width * 0.33,
+            pos.dy + 4,
+            box.size.width * 0.65,
+            box.size.height - 8,
+          );
+        }
+        return Rect.fromLTWH(
+          screen.width * 0.33,
+          screen.height - 76,
+          screen.width * 0.65,
+          64,
+        );
+      },
+      category: 'PRATIQUE QUOTIDIENNE',
+      icon: Icons.local_fire_department_rounded,
       title: 'Quotidien & Explorer',
       description:
-          'Quotidien : vos défis du jour générés par l\'IA.\n'
-          'Explorer : découvrez des cours publics partagés par la communauté.',
-      spotRadius: 28,
-      spotShape: SpotShape.circle,
-    ),
-    TutorialStep(
-      targetKey: _keySettings,
-      title: 'Paramètres',
-      description:
-          'Gérez vos informations personnelles et personnalisez\n'
-          'certains comportements de l\'application.',
-      spotRadius: 22,
-      spotShape: SpotShape.circle,
+          'Entraînez-vous chaque jour avec des défis rapides générés par l\'IA pour consolider vos acquis, et découvrez les cours partagés par la communauté.',
+      highlights: ['Défis quotidiens', 'Partages communautaires'],
+      spotShape: SpotShape.roundedRect,
+      spotRadius: 16,
     ),
     TutorialStep(
       targetKey: _keyThemeToggle,
-      title: 'Thème clair / sombre',
+      targetKey2: _keySettings,
+      category: 'PERSONNALISATION',
+      icon: Icons.palette_outlined,
+      title: 'Thème & Réglages',
       description:
-          'Basculez entre le mode clair et le mode sombre\n'
-          'selon vos préférences ou les conditions d\'éclairage.',
-      spotRadius: 22,
-      spotShape: SpotShape.circle,
+          'Basculez à tout moment entre le mode clair et le mode sombre, et gérez votre profil ou vos données d\'apprentissage dans les paramètres.',
+      highlights: ['Mode clair / sombre', 'Profil & synchronisation'],
+      spotShape: SpotShape.roundedRect,
+      spotRadius: 14,
+      padding: const EdgeInsets.all(6),
+    ),
+    TutorialStep(
+      targetKey: _keyTutorialBtn,
+      category: 'AIDE RAPIDE',
+      icon: Icons.lightbulb_outline_rounded,
+      title: 'Guide toujours disponible',
+      description:
+          'Ce bouton ampoule vous permet de revoir ce guide à tout moment. Vous avez toutes les clés en main pour réussir avec Ngenou !',
+      highlights: ['Toujours à portée de main', 'Bonne rentrée ! 🎉'],
+      spotShape: SpotShape.roundedRect,
+      spotRadius: 12,
+      padding: const EdgeInsets.all(4),
     ),
   ];
 
@@ -198,33 +220,31 @@ class _AccueilPageState extends State<AccueilPage> {
             elevation: 0,
             backgroundColor: Colors.transparent,
             actions: [
-              // ── Bouton ! guide (remplace le point connexion) ───────────
+              // ── Bouton guide interactif (ampoule moderne) ───────────────
               Padding(
                 padding: const EdgeInsets.only(right: 2),
-                child: GestureDetector(
-                  key: _keyTutorialBtn,
-                  onTap: _startTutorial,
-                  child: Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isDark
-                            ? Colors.white.withValues(alpha: 0.45)
-                            : Colors.black.withValues(alpha: 0.35),
-                        width: 1.5,
+                child: Tooltip(
+                  message: 'Guide interactif',
+                  child: InkWell(
+                    key: _keyTutorialBtn,
+                    onTap: _startTutorial,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: primary.withValues(alpha: isDark ? 0.16 : 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: primary.withValues(alpha: isDark ? 0.35 : 0.22),
+                          width: 1.2,
+                        ),
                       ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '!',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w900,
-                          color: isDark
-                              ? Colors.white.withValues(alpha: 0.7)
-                              : Colors.black.withValues(alpha: 0.6),
+                      child: Center(
+                        child: Icon(
+                          Icons.lightbulb_outline_rounded,
+                          size: 17,
+                          color: primary,
                         ),
                       ),
                     ),
@@ -294,18 +314,19 @@ class _AccueilPageState extends State<AccueilPage> {
             index: _navIndex,
             children: [
               CoursTab(
-                key: _keyMesCours,
                 username: _username,
                 userRole: _userRole,
                 selectedSubTab: _selectedSubTab,
                 onSubTabChanged: (val) => setState(() => _selectedSubTab = val),
                 onRefresh: _refreshAllDataQuietly,
+                toggleKey: _keyCourseToggle,
               ),
               const QuotidienTab(),
               const ExplorerTab(),
             ],
           ),
           bottomNavigationBar: Container(
+            key: _keyBottomBar,
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF16161E) : Colors.white,
               border: Border(
@@ -342,7 +363,6 @@ class _AccueilPageState extends State<AccueilPage> {
                   label: 'Cours',
                 ),
                 NavigationDestination(
-                  key: _keyNavQuotidien,
                   icon: const Icon(Icons.calendar_today_outlined, size: 22),
                   selectedIcon: Icon(
                     Icons.calendar_month_rounded,
@@ -352,7 +372,6 @@ class _AccueilPageState extends State<AccueilPage> {
                   label: 'Quotidien',
                 ),
                 NavigationDestination(
-                  key: _keyNavExplorer,
                   icon: const Icon(Icons.explore_outlined, size: 22),
                   selectedIcon: Icon(
                     Icons.explore_rounded,
