@@ -12,7 +12,6 @@ import '../../projets/widgets/projet_card.dart';
 import '../../projets/widgets/projet_context_menu.dart';
 import '../../projets/create_project_wizard_page.dart';
 import '../../projets/projet_detail_page.dart';
-import '../widgets/first_steps_checklist_card.dart';
 
 class CoursTab extends StatefulWidget {
   final String username;
@@ -72,9 +71,15 @@ class _CoursTabState extends State<CoursTab> {
     final defisProvider = context.watch<DefisProvider>();
 
     // Calcul des cours affichés (natives + custom hors projets)
-    final allCustomIds = customProvider.modules.map((m) => m.matiere.id).toList();
-    final inProjectIds = projetsProvider.projets.expand((p) => p.matiereIds).toSet();
-    final horsProjetIds = allCustomIds.where((id) => !inProjectIds.contains(id)).toSet();
+    final allCustomIds = customProvider.modules
+        .map((m) => m.matiere.id)
+        .toList();
+    final inProjectIds = projetsProvider.projets
+        .expand((p) => p.matiereIds)
+        .toSet();
+    final horsProjetIds = allCustomIds
+        .where((id) => !inProjectIds.contains(id))
+        .toSet();
 
     final matieres = ModulesRegistry.matieres.where((m) {
       if (!m.id.startsWith('custom_')) return true;
@@ -99,8 +104,16 @@ class _CoursTabState extends State<CoursTab> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final w = constraints.maxWidth;
-        final hPad = w > 1200 ? w * 0.08 : w > 700 ? w * 0.05 : 18.0;
-        final cols = w > 1100 ? 4 : w > 700 ? 3 : 2;
+        final hPad = w > 1200
+            ? w * 0.08
+            : w > 700
+            ? w * 0.05
+            : 18.0;
+        final cols = w > 1100
+            ? 4
+            : w > 700
+            ? 3
+            : 2;
         // Ratio ajusté pour coller au contenu de MatiereCard (cover 55% + texte 45%)
         // sans laisser d'espace blanc en bas
         final ratio = w > 900 ? 1.15 : 0.95;
@@ -129,7 +142,9 @@ class _CoursTabState extends State<CoursTab> {
                                   fontSize: 24,
                                   fontWeight: FontWeight.w900,
                                   letterSpacing: -0.3,
-                                  color: isDark ? Colors.white : const Color(0xFF15151C),
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF15151C),
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -137,7 +152,9 @@ class _CoursTabState extends State<CoursTab> {
                                 "Prêt pour votre apprentissage aujourd'hui ?",
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: isDark ? Colors.white60 : Colors.black54,
+                                  color: isDark
+                                      ? Colors.white60
+                                      : Colors.black54,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -146,22 +163,40 @@ class _CoursTabState extends State<CoursTab> {
                         ),
                         if (widget.userRole == 'teacher')
                           GestureDetector(
-                            onTap: () => context.push('/enseignant').then((_) => widget.onRefresh()),
+                            onTap: () => context
+                                .push('/enseignant')
+                                .then((_) => widget.onRefresh()),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
                               decoration: BoxDecoration(
-                                color: primary.withValues(alpha: isDark ? 0.2 : 0.1),
+                                color: primary.withValues(
+                                  alpha: isDark ? 0.2 : 0.1,
+                                ),
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: primary.withValues(alpha: 0.3), width: 1),
+                                border: Border.all(
+                                  color: primary.withValues(alpha: 0.3),
+                                  width: 1,
+                                ),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.co_present_rounded, size: 16, color: primary),
+                                  Icon(
+                                    Icons.co_present_rounded,
+                                    size: 16,
+                                    color: primary,
+                                  ),
                                   const SizedBox(width: 6),
                                   Text(
                                     'Espace Prof',
-                                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: primary),
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: primary,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -207,12 +242,6 @@ class _CoursTabState extends State<CoursTab> {
                     ),
                     const SizedBox(height: 18),
 
-                    // Guide interactif Premiers pas (onboarding dashboard)
-                    FirstStepsChecklistCard(
-                      onExploreCourses: () => widget.onSubTabChanged(0),
-                    ),
-                    const SizedBox(height: 18),
-
                     // Toggle Mes cours / Projets
                     Center(
                       child: Container(
@@ -233,17 +262,23 @@ class _CoursTabState extends State<CoursTab> {
                                 AnimatedPositioned(
                                   duration: const Duration(milliseconds: 220),
                                   curve: Curves.easeOutCubic,
-                                  left: widget.selectedSubTab == 0 ? 0 : indicatorWidth,
+                                  left: widget.selectedSubTab == 0
+                                      ? 0
+                                      : indicatorWidth,
                                   top: 0,
                                   bottom: 0,
                                   width: indicatorWidth,
                                   child: DecoratedBox(
                                     decoration: BoxDecoration(
-                                      color: isDark ? const Color(0xFF262630) : Colors.white,
+                                      color: isDark
+                                          ? const Color(0xFF262630)
+                                          : Colors.white,
                                       borderRadius: BorderRadius.circular(13),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
+                                          color: Colors.black.withValues(
+                                            alpha: isDark ? 0.3 : 0.06,
+                                          ),
                                           blurRadius: 8,
                                           offset: const Offset(0, 2),
                                         ),
@@ -437,27 +472,24 @@ class _CoursPage extends StatelessWidget {
               crossAxisSpacing: 14,
               childAspectRatio: ratio,
             ),
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final matiere = matieres[index];
-                final prog = progProvider.getProgressionGlobale(matiere.id);
-                final isCustom = ModulesRegistry.isCustomMatiere(matiere.id);
-                final isPublic = ModulesRegistry.isPublicCourse(matiere.id);
-                return MatiereCard(
-                  titre: matiere.nom,
-                  icon: matiere.icone,
-                  isAvailable: matiere.isAvailable,
-                  progression: prog,
-                  isCustom: isCustom,
-                  isPublic: isPublic,
-                  matiereId: matiere.id,
-                  coverImageUrl: matiere.coverImageUrl,
-                  couleur: matiere.couleur,
-                  onTap: () => context.push('/cours/${matiere.id}'),
-                );
-              },
-              childCount: matieres.length,
-            ),
+            delegate: SliverChildBuilderDelegate((context, index) {
+              final matiere = matieres[index];
+              final prog = progProvider.getProgressionGlobale(matiere.id);
+              final isCustom = ModulesRegistry.isCustomMatiere(matiere.id);
+              final isPublic = ModulesRegistry.isPublicCourse(matiere.id);
+              return MatiereCard(
+                titre: matiere.nom,
+                icon: matiere.icone,
+                isAvailable: matiere.isAvailable,
+                progression: prog,
+                isCustom: isCustom,
+                isPublic: isPublic,
+                matiereId: matiere.id,
+                coverImageUrl: matiere.coverImageUrl,
+                couleur: matiere.couleur,
+                onTap: () => context.push('/cours/${matiere.id}'),
+              );
+            }, childCount: matieres.length),
           ),
         ),
       ],
@@ -477,10 +509,7 @@ class _CoursPage extends StatelessWidget {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E26) : Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: primary.withValues(alpha: 0.35),
-          width: 1.2,
-        ),
+        border: Border.all(color: primary.withValues(alpha: 0.35), width: 1.2),
         boxShadow: [
           BoxShadow(
             color: primary.withValues(alpha: isDark ? 0.15 : 0.08),
@@ -521,7 +550,9 @@ class _CoursPage extends StatelessWidget {
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: primary.withValues(alpha: 0.14),
                               borderRadius: BorderRadius.circular(4),
@@ -557,8 +588,9 @@ class _CoursPage extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
-                          color:
-                              isDark ? Colors.white : const Color(0xFF15151C),
+                          color: isDark
+                              ? Colors.white
+                              : const Color(0xFF15151C),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -574,7 +606,9 @@ class _CoursPage extends StatelessWidget {
                     backgroundColor: primary.withValues(alpha: 0.14),
                     foregroundColor: primary,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     shape: RoundedRectangleBorder(
@@ -587,7 +621,9 @@ class _CoursPage extends StatelessWidget {
                       Text(
                         'Reprendre',
                         style: TextStyle(
-                            fontSize: 11.5, fontWeight: FontWeight.w700),
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       SizedBox(width: 4),
                       Icon(Icons.arrow_forward_rounded, size: 13),
@@ -649,10 +685,10 @@ class _ProjetsPage extends StatelessWidget {
                 onLongPress: projet.isSystem
                     ? null
                     : () => showProjetContextMenu(
-                          context,
-                          projet: projet,
-                          onRefresh: onRefresh,
-                        ),
+                        context,
+                        projet: projet,
+                        onRefresh: onRefresh,
+                      ),
               ),
             );
           }),
@@ -668,7 +704,9 @@ class _ProjetsPage extends StatelessWidget {
           MaterialPageRoute(builder: (_) => const CreateProjectWizardPage()),
         );
         if (projetId != null) {
-          final projet = context.read<ProjetsProvider>().getProjetById(projetId);
+          final projet = context.read<ProjetsProvider>().getProjetById(
+            projetId,
+          );
           if (projet != null && context.mounted) {
             _openProjet(context, projet);
           }

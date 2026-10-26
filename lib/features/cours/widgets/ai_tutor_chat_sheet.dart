@@ -11,6 +11,7 @@ import '../../../core/services/quota_guard.dart';
 import '../../../core/widgets/ai_markdown_text.dart';
 import '../../../core/widgets/tts_button.dart';
 import '../../../core/widgets/speech_input_bar.dart';
+import '../../../core/services/tts_service.dart';
 
 /// Bottom sheet de chat avec Ngenou, contextuel à la leçon en cours.
 class AiTutorChatSheet extends StatefulWidget {
@@ -43,6 +44,10 @@ class _AiTutorChatSheetState extends State<AiTutorChatSheet> {
   String _currentFullReply = '';
   DateTime? _currentReplyTimestamp;
   Timer? _typewriterTimer;
+
+  /// True si le dernier message envoyé vient de la saisie vocale
+  /// → la réponse de l'IA sera lue automatiquement
+  bool _lastInputWasVoice = false;
 
   static const _suggestions = [
     "Explique-moi ce concept simplement",
@@ -154,6 +159,21 @@ class _AiTutorChatSheetState extends State<AiTutorChatSheet> {
           );
         }
         await _animateResponse(tutorResponse.content);
+        // Lecture auto si la saisie était vocale
+        if (_lastInputWasVoice && mounted) {
+          _lastInputWasVoice = false;
+          final lastMsg = _messages.lastWhere(
+            (m) => m.role == 'assistant',
+            orElse: () =>
+                TutorMessage(role: '', content: '', timestamp: DateTime.now()),
+          );
+          if (lastMsg.content.isNotEmpty) {
+            TtsService.instance.speak(
+              lastMsg.content,
+              msgId: lastMsg.timestamp.millisecondsSinceEpoch.toString(),
+            );
+          }
+        }
       }
     } on QuotaExceededException catch (e) {
       // ── Quota bloqué (limite = 0) ────────────────────────────────────
@@ -548,6 +568,10 @@ class _AiTutorChatSheetState extends State<AiTutorChatSheet> {
                 primary: primary,
                 isLoading: _isLoading,
                 onSend: _send,
+                onSendVoice: (text) {
+                  _lastInputWasVoice = true;
+                  _send(text);
+                },
                 onStop: _stop,
                 hintText: 'Pose ta question à Ngenou…',
               ),

@@ -18,6 +18,7 @@ import '../../core/utils/error_formatter.dart';
 import '../../core/widgets/ai_markdown_text.dart';
 import '../../core/widgets/speech_input_bar.dart';
 import '../../core/widgets/tts_button.dart';
+import '../../core/services/tts_service.dart';
 
 /// Page entière dédiée à la discussion globale et l'historique avec Ngenou.
 class AiGlobalChatPage extends StatefulWidget {
@@ -36,6 +37,9 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
   bool _isLoading = false;
   bool _isInitLoadingGlobal = true;
   DeepSeekModel _selectedModel = DeepSeekModel.flash;
+
+  /// True si le dernier message envoyé vient de la saisie vocale
+  bool _lastInputWasVoice = false;
 
   // Stocke tous les historiques chargés : key -> messages
   Map<String, List<TutorMessage>> _allHistories = {};
@@ -319,6 +323,21 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
           );
         }
         await _animateResponse(tutorResponse.content);
+        // Lecture auto si la saisie était vocale
+        if (_lastInputWasVoice && mounted) {
+          _lastInputWasVoice = false;
+          final lastMsg = _globalMessages.lastWhere(
+            (m) => m.role == 'assistant',
+            orElse: () =>
+                TutorMessage(role: '', content: '', timestamp: DateTime.now()),
+          );
+          if (lastMsg.content.isNotEmpty) {
+            TtsService.instance.speak(
+              lastMsg.content,
+              msgId: lastMsg.timestamp.millisecondsSinceEpoch.toString(),
+            );
+          }
+        }
       }
     } on QuotaExceededException catch (e) {
       // ── Quota bloqué (limite = 0) ────────────────────────────────────
@@ -826,6 +845,10 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
                   primary: primary,
                   isLoading: _isLoading,
                   onSend: _send,
+                  onSendVoice: (text) {
+                    _lastInputWasVoice = true;
+                    _send(text);
+                  },
                   onStop: _stop,
                   hintText: 'Demande quelque chose à Ngenou…',
                   maxLines: null,

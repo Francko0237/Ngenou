@@ -20,6 +20,10 @@ class SpeechInputBar extends StatefulWidget {
   final Color primary;
   final bool isLoading;
   final void Function(String text) onSend;
+
+  /// Appelé uniquement quand l'envoi vient de la voix — permet au parent
+  /// de déclencher la lecture TTS automatique.
+  final void Function(String text)? onSendVoice;
   final VoidCallback onStop;
   final String hintText;
   final int? maxLines;
@@ -32,6 +36,7 @@ class SpeechInputBar extends StatefulWidget {
     required this.isLoading,
     required this.onSend,
     required this.onStop,
+    this.onSendVoice,
     this.hintText = 'Pose ta question à Ngenou…',
     this.maxLines,
   });
@@ -129,7 +134,8 @@ class _SpeechInputBarState extends State<SpeechInputBar>
       if (recognized.isNotEmpty) {
         widget.controller.text = recognized;
         widget.controller.selection = TextSelection.collapsed(
-            offset: recognized.length);
+          offset: recognized.length,
+        );
       }
     }
   }
@@ -253,14 +259,11 @@ class _SpeechInputBarState extends State<SpeechInputBar>
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color:
-                  widget.isLoading ? Colors.red.shade400 : widget.primary,
+              color: widget.isLoading ? Colors.red.shade400 : widget.primary,
               shape: BoxShape.circle,
             ),
             child: Icon(
-              widget.isLoading
-                  ? Icons.stop_rounded
-                  : Icons.send_rounded,
+              widget.isLoading ? Icons.stop_rounded : Icons.send_rounded,
               color: Colors.white,
               size: 20,
             ),
@@ -352,9 +355,12 @@ class _SpeechInputBarState extends State<SpeechInputBar>
                     _stopListening();
                     widget.controller.text = currentText;
                     widget.controller.selection = TextSelection.collapsed(
-                        offset: currentText.length);
-                    Future.microtask(
-                        () => widget.onSend(currentText));
+                      offset: currentText.length,
+                    );
+                    Future.microtask(() {
+                      final fn = widget.onSendVoice ?? widget.onSend;
+                      fn(currentText);
+                    });
                   }
                 : null,
             child: AnimatedContainer(
@@ -368,8 +374,11 @@ class _SpeechInputBarState extends State<SpeechInputBar>
                     : widget.primary.withValues(alpha: 0.3),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.send_rounded,
-                  color: Colors.white, size: 18),
+              child: const Icon(
+                Icons.send_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
             ),
           ),
         ],
