@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../services/tutorial_service.dart';
 
 // ── Forme du spotlight ────────────────────────────────────────────────────────
@@ -11,29 +13,47 @@ enum SpotShape { circle, roundedRect }
 class TutorialStep {
   final GlobalKey? targetKey;
 
-  /// Second targetKey optionnel (ex : Quotidien + Explorer simultanément)
+  /// Second targetKey optionnel (ex : 2 boutons à entourer simultanément)
   final GlobalKey? targetKey2;
+
+  /// Calculateur dynamique de zone cible (idéal pour la barre de navigation ou zones fixes)
+  final Rect Function(Size screenSize)? customTargetBuilder;
+
   final String title;
   final String description;
+  final String? category;
+  final IconData? icon;
+  final List<String>? highlights;
   final double spotRadius;
   final SpotShape spotShape;
+  final EdgeInsets? padding;
 
   const TutorialStep({
     this.targetKey,
     this.targetKey2,
+    this.customTargetBuilder,
     required this.title,
     required this.description,
-    this.spotRadius = 36,
+    this.category,
+    this.icon,
+    this.highlights,
+    this.spotRadius = 24,
     this.spotShape = SpotShape.circle,
+    this.padding,
   });
 }
 
-// ── Overlay ───────────────────────────────────────────────────────────────────
+// ── Overlay de présentation ───────────────────────────────────────────────────
 
 class TutorialOverlay extends StatefulWidget {
   final List<TutorialStep> steps;
   final VoidCallback onDone;
-  const TutorialOverlay({super.key, required this.steps, required this.onDone});
+
+  const TutorialOverlay({
+    super.key,
+    required this.steps,
+    required this.onDone,
+  });
 
   @override
   State<TutorialOverlay> createState() => _TutorialOverlayState();
@@ -43,495 +63,600 @@ class _TutorialOverlayState extends State<TutorialOverlay>
     with TickerProviderStateMixin {
   int _current = 0;
 
-  late AnimationController _fadeCtrl;
-  late AnimationController _pulseCtrl;
-  late Animation<double> _fadeAnim;
-  late Animation<double> _pulseAnim;
+  late final AnimationController _fadeCtrl;
+  late final AnimationController _pulseCtrl;
+  late final AnimationController _morphCtrl;
 
-  // Spot principal
-  Offset _spotCenter = Offset.zero;
-  Size _spotSize = Size.zero;
-  // Spot secondaire (optionnel)
-  Offset _spot2Center = Offset.zero;
-  Size _spot2Size = Size.zero;
-  bool _hasSpot2 = false;
+  late final Animation<double> _fadeAnim;
+  late final Animation<double> _pulseAnim;
+  late final Animation<double> _morphAnim;
+
+  // Rectangles de découpe pour l'interpolation fluide entre étapes
+  Rect _prevRect = Rect.zero;
+  Rect _targetRect = Rect.zero;
+  SpotShape _targetShape = SpotShape.circle;
+  double _targetCornerRadius = 16.0;
 
   @override
   void initState() {
     super.initState();
     _fadeCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 400),
+      duration: const Duration(milliseconds: 320),
     );
     _pulseCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1600),
+      duration: const Duration(milliseconds: 1800),
     )..repeat(reverse: true);
 
+    _morphCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    );
+
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
-    _pulseAnim = Tween<double>(
-      begin: 1.0,
-      end: 1.1,
-    ).animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
+    _pulseAnim = Tween<double>(begin: 1.0, end: 1.06).animate(
+      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
+    );
+    _morphAnim = CurvedAnimation(parent: _morphCtrl, curve: Curves.easeOutCubic);
 
     _fadeCtrl.forward();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _updateSpots());
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _computeTarget(animate: false);
+    });
   }
 
   @override
   void dispose() {
     _fadeCtrl.dispose();
     _pulseCtrl.dispose();
+    _morphCtrl.dispose();
     super.dispose();
   }
 
-  // ── Mesure des éléments ciblés ────────────────────────────────────────────
-
-  ({Offset center, Size size}) _measureKey(GlobalKey key) {
-    final ctx = key.currentContext;
-    if (ctx == null) return (center: Offset.zero, size: Size.zero);
-    final box = ctx.findRenderObject() as RenderBox?;
-    if (box == null) return (center: Offset.zero, size: Size.zero);
-    final pos = box.localToGlobal(Offset.zero);
-    final sz = box.size;
-    return (
-      center: Offset(pos.dx + sz.width / 2, pos.dy + sz.height / 2),
-      size: sz,
-    );
-  }
-
-  void _updateSpots() {
+  void _computeTarget({bool animate = true}) {
+    if (_current >= widget.steps.length) return;
     final step = widget.steps[_current];
-    if (step.targetKey == null) {
-      if (mounted)
-        setState(() {
-          _spotCenter = Offset.zero;
-          _spotSize = Size.zero;
-          _spot2Center = Offset.zero;
-          _spot2Size = Size.zero;
-          _hasSpot2 = false;
-        });
-      return;
+    final screen = MediaQuery.of(context).size;
+
+    Rect calculated = Rect.zero;
+    SpotShape shape = step.spotShape;
+    double cornerRadius = step.spotRadius;
+
+    // 1. Calculateur personnalisé prioritaire
+    if (step.customTargetBuilder != null) {
+      calculated = step.customTargetBuilder!(screen);
+    } else if (step.targetKey != null) {
+      // 2. Calcul par GlobalKey
+      final box = step.targetKey!.currentContext?.findRenderObject() as RenderBox?;
+      if (box != null && box.hasSize) {
+        final pos = box.localToGlobal(Offset.zero);
+        final size = box.size;
+
+        if (step.targetKey2 != null) {
+          final box2 = step.targetKey2!.currentContext?.findRenderObject() as RenderBox?;
+          if (box2 != null && box2.hasSize) {
+            final pos2 = box2.localToGlobal(Offset.zero);
+            final r1 = pos & size;
+            final r2 = pos2 & box2.size;
+            calculated = r1.expandToInclude(r2);
+          } else {
+            calculated = pos & size;
+          }
+        } else {
+          calculated = pos & size;
+        }
+
+        // Padding spécifique ou par défaut
+        final pad = step.padding ?? const EdgeInsets.all(8);
+        calculated = Rect.fromLTRB(
+          (calculated.left - pad.left).clamp(0.0, screen.width),
+          (calculated.top - pad.top).clamp(0.0, screen.height),
+          (calculated.right + pad.right).clamp(0.0, screen.width),
+          (calculated.bottom + pad.bottom).clamp(0.0, screen.height),
+        );
+      }
     }
 
-    final m1 = _measureKey(step.targetKey!);
-    Offset c2 = Offset.zero;
-    Size s2 = Size.zero;
-    bool has2 = false;
-
-    if (step.targetKey2 != null) {
-      final m2 = _measureKey(step.targetKey2!);
-      c2 = m2.center;
-      s2 = m2.size;
-      has2 = c2 != Offset.zero;
+    if (calculated != Rect.zero) {
+      if (shape == SpotShape.circle) {
+        final radius = math.max(
+          step.spotRadius,
+          math.max(calculated.width, calculated.height) / 2 + 4,
+        );
+        calculated = Rect.fromCircle(
+          center: calculated.center,
+          radius: radius,
+        );
+      } else {
+        cornerRadius = math.min(
+          step.spotRadius,
+          math.min(calculated.width, calculated.height) / 2,
+        );
+      }
     }
 
-    if (mounted) {
-      setState(() {
-        _spotCenter = m1.center;
-        _spotSize = m1.size;
-        _spot2Center = c2;
-        _spot2Size = s2;
-        _hasSpot2 = has2;
-      });
+    setState(() {
+      _prevRect = animate && _targetRect != Rect.zero ? _targetRect : calculated;
+      _targetRect = calculated;
+      _targetShape = shape;
+      _targetCornerRadius = cornerRadius;
+    });
+
+    if (animate) {
+      _morphCtrl.forward(from: 0.0);
+    } else {
+      _morphCtrl.value = 1.0;
     }
   }
 
   void _next() {
+    HapticFeedback.lightImpact();
     if (_current < widget.steps.length - 1) {
       setState(() => _current++);
-      WidgetsBinding.instance.addPostFrameCallback((_) => _updateSpots());
+      WidgetsBinding.instance.addPostFrameCallback((_) => _computeTarget(animate: true));
     } else {
       _finish();
     }
   }
 
+  void _previous() {
+    HapticFeedback.lightImpact();
+    if (_current > 0) {
+      setState(() => _current--);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _computeTarget(animate: true));
+    }
+  }
+
   void _finish() {
+    HapticFeedback.mediumImpact();
     TutorialService.markDone();
     _fadeCtrl.reverse().then((_) {
       if (mounted) widget.onDone();
     });
   }
 
-  // ── Position de la bulle ──────────────────────────────────────────────────
-
-  _BubblePos _bubblePos(BuildContext context) {
-    if (_spotCenter == Offset.zero) return _BubblePos.center;
-    final h = MediaQuery.of(context).size.height;
-    // Si les deux spots existent, utilise le plus bas pour le calcul
-    final refY = _hasSpot2
-        ? math.max(_spotCenter.dy, _spot2Center.dy)
-        : _spotCenter.dy;
-    final rel = refY / h;
-    if (rel < 0.38) return _BubblePos.below;
-    if (rel > 0.62) return _BubblePos.above;
-    return _BubblePos.center;
-  }
-
-  // Centre effectif entre les deux spots (ou spot seul)
-  Offset get _effectiveCenter => _hasSpot2
-      ? Offset(
-          (_spotCenter.dx + _spot2Center.dx) / 2,
-          (_spotCenter.dy + _spot2Center.dy) / 2,
-        )
-      : _spotCenter;
-
   @override
   Widget build(BuildContext context) {
     final step = widget.steps[_current];
     final primary = Theme.of(context).primaryColor;
-    final screenSize = MediaQuery.of(context).size;
-    final bpos = _bubblePos(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final screen = MediaQuery.of(context).size;
     final isLast = _current == widget.steps.length - 1;
-    final hasSpot = _spotCenter != Offset.zero;
 
-    return FadeTransition(
-      opacity: _fadeAnim,
-      child: Stack(
-        children: [
-          // ── Fond sombre + découpe(s) ────────────────────────────────────
-          Positioned.fill(
-            child: AnimatedBuilder(
-              animation: _pulseAnim,
-              builder: (_, __) => CustomPaint(
-                painter: _SpotlightPainter(
-                  center: _spotCenter,
-                  size: _spotSize,
-                  shape: step.spotShape,
-                  radius: step.spotRadius * _pulseAnim.value,
-                  center2: _hasSpot2 ? _spot2Center : null,
-                  size2: _hasSpot2 ? _spot2Size : null,
-                  radius2: step.spotRadius * _pulseAnim.value,
-                  hasSpot: hasSpot,
+    return Material(
+      type: MaterialType.transparency,
+      child: DefaultTextStyle(
+        style: const TextStyle(decoration: TextDecoration.none),
+        child: FadeTransition(
+          opacity: _fadeAnim,
+          child: Stack(
+            children: [
+              // ── 1. Fond découpé animé avec halo lumineux ────────────────
+              Positioned.fill(
+                child: AnimatedBuilder(
+                  animation: Listenable.merge([_morphAnim, _pulseAnim]),
+                  builder: (context, _) {
+                    final currentRect = Rect.lerp(
+                      _prevRect,
+                      _targetRect,
+                      _morphAnim.value,
+                    ) ?? _targetRect;
+
+                    return CustomPaint(
+                      painter: _ModernSpotlightPainter(
+                        targetRect: currentRect,
+                        shape: _targetShape,
+                        cornerRadius: _targetCornerRadius,
+                        pulseScale: _pulseAnim.value,
+                        primaryColor: primary,
+                        isDark: isDark,
+                      ),
+                    );
+                  },
                 ),
               ),
-            ),
-          ),
 
-          // ── Anneaux pulsants ────────────────────────────────────────────
-          if (hasSpot)
-            AnimatedBuilder(
-              animation: _pulseAnim,
-              builder: (_, __) {
-                return Stack(
-                  children: [
-                    _buildRing(
-                      _spotCenter,
-                      step.spotRadius,
-                      step.spotShape,
-                      _spotSize,
-                      primary,
-                    ),
-                    if (_hasSpot2)
-                      _buildRing(
-                        _spot2Center,
-                        step.spotRadius,
-                        SpotShape.circle,
-                        _spot2Size,
-                        primary,
-                      ),
-                  ],
-                );
-              },
-            ),
-
-          // ── Flèche en arc ───────────────────────────────────────────────
-          if (hasSpot && bpos != _BubblePos.center)
-            _buildArcArrow(context, bpos, primary, screenSize),
-
-          // ── Bulle ───────────────────────────────────────────────────────
-          _buildBubble(context, step, bpos, screenSize, primary, isLast),
-
-          // ── Bouton Passer (haut GAUCHE) ─────────────────────────────────
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 12, left: 16),
-                child: GestureDetector(
-                  onTap: _finish,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 7,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.25),
-                      ),
-                    ),
-                    child: Text(
-                      'Passer',
-                      style: TextStyle(
+              // ── 2. Bouton Sauter / Passer (DISCRET EN HAUT À GAUCHE) ─────
+              SafeArea(
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 12, left: 18),
+                    child: TextButton.icon(
+                      onPressed: _finish,
+                      icon: Icon(
+                        Icons.close_rounded,
+                        size: 16,
                         color: Colors.white.withValues(alpha: 0.85),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                      ),
+                      label: Text(
+                        "Passer l'intro",
+                        style: GoogleFonts.plusJakartaSans(
+                          color: Colors.white.withValues(alpha: 0.95),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          decoration: TextDecoration.none,
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        backgroundColor: Colors.black.withValues(alpha: 0.45),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(22),
+                          side: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.22),
+                            width: 1,
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
 
-          // ── Indicateur de progression ───────────────────────────────────
-          Positioned(
-            bottom: MediaQuery.of(context).padding.bottom + 16,
-            left: 0,
-            right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(widget.steps.length, (i) {
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 260),
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  width: i == _current ? 20 : 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: i == _current
-                        ? primary
-                        : Colors.white.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                );
-              }),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+              // ── 3. Flèche en arc dynamique reliant le texte à la cible ───
+              Positioned.fill(
+                child: AnimatedBuilder(
+                  animation: Listenable.merge([_morphAnim, _pulseAnim]),
+                  builder: (context, _) {
+                    final currentRect = Rect.lerp(
+                      _prevRect,
+                      _targetRect,
+                      _morphAnim.value,
+                    ) ?? _targetRect;
 
-  // ── Anneau pulsant autour d'un spot ───────────────────────────────────────
+                    final textRect = _calculateTextRect(
+                      screen: screen,
+                      targetRect: currentRect,
+                    );
 
-  Widget _buildRing(
-    Offset center,
-    double radius,
-    SpotShape shape,
-    Size sz,
-    Color primary,
-  ) {
-    final r = radius * _pulseAnim.value + 7;
-    if (shape == SpotShape.roundedRect) {
-      final w = sz.width + r * 2;
-      final h = sz.height + r * 2;
-      return Positioned(
-        left: center.dx - w / 2,
-        top: center.dy - h / 2,
-        child: Container(
-          width: w,
-          height: h,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20 + r),
-            border: Border.all(
-              color: primary.withValues(alpha: 0.55),
-              width: 2,
-            ),
+                    return CustomPaint(
+                      painter: _CurvedArcArrowPainter(
+                        targetRect: currentRect,
+                        textRect: textRect,
+                        color: primary,
+                        pulse: _pulseAnim.value,
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              // ── 4. Texte explicatif grand format, sans boîte opaque ──────
+              AnimatedBuilder(
+                animation: _morphAnim,
+                builder: (context, _) {
+                  final currentRect = Rect.lerp(
+                    _prevRect,
+                    _targetRect,
+                    _morphAnim.value,
+                  ) ?? _targetRect;
+
+                  return _buildFloatingExplanation(
+                    context: context,
+                    step: step,
+                    targetRect: currentRect,
+                    screen: screen,
+                    primary: primary,
+                    isDark: isDark,
+                    isLast: isLast,
+                  );
+                },
+              ),
+            ],
           ),
-        ),
-      );
-    }
-    return Positioned(
-      left: center.dx - r,
-      top: center.dy - r,
-      child: Container(
-        width: r * 2,
-        height: r * 2,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: primary.withValues(alpha: 0.55), width: 2),
         ),
       ),
     );
   }
 
-  // ── Flèche en arc (courbe de Bézier) ──────────────────────────────────────
+  /// Calcule la position géométrique estimée du bloc de texte pour le traceur de flèche
+  Rect _calculateTextRect({required Size screen, required Rect targetRect}) {
+    final textWidth = math.min(screen.width - 48.0, 520.0);
+    final textLeft = (screen.width - textWidth) / 2;
+    const estimatedHeight = 220.0;
 
-  Widget _buildArcArrow(
-    BuildContext context,
-    _BubblePos pos,
-    Color primary,
-    Size screenSize,
-  ) {
-    // Point de départ : bord de la bulle côté élément
-    // Point d'arrivée : bord du spotlight côté bulle
-    // La flèche part du centre de l'écran horizontalement, courbe vers le spot
-
-    final eff = _effectiveCenter;
-    final step = widget.steps[_current];
-
-    // Offset de départ (proche du bord de la bulle)
-    double startX = eff.dx;
-    double startY;
-    double endY;
-
-    if (pos == _BubblePos.below) {
-      // Bulle en dessous → flèche part du haut de la bulle vers le spot en haut
-      startY = eff.dy + step.spotRadius + 52;
-      endY = eff.dy + step.spotRadius + 4;
+    if (targetRect == Rect.zero) {
+      return Rect.fromLTWH(textLeft, (screen.height - estimatedHeight) / 2, textWidth, estimatedHeight);
+    } else if (targetRect.center.dy < screen.height * 0.48) {
+      // Cible en haut : texte en dessous
+      final top = (targetRect.bottom + 65.0).clamp(30.0, screen.height - estimatedHeight - 20.0);
+      return Rect.fromLTWH(textLeft, top, textWidth, estimatedHeight);
     } else {
-      // Bulle au-dessus → flèche part du bas de la bulle vers le spot en bas
-      startY = eff.dy - step.spotRadius - 52;
-      endY = eff.dy - step.spotRadius - 4;
+      // Cible en bas : texte au-dessus
+      final bottom = (screen.height - targetRect.top + 65.0).clamp(30.0, screen.height - estimatedHeight - 20.0);
+      final top = screen.height - bottom - estimatedHeight;
+      return Rect.fromLTWH(textLeft, top, textWidth, estimatedHeight);
     }
-
-    return Positioned.fill(
-      child: CustomPaint(
-        painter: _ArcArrowPainter(
-          start: Offset(startX, startY),
-          end: Offset(eff.dx, endY),
-          color: primary,
-          pointingUp: pos == _BubblePos.below,
-        ),
-      ),
-    );
   }
 
-  // ── Bulle d'explication ────────────────────────────────────────────────────
+  // ── Texte Flottant Stylé et Épuré (Sans Fond Blanc) ───────────────────────
 
-  Widget _buildBubble(
-    BuildContext context,
-    TutorialStep step,
-    _BubblePos pos,
-    Size screen,
-    Color primary,
-    bool isLast,
-  ) {
-    final w = math.min(screen.width - 40.0, 360.0);
-    const pad = 20.0;
+  Widget _buildFloatingExplanation({
+    required BuildContext context,
+    required TutorialStep step,
+    required Rect targetRect,
+    required Size screen,
+    required Color primary,
+    required bool isDark,
+    required bool isLast,
+  }) {
+    final textWidth = math.min(screen.width - 48.0, 520.0);
 
-    double? top, bottom;
+    // Calcul de l'ancrage vertical
+    double? top;
+    double? bottom;
 
-    // Calcul Y de la bulle selon position
-    switch (pos) {
-      case _BubblePos.below:
-        // Légèrement en bas du spotlight + espace pour la flèche
-        top = (_spotCenter.dy + step.spotRadius + 70).clamp(
-          100.0,
-          screen.height - 250.0,
-        );
-        break;
-      case _BubblePos.above:
-        bottom = (screen.height - _effectiveCenter.dy + step.spotRadius + 70)
-            .clamp(100.0, screen.height - 250.0);
-        break;
-      case _BubblePos.center:
-        top = screen.height / 2 - 100;
-        break;
+    if (targetRect == Rect.zero) {
+      top = (screen.height / 2) - 130;
+    } else if (targetRect.center.dy < screen.height * 0.48) {
+      top = (targetRect.bottom + 65.0).clamp(30.0, screen.height - 300.0);
+    } else {
+      bottom = (screen.height - targetRect.top + 65.0).clamp(30.0, screen.height - 300.0);
     }
 
     return Positioned(
-      left: pad,
-      right: pad,
+      left: 24,
+      right: 24,
       top: top,
       bottom: bottom,
       child: Center(
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          transitionBuilder: (child, anim) => FadeTransition(
-            opacity: anim,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.06),
-                end: Offset.zero,
-              ).animate(anim),
-              child: child,
-            ),
-          ),
-          child: Container(
-            key: ValueKey(_current),
-            width: w,
-            padding: const EdgeInsets.fromLTRB(24, 22, 24, 18),
-            decoration: BoxDecoration(
-              // Fond sombre semi-transparent (pas blanc)
-              color: Colors.black.withValues(alpha: 0.78),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: primary.withValues(alpha: 0.35),
-                width: 1.5,
+        child: SizedBox(
+          width: textWidth,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 260),
+            transitionBuilder: (child, anim) => FadeTransition(
+              opacity: anim,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.04),
+                  end: Offset.zero,
+                ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+                child: child,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: primary.withValues(alpha: 0.2),
-                  blurRadius: 30,
-                  spreadRadius: 2,
-                ),
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.5),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
             ),
             child: Column(
+              key: ValueKey(_current),
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Numéro étape
+                // ── Badge Catégorie Lumineux ──────────────────────────────
                 Container(
-                  width: 28,
-                  height: 28,
+                  padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
                   decoration: BoxDecoration(
-                    color: primary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      '${_current + 1}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                      ),
+                    color: Colors.black.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: primary.withValues(alpha: 0.7),
+                      width: 1.2,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: primary.withValues(alpha: 0.35),
+                        blurRadius: 12,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        step.icon ?? Icons.auto_stories_rounded,
+                        size: 15,
+                        color: primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        step.category ?? 'FONCTIONNALITÉ',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.1,
+                          color: Colors.white,
+                          decoration: TextDecoration.none,
+                        ),
+                      ),
+                      const SizedBox(width: 9),
+                      Container(
+                        width: 4,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.5),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 9),
+                      Text(
+                        'Étape ${_current + 1} / ${widget.steps.length}',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white.withValues(alpha: 0.8),
+                          decoration: TextDecoration.none,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 12),
-                // Titre — grand, centré, blanc
+                const SizedBox(height: 14),
+
+                // ── Titre Grand Format et Stylé ───────────────────────────
                 Text(
                   step.title,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
+                  style: GoogleFonts.outfit(
+                    fontSize: 25,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.4,
+                    height: 1.2,
                     color: Colors.white,
-                    letterSpacing: 0.2,
+                    decoration: TextDecoration.none,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withValues(alpha: 0.9),
+                        blurRadius: 18,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 10),
-                // Description — centré
+
+                // ── Description Aérée et Lisible ──────────────────────────
                 Text(
                   step.description,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    height: 1.55,
-                    color: Colors.white.withValues(alpha: 0.75),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 16,
+                    height: 1.5,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white.withValues(alpha: 0.95),
+                    decoration: TextDecoration.none,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withValues(alpha: 0.85),
+                        blurRadius: 14,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 18),
-                // Bouton Suivant / Terminer
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _next,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: primary,
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: Text(
-                      isLast ? 'Terminer 🎉' : 'Suivant →',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                        color: Colors.white,
-                      ),
-                    ),
+
+                // ── Points Clés / Highlights ──────────────────────────────
+                if (step.highlights != null && step.highlights!.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: step.highlights!.map((h) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.22),
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.4),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.check_circle_rounded, size: 14, color: primary),
+                            const SizedBox(width: 6),
+                            Text(
+                              h,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                                decoration: TextDecoration.none,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
                   ),
+                ],
+
+                const SizedBox(height: 22),
+
+                // ── Barre de Contrôles et Pagination ──────────────────────
+                Row(
+                  children: [
+                    // Indicateurs de progression étirables
+                    Row(
+                      children: List.generate(widget.steps.length, (i) {
+                        final active = i == _current;
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 240),
+                          margin: const EdgeInsets.only(right: 6),
+                          width: active ? 26 : 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                            color: active ? primary : Colors.white.withValues(alpha: 0.28),
+                            borderRadius: BorderRadius.circular(4),
+                            boxShadow: active
+                                ? [
+                                    BoxShadow(
+                                      color: primary.withValues(alpha: 0.6),
+                                      blurRadius: 8,
+                                      spreadRadius: 1,
+                                    )
+                                  ]
+                                : null,
+                          ),
+                        );
+                      }),
+                    ),
+                    const Spacer(),
+
+                    // Bouton Précédent
+                    if (_current > 0) ...[
+                      OutlinedButton(
+                        onPressed: _previous,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+                          backgroundColor: Colors.black.withValues(alpha: 0.35),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                        child: Text(
+                          'Retour',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.none,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
+
+                    // Bouton Suivant / C'est parti
+                    FilledButton(
+                      onPressed: _next,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        elevation: 4,
+                        shadowColor: primary.withValues(alpha: 0.65),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            isLast ? "C'est parti ! 🚀" : 'Suivant',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                          if (!isLast) ...[
+                            const SizedBox(width: 6),
+                            const Icon(Icons.arrow_forward_rounded, size: 16),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -542,154 +667,202 @@ class _TutorialOverlayState extends State<TutorialOverlay>
   }
 }
 
-// ── Enum position bulle ───────────────────────────────────────────────────────
+// ── Painter spotlight moderne avec dégradé et halo ─────────────────────────────
 
-enum _BubblePos { above, below, center }
-
-// ── Painter : fond sombre + découpe(s) ───────────────────────────────────────
-
-class _SpotlightPainter extends CustomPainter {
-  final Offset center;
-  final Size size;
+class _ModernSpotlightPainter extends CustomPainter {
+  final Rect targetRect;
   final SpotShape shape;
-  final double radius;
-  final Offset? center2;
-  final Size? size2;
-  final double radius2;
-  final bool hasSpot;
+  final double cornerRadius;
+  final double pulseScale;
+  final Color primaryColor;
+  final bool isDark;
 
-  const _SpotlightPainter({
-    required this.center,
-    required this.size,
+  const _ModernSpotlightPainter({
+    required this.targetRect,
     required this.shape,
-    required this.radius,
-    this.center2,
-    this.size2,
-    required this.radius2,
-    required this.hasSpot,
-  });
-
-  @override
-  void paint(Canvas canvas, Size canvasSize) {
-    final bgPaint = Paint()..color = Colors.black.withValues(alpha: 0.75);
-
-    if (!hasSpot) {
-      canvas.drawRect(Offset.zero & canvasSize, bgPaint);
-      return;
-    }
-
-    final path = Path()..addRect(Offset.zero & canvasSize);
-
-    // Découpe spot principal
-    _addCutout(path, center, size, shape, radius);
-
-    // Découpe spot secondaire
-    if (center2 != null && size2 != null) {
-      _addCutout(path, center2!, size2!, SpotShape.circle, radius2);
-    }
-
-    path.fillType = PathFillType.evenOdd;
-    canvas.drawPath(path, bgPaint);
-  }
-
-  void _addCutout(Path path, Offset c, Size sz, SpotShape sp, double r) {
-    if (sp == SpotShape.roundedRect) {
-      final rr = math.max(r, 16.0);
-      final rect = Rect.fromCenter(
-        center: c,
-        width: sz.width + r * 1.2,
-        height: sz.height + r * 1.2,
-      );
-      path.addRRect(RRect.fromRectAndRadius(rect, Radius.circular(rr)));
-    } else {
-      path.addOval(Rect.fromCircle(center: c, radius: r));
-    }
-  }
-
-  @override
-  bool shouldRepaint(_SpotlightPainter old) =>
-      old.center != center ||
-      old.radius != radius ||
-      old.center2 != center2 ||
-      old.radius2 != radius2;
-}
-
-// ── Painter flèche en arc (Bézier cubique) ────────────────────────────────────
-
-class _ArcArrowPainter extends CustomPainter {
-  final Offset start;
-  final Offset end;
-  final Color color;
-  final bool pointingUp; // true = flèche pointe vers le haut
-
-  const _ArcArrowPainter({
-    required this.start,
-    required this.end,
-    required this.color,
-    required this.pointingUp,
+    required this.cornerRadius,
+    required this.pulseScale,
+    required this.primaryColor,
+    required this.isDark,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color.withValues(alpha: 0.85)
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
+    final bgPaint = Paint()
+      ..color = Colors.black.withValues(alpha: isDark ? 0.78 : 0.72);
 
-    // Décalage horizontal pour donner un aspect courbé naturel
-    final dx = 28.0;
-    final cp1 = Offset(start.dx + dx, start.dy);
-    final cp2 = Offset(end.dx + dx, end.dy);
+    if (targetRect == Rect.zero) {
+      canvas.drawRect(Offset.zero & size, bgPaint);
+      return;
+    }
 
-    final path = Path()
-      ..moveTo(start.dx, start.dy)
-      ..cubicTo(cp1.dx, cp1.dy, cp2.dx, cp2.dy, end.dx, end.dy);
+    // Découpe nette de la zone avec evenOdd
+    final path = Path()..addRect(Offset.zero & size);
 
-    canvas.drawPath(path, paint);
+    if (shape == SpotShape.circle) {
+      path.addOval(targetRect);
+    } else {
+      path.addRRect(
+        RRect.fromRectAndRadius(targetRect, Radius.circular(cornerRadius)),
+      );
+    }
 
-    // Pointe de flèche
-    final arrowPaint = Paint()
-      ..color = color.withValues(alpha: 0.85)
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
+    path.fillType = PathFillType.evenOdd;
+    canvas.drawPath(path, bgPaint);
 
-    // Direction tangente à l'arrivée
-    final t = 0.95;
-    final tx = _cubicPoint(start.dx, cp1.dx, cp2.dx, end.dx, t);
-    final ty = _cubicPoint(start.dy, cp1.dy, cp2.dy, end.dy, t);
-    final angle = math.atan2(end.dy - ty, end.dx - tx);
-    const headLen = 10.0;
-    const headAngle = 0.45;
-
-    canvas.drawLine(
-      Offset(end.dx, end.dy),
-      Offset(
-        end.dx - headLen * math.cos(angle - headAngle),
-        end.dy - headLen * math.sin(angle - headAngle),
-      ),
-      arrowPaint,
+    // ── Halo doux et anneau d'accentuation pulsant ──────────────────────────
+    final center = targetRect.center;
+    final haloRect = Rect.fromCenter(
+      center: center,
+      width: targetRect.width * pulseScale,
+      height: targetRect.height * pulseScale,
     );
-    canvas.drawLine(
-      Offset(end.dx, end.dy),
-      Offset(
-        end.dx - headLen * math.cos(angle + headAngle),
-        end.dy - headLen * math.sin(angle + headAngle),
-      ),
-      arrowPaint,
-    );
-  }
 
-  double _cubicPoint(double p0, double p1, double p2, double p3, double t) {
-    final mt = 1 - t;
-    return mt * mt * mt * p0 +
-        3 * mt * mt * t * p1 +
-        3 * mt * t * t * p2 +
-        t * t * t * p3;
+    // Bordure animée élégante
+    final ringPaint = Paint()
+      ..color = primaryColor.withValues(alpha: 0.65)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+
+    if (shape == SpotShape.circle) {
+      canvas.drawOval(haloRect, ringPaint);
+    } else {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          haloRect,
+          Radius.circular(cornerRadius * pulseScale),
+        ),
+        ringPaint,
+      );
+    }
   }
 
   @override
-  bool shouldRepaint(_ArcArrowPainter old) =>
-      old.start != start || old.end != end;
+  bool shouldRepaint(_ModernSpotlightPainter old) =>
+      old.targetRect != targetRect ||
+      old.cornerRadius != cornerRadius ||
+      old.pulseScale != pulseScale ||
+      old.primaryColor != primaryColor;
+}
+
+// ── Painter de Flèche en Arc Courbé Moderne ───────────────────────────────────
+
+class _CurvedArcArrowPainter extends CustomPainter {
+  final Rect targetRect;
+  final Rect textRect;
+  final Color color;
+  final double pulse;
+
+  const _CurvedArcArrowPainter({
+    required this.targetRect,
+    required this.textRect,
+    required this.color,
+    required this.pulse,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (targetRect == Rect.zero || targetRect.isEmpty || textRect == Rect.zero) {
+      return;
+    }
+
+    final isTargetAbove = targetRect.center.dy < textRect.center.dy;
+
+    // Détermination de l'ancrage horizontal
+    final targetX = targetRect.center.dx.clamp(
+      targetRect.left + 16.0,
+      targetRect.right - 16.0,
+    );
+    final textCenterX = textRect.center.dx;
+    final dxToTarget = targetX - textCenterX;
+
+    // On ancre le départ légèrement vers le côté de la cible
+    final arrowStartX = (textCenterX + (dxToTarget * 0.35)).clamp(
+      textRect.left + 30.0,
+      textRect.right - 30.0,
+    );
+
+    final Offset p0;
+    final Offset p2;
+
+    if (isTargetAbove) {
+      // Flèche vers le HAUT (vers le bas de la cible)
+      p0 = Offset(arrowStartX, textRect.top - 6.0);
+      p2 = Offset(targetX, targetRect.bottom + 9.0);
+    } else {
+      // Flèche vers le BAS (vers le haut de la cible)
+      p0 = Offset(arrowStartX, textRect.bottom + 6.0);
+      p2 = Offset(targetX, targetRect.top - 9.0);
+    }
+
+    // Point de contrôle pour créer un bel arc courbé fluide
+    final midY = (p0.dy + p2.dy) / 2;
+    final curveBend = (p2.dx >= p0.dx) ? -42.0 : 42.0;
+    final p1 = Offset(
+      p0.dx + ((p2.dx - p0.dx) * 0.45) + curveBend,
+      midY,
+    );
+
+    final path = Path()
+      ..moveTo(p0.dx, p0.dy)
+      ..quadraticBezierTo(p1.dx, p1.dy, p2.dx, p2.dy);
+
+    // 1. Halo d'ambiance doux
+    final glowPaint = Paint()
+      ..color = color.withValues(alpha: 0.25)
+      ..strokeWidth = 6.5 * pulse
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(path, glowPaint);
+
+    // 2. Trait principal courbé
+    final strokePaint = Paint()
+      ..color = color
+      ..strokeWidth = 2.4
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(path, strokePaint);
+
+    // 3. Point d'ancrage de départ (point lumineux)
+    canvas.drawCircle(p0, 3.5, Paint()..color = color);
+    canvas.drawCircle(p0, 6.0, Paint()..color = color.withValues(alpha: 0.35));
+
+    // 4. Pointe de flèche dynamique tangente au point d'arrivée
+    final tangentDx = p2.dx - p1.dx;
+    final tangentDy = p2.dy - p1.dy;
+    final tangentAngle = math.atan2(tangentDy, tangentDx);
+
+    const headLength = 14.0;
+    const headAngle = math.pi / 5.5; // ~32 degrés
+
+    final barb1 = Offset(
+      p2.dx - headLength * math.cos(tangentAngle - headAngle),
+      p2.dy - headLength * math.sin(tangentAngle - headAngle),
+    );
+    final barb2 = Offset(
+      p2.dx - headLength * math.cos(tangentAngle + headAngle),
+      p2.dy - headLength * math.sin(tangentAngle + headAngle),
+    );
+
+    final headPath = Path()
+      ..moveTo(p2.dx, p2.dy)
+      ..lineTo(barb1.dx, barb1.dy)
+      ..lineTo(barb2.dx, barb2.dy)
+      ..close();
+
+    canvas.drawPath(
+      headPath,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.fill,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _CurvedArcArrowPainter oldDelegate) {
+    return oldDelegate.targetRect != targetRect ||
+        oldDelegate.textRect != textRect ||
+        oldDelegate.pulse != pulse ||
+        oldDelegate.color != color;
+  }
 }
