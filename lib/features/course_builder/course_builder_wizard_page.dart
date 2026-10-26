@@ -262,7 +262,9 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
       documentsText: _docsCtrl.text.trim(),
       niveau: _niveau,
       schoolLevel: _schoolLevel,
-      classe: _classeCtrl.text.trim().isNotEmpty ? _classeCtrl.text.trim() : null,
+      classe: _classeCtrl.text.trim().isNotEmpty
+          ? _classeCtrl.text.trim()
+          : null,
       coverImageUrl: _coverImageUrl,
       chapitres: List.from(_chapitres),
       enableTerminal: _enableTerminal,
@@ -470,7 +472,11 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
             ),
             child: const Row(
               children: [
-                Icon(Icons.verified_user_rounded, color: Color(0xFF6C63FF), size: 20),
+                Icon(
+                  Icons.verified_user_rounded,
+                  color: Color(0xFF6C63FF),
+                  size: 20,
+                ),
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -534,8 +540,15 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
             if (_coverImageUrl != null)
               TextButton.icon(
                 onPressed: () => setState(() => _coverImageUrl = null),
-                icon: const Icon(Icons.delete_outline, size: 16, color: Colors.redAccent),
-                label: const Text('Supprimer', style: TextStyle(color: Colors.redAccent, fontSize: 12)),
+                icon: const Icon(
+                  Icons.delete_outline,
+                  size: 16,
+                  color: Colors.redAccent,
+                ),
+                label: const Text(
+                  'Supprimer',
+                  style: TextStyle(color: Colors.redAccent, fontSize: 12),
+                ),
               ),
           ],
         ),
@@ -555,16 +568,34 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
         const SizedBox(height: 6),
         Text(
           'Indique le cycle scolaire du cours.',
-          style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white54 : Colors.black54),
+          style: TextStyle(
+            fontSize: 12.5,
+            color: isDark ? Colors.white54 : Colors.black54,
+          ),
         ),
         const SizedBox(height: 10),
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
-            _schoolLevelChip('primaire', 'Primaire', Icons.child_care_rounded, isDark),
-            _schoolLevelChip('secondaire', 'Secondaire', Icons.school_rounded, isDark),
-            _schoolLevelChip('superieur', 'Supérieur', Icons.psychology_rounded, isDark),
+            _schoolLevelChip(
+              'primaire',
+              'Primaire',
+              Icons.child_care_rounded,
+              isDark,
+            ),
+            _schoolLevelChip(
+              'secondaire',
+              'Secondaire',
+              Icons.school_rounded,
+              isDark,
+            ),
+            _schoolLevelChip(
+              'superieur',
+              'Supérieur',
+              Icons.psychology_rounded,
+              isDark,
+            ),
           ],
         ),
         const SizedBox(height: 22),
@@ -581,7 +612,10 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
         const SizedBox(height: 6),
         Text(
           'Précisez la classe pour adapter le niveau pédagogique.',
-          style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white54 : Colors.black54),
+          style: TextStyle(
+            fontSize: 12.5,
+            color: isDark ? Colors.white54 : Colors.black54,
+          ),
         ),
         const SizedBox(height: 10),
         TextField(
@@ -604,15 +638,22 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
           spacing: 8,
           runSpacing: 8,
           children: _getSuggestedClassesForLevel(_schoolLevel).map((c) {
-            final isSelected = _classeCtrl.text.trim().toLowerCase() == c.toLowerCase();
+            final isSelected =
+                _classeCtrl.text.trim().toLowerCase() == c.toLowerCase();
             return ActionChip(
-              avatar: isSelected ? const Icon(Icons.check, size: 14, color: Colors.white) : null,
+              avatar: isSelected
+                  ? const Icon(Icons.check, size: 14, color: Colors.white)
+                  : null,
               label: Text(c),
               backgroundColor: isSelected
                   ? Theme.of(context).primaryColor
-                  : (isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEFF2F7)),
+                  : (isDark
+                        ? const Color(0xFF2A2A2A)
+                        : const Color(0xFFEFF2F7)),
               labelStyle: TextStyle(
-                color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                color: isSelected
+                    ? Colors.white
+                    : (isDark ? Colors.white70 : Colors.black87),
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                 fontSize: 12,
               ),
@@ -628,7 +669,12 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
     );
   }
 
-  Widget _schoolLevelChip(String level, String label, IconData icon, bool isDark) {
+  Widget _schoolLevelChip(
+    String level,
+    String label,
+    IconData icon,
+    bool isDark,
+  ) {
     final isSelected = _schoolLevel == level;
     final primary = Theme.of(context).primaryColor;
 
@@ -636,14 +682,20 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
       avatar: Icon(
         icon,
         size: 16,
-        color: isSelected ? Colors.white : (isDark ? Colors.white60 : Colors.black54),
+        color: isSelected
+            ? Colors.white
+            : (isDark ? Colors.white60 : Colors.black54),
       ),
       label: Text(label),
       selected: isSelected,
       selectedColor: primary,
-      backgroundColor: isDark ? const Color(0xFF222222) : const Color(0xFFF0F2F5),
+      backgroundColor: isDark
+          ? const Color(0xFF222222)
+          : const Color(0xFFF0F2F5),
       labelStyle: TextStyle(
-        color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+        color: isSelected
+            ? Colors.white
+            : (isDark ? Colors.white70 : Colors.black87),
         fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
       ),
       onSelected: (val) {
@@ -669,9 +721,7 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
         width: double.infinity,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isDark ? Colors.white24 : Colors.black12,
-          ),
+          border: Border.all(color: isDark ? Colors.white24 : Colors.black12),
         ),
         clipBehavior: Clip.antiAlias,
         child: Stack(
@@ -684,11 +734,17 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
               child: ElevatedButton.icon(
                 onPressed: () => _showCoverPickerDialog(isDark),
                 icon: const Icon(Icons.edit, size: 14),
-                label: const Text('Changer l\'image', style: TextStyle(fontSize: 11.5)),
+                label: const Text(
+                  'Changer l\'image',
+                  style: TextStyle(fontSize: 11.5),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.black87,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                 ),
               ),
             ),
@@ -720,7 +776,11 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                 color: primary.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.add_photo_alternate_rounded, color: primary, size: 26),
+              child: Icon(
+                Icons.add_photo_alternate_rounded,
+                color: primary,
+                size: 26,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -759,7 +819,8 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
       return Image.network(
         url,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image, size: 36)),
+        errorBuilder: (_, __, ___) =>
+            const Center(child: Icon(Icons.broken_image, size: 36)),
       );
     } else if (url.startsWith('assets/')) {
       return Image.asset(url, fit: BoxFit.cover);
@@ -767,7 +828,8 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
       return Image.file(
         File(url),
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image, size: 36)),
+        errorBuilder: (_, __, ___) =>
+            const Center(child: Icon(Icons.broken_image, size: 36)),
       );
     }
   }
@@ -803,34 +865,52 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
               ),
               const SizedBox(height: 16),
               ListTile(
-                leading: const Icon(Icons.photo_library_rounded, color: Color(0xFF3498DB)),
+                leading: const Icon(
+                  Icons.photo_library_rounded,
+                  color: Color(0xFF3498DB),
+                ),
                 title: const Text('Choisir dans la galerie'),
-                subtitle: const Text('Importer une image depuis votre appareil'),
+                subtitle: const Text(
+                  'Importer une image depuis votre appareil',
+                ),
                 onTap: () {
                   Navigator.pop(ctx);
                   _pickCoverImage(ImageSource.gallery);
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.camera_alt_rounded, color: Color(0xFF2ECC71)),
+                leading: const Icon(
+                  Icons.camera_alt_rounded,
+                  color: Color(0xFF2ECC71),
+                ),
                 title: const Text('Prendre une photo'),
-                subtitle: const Text('Prendre directement une photo avec la caméra'),
+                subtitle: const Text(
+                  'Prendre directement une photo avec la caméra',
+                ),
                 onTap: () {
                   Navigator.pop(ctx);
                   _pickCoverImage(ImageSource.camera);
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.auto_stories_rounded, color: Color(0xFF9B59B6)),
+                leading: const Icon(
+                  Icons.auto_stories_rounded,
+                  color: Color(0xFF9B59B6),
+                ),
                 title: const Text('Choisir une illustration prédéfinie'),
-                subtitle: const Text('Maths, Sciences, Informatique, Littérature...'),
+                subtitle: const Text(
+                  'Maths, Sciences, Informatique, Littérature...',
+                ),
                 onTap: () {
                   Navigator.pop(ctx);
                   _showPresetIllustrationsDialog(isDark);
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.link_rounded, color: Color(0xFFE67E22)),
+                leading: const Icon(
+                  Icons.link_rounded,
+                  color: Color(0xFFE67E22),
+                ),
                 title: const Text('Saisir l\'URL d\'une image web'),
                 subtitle: const Text('Coller un lien https vers une image'),
                 onTap: () {
@@ -849,32 +929,38 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
     final presets = [
       {
         'title': 'Mathématiques',
-        'url': 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=600&auto=format&fit=crop&q=80',
+        'url':
+            'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=600&auto=format&fit=crop&q=80',
         'icon': Icons.calculate_rounded,
       },
       {
         'title': 'Sciences & Chimie',
-        'url': 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=600&auto=format&fit=crop&q=80',
+        'url':
+            'https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=600&auto=format&fit=crop&q=80',
         'icon': Icons.biotech_rounded,
       },
       {
         'title': 'Informatique & Code',
-        'url': 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600&auto=format&fit=crop&q=80',
+        'url':
+            'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600&auto=format&fit=crop&q=80',
         'icon': Icons.code_rounded,
       },
       {
         'title': 'Littérature & Français',
-        'url': 'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?w=600&auto=format&fit=crop&q=80',
+        'url':
+            'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?w=600&auto=format&fit=crop&q=80',
         'icon': Icons.menu_book_rounded,
       },
       {
         'title': 'Histoire & Géographie',
-        'url': 'https://images.unsplash.com/photo-1524661135-423995f22d0b?w=600&auto=format&fit=crop&q=80',
+        'url':
+            'https://images.unsplash.com/photo-1524661135-423995f22d0b?w=600&auto=format&fit=crop&q=80',
         'icon': Icons.public_rounded,
       },
       {
         'title': 'Économie & Gestion',
-        'url': 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=600&auto=format&fit=crop&q=80',
+        'url':
+            'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=600&auto=format&fit=crop&q=80',
         'icon': Icons.trending_up_rounded,
       },
     ];
@@ -907,21 +993,22 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      Image.network(
-                        p['url'] as String,
-                        fit: BoxFit.cover,
-                      ),
-                      Container(
-                        color: Colors.black.withValues(alpha: 0.45),
-                      ),
+                      Image.network(p['url'] as String, fit: BoxFit.cover),
+                      Container(color: Colors.black.withValues(alpha: 0.45)),
                       Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(p['icon'] as IconData, color: Colors.white, size: 24),
+                            Icon(
+                              p['icon'] as IconData,
+                              color: Colors.white,
+                              size: 24,
+                            ),
                             const SizedBox(height: 6),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                              ),
                               child: Text(
                                 p['title'] as String,
                                 textAlign: TextAlign.center,
@@ -1387,7 +1474,9 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: _selectedExtension!.color.withValues(alpha: 0.15),
+                        color: _selectedExtension!.color.withValues(
+                          alpha: 0.15,
+                        ),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
@@ -1412,7 +1501,9 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                             _selectedExtension!.categorie,
                             style: TextStyle(
                               fontSize: 11,
-                              color: isDark ? Colors.grey[400] : Colors.grey[600],
+                              color: isDark
+                                  ? Colors.grey[400]
+                                  : Colors.grey[600],
                             ),
                           ),
                         ],
@@ -1476,7 +1567,9 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
               height: MediaQuery.of(context).size.height * 0.82,
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF181820) : Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
               ),
               child: Column(
                 children: [
@@ -1488,7 +1581,9 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFE67E22).withValues(alpha: 0.15),
+                            color: const Color(
+                              0xFFE67E22,
+                            ).withValues(alpha: 0.15),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
@@ -1514,7 +1609,9 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                                 'Choisissez une seule extension pour ce cours',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                  color: isDark
+                                      ? Colors.grey[400]
+                                      : Colors.grey[600],
                                 ),
                               ),
                             ],
@@ -1538,13 +1635,19 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                                 : Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.extension_off_rounded, size: 40, color: Colors.grey),
+                                      const Icon(
+                                        Icons.extension_off_rounded,
+                                        size: 40,
+                                        color: Colors.grey,
+                                      ),
                                       const SizedBox(height: 10),
                                       const Text('Aucune extension disponible'),
                                       const SizedBox(height: 8),
                                       TextButton(
                                         onPressed: () async {
-                                          await service.loadExtensions(forceRefresh: true);
+                                          await service.loadExtensions(
+                                            forceRefresh: true,
+                                          );
                                           setModalState(() {});
                                         },
                                         child: const Text('Actualiser'),
@@ -1555,12 +1658,15 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                         : ListView.separated(
                             padding: const EdgeInsets.all(16),
                             itemCount: extensions.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 10),
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 10),
                             itemBuilder: (context, index) {
                               final ext = extensions[index];
                               final isInstalled = service.isInstalled(ext.id);
                               final isSelected = tempSelectedId == ext.id;
-                              final isDownloading = pendingDownloads.contains(ext.id);
+                              final isDownloading = pendingDownloads.contains(
+                                ext.id,
+                              );
 
                               return InkWell(
                                 onTap: () {
@@ -1573,31 +1679,45 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                                   padding: const EdgeInsets.all(14),
                                   decoration: BoxDecoration(
                                     color: isSelected
-                                        ? ext.color.withValues(alpha: isDark ? 0.18 : 0.08)
-                                        : (isDark ? const Color(0xFF22222E) : Colors.grey[50]),
+                                        ? ext.color.withValues(
+                                            alpha: isDark ? 0.18 : 0.08,
+                                          )
+                                        : (isDark
+                                              ? const Color(0xFF22222E)
+                                              : Colors.grey[50]),
                                     borderRadius: BorderRadius.circular(16),
                                     border: Border.all(
                                       color: isSelected
                                           ? ext.color
-                                          : (isDark ? Colors.grey[800]! : Colors.grey[200]!),
+                                          : (isDark
+                                                ? Colors.grey[800]!
+                                                : Colors.grey[200]!),
                                       width: isSelected ? 2 : 1,
                                     ),
                                   ),
                                   child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Container(
                                         padding: const EdgeInsets.all(10),
                                         decoration: BoxDecoration(
-                                          color: ext.color.withValues(alpha: 0.15),
+                                          color: ext.color.withValues(
+                                            alpha: 0.15,
+                                          ),
                                           shape: BoxShape.circle,
                                         ),
-                                        child: Icon(ext.icon, color: ext.color, size: 24),
+                                        child: Icon(
+                                          ext.icon,
+                                          color: ext.color,
+                                          size: 24,
+                                        ),
                                       ),
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Row(
                                               children: [
@@ -1605,24 +1725,37 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                                                   child: Text(
                                                     ext.nom,
                                                     style: const TextStyle(
-                                                      fontWeight: FontWeight.bold,
+                                                      fontWeight:
+                                                          FontWeight.bold,
                                                       fontSize: 15,
                                                     ),
                                                   ),
                                                 ),
                                                 if (isInstalled)
                                                   Container(
-                                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 7,
+                                                          vertical: 2,
+                                                        ),
                                                     decoration: BoxDecoration(
-                                                      color: const Color(0xFF2ECC71).withValues(alpha: 0.15),
-                                                      borderRadius: BorderRadius.circular(6),
+                                                      color: const Color(
+                                                        0xFF2ECC71,
+                                                      ).withValues(alpha: 0.15),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            6,
+                                                          ),
                                                     ),
                                                     child: const Text(
                                                       'Installée',
                                                       style: TextStyle(
                                                         fontSize: 10,
-                                                        color: Color(0xFF2ECC71),
-                                                        fontWeight: FontWeight.bold,
+                                                        color: Color(
+                                                          0xFF2ECC71,
+                                                        ),
+                                                        fontWeight:
+                                                            FontWeight.bold,
                                                       ),
                                                     ),
                                                   ),
@@ -1635,7 +1768,9 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                                               overflow: TextOverflow.ellipsis,
                                               style: TextStyle(
                                                 fontSize: 12,
-                                                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                                color: isDark
+                                                    ? Colors.grey[400]
+                                                    : Colors.grey[600],
                                               ),
                                             ),
                                             const SizedBox(height: 8),
@@ -1645,34 +1780,68 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                                                   '${ext.categorie} · ${ext.taille}',
                                                   style: TextStyle(
                                                     fontSize: 11,
-                                                    color: isDark ? Colors.grey[500] : Colors.grey[500],
+                                                    color: isDark
+                                                        ? Colors.grey[500]
+                                                        : Colors.grey[500],
                                                   ),
                                                 ),
                                                 const Spacer(),
                                                 if (!isInstalled)
                                                   FilledButton.tonalIcon(
                                                     style: FilledButton.styleFrom(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-                                                      visualDensity: VisualDensity.compact,
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 10,
+                                                            vertical: 0,
+                                                          ),
+                                                      visualDensity:
+                                                          VisualDensity.compact,
                                                     ),
                                                     icon: isDownloading
                                                         ? const SizedBox(
                                                             width: 14,
                                                             height: 14,
-                                                            child: CircularProgressIndicator(strokeWidth: 2),
+                                                            child:
+                                                                CircularProgressIndicator(
+                                                                  strokeWidth:
+                                                                      2,
+                                                                ),
                                                           )
-                                                        : const Icon(Icons.download_rounded, size: 16),
-                                                    label: Text(isDownloading ? 'Téléchargement...' : 'Télécharger'),
+                                                        : const Icon(
+                                                            Icons
+                                                                .download_rounded,
+                                                            size: 16,
+                                                          ),
+                                                    label: Text(
+                                                      isDownloading
+                                                          ? 'Téléchargement...'
+                                                          : 'Télécharger',
+                                                    ),
                                                     onPressed: isDownloading
                                                         ? null
                                                         : () async {
-                                                            setModalState(() => pendingDownloads.add(ext.id));
-                                                            final success = await service.installExtension(ext);
-                                                            if (modalContext.mounted) {
+                                                            setModalState(
+                                                              () =>
+                                                                  pendingDownloads
+                                                                      .add(
+                                                                        ext.id,
+                                                                      ),
+                                                            );
+                                                            final success =
+                                                                await service
+                                                                    .installExtension(
+                                                                      ext,
+                                                                    );
+                                                            if (modalContext
+                                                                .mounted) {
                                                               setModalState(() {
-                                                                pendingDownloads.remove(ext.id);
+                                                                pendingDownloads
+                                                                    .remove(
+                                                                      ext.id,
+                                                                    );
                                                                 if (success) {
-                                                                  tempSelectedId = ext.id;
+                                                                  tempSelectedId =
+                                                                      ext.id;
                                                                 }
                                                               });
                                                             }
@@ -1684,7 +1853,10 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                                                     groupValue: tempSelectedId,
                                                     activeColor: ext.color,
                                                     onChanged: (val) {
-                                                      setModalState(() => tempSelectedId = val);
+                                                      setModalState(
+                                                        () => tempSelectedId =
+                                                            val,
+                                                      );
                                                     },
                                                   ),
                                               ],
@@ -1721,7 +1893,9 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                               ),
                               onPressed: () {
                                 if (tempSelectedId != null) {
-                                  final chosen = extensions.firstWhere((e) => e.id == tempSelectedId);
+                                  final chosen = extensions.firstWhere(
+                                    (e) => e.id == tempSelectedId,
+                                  );
                                   setState(() {
                                     _selectedExtension = chosen;
                                     _addExtension = true;
@@ -1945,7 +2119,9 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
           await TeacherCoursesService.publishCourse(
             package: pkg,
             schoolLevel: _schoolLevel,
-            classe: _classeCtrl.text.trim().isNotEmpty ? _classeCtrl.text.trim() : null,
+            classe: _classeCtrl.text.trim().isNotEmpty
+                ? _classeCtrl.text.trim()
+                : null,
             coverImageUrl: _coverImageUrl,
             isPublished: true,
           );
@@ -1970,9 +2146,7 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
           await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => CourseStudioPage(
-                matiereId: pkg.matiere.id,
-              ),
+              builder: (_) => CourseStudioPage(matiereId: pkg.matiere.id),
               fullscreenDialog: true,
             ),
           );
@@ -2007,7 +2181,11 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
           builder: (context) => AlertDialog(
             title: const Row(
               children: [
-                Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 24),
+                Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.orange,
+                  size: 24,
+                ),
                 SizedBox(width: 8),
                 Text('Génération interrompue'),
               ],
@@ -2023,7 +2201,9 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                   ),
                   const SizedBox(height: 12),
                   Theme(
-                    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                    data: Theme.of(
+                      context,
+                    ).copyWith(dividerColor: Colors.transparent),
                     child: ExpansionTile(
                       title: const Text(
                         'Détails techniques',
@@ -2035,12 +2215,17 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                           width: double.infinity,
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF2C2C2C) : Colors.grey[200],
+                            color: isDark
+                                ? const Color(0xFF2C2C2C)
+                                : Colors.grey[200],
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: SelectableText(
                             e.toString(),
-                            style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontFamily: 'monospace',
+                            ),
                           ),
                         ),
                       ],
@@ -2148,7 +2333,9 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                 _summaryRow(
                   Icons.image_outlined,
                   'Couverture :',
-                  _coverImageUrl != null ? 'Personnalisée' : 'Standard / Par défaut',
+                  _coverImageUrl != null
+                      ? 'Personnalisée'
+                      : 'Standard / Par défaut',
                 ),
                 _summaryRow(
                   Icons.terminal,
@@ -2274,10 +2461,7 @@ class _CourseCreatedDialog extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
-                    colors: [
-                      const Color(0xFF2ECC71),
-                      accent,
-                    ],
+                    colors: [const Color(0xFF2ECC71), accent],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -2312,8 +2496,10 @@ class _CourseCreatedDialog extends StatelessWidget {
               if (isTeacher) ...[
                 const SizedBox(height: 6),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF2ECC71).withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
@@ -2357,8 +2543,7 @@ class _CourseCreatedDialog extends StatelessWidget {
                 child: OutlinedButton(
                   onPressed: () => Navigator.pop(context, false),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor:
-                        isDark ? Colors.white70 : Colors.black54,
+                    foregroundColor: isDark ? Colors.white70 : Colors.black54,
                     padding: const EdgeInsets.symmetric(vertical: 13),
                     side: BorderSide(
                       color: isDark

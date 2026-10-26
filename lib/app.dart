@@ -11,6 +11,7 @@ import 'core/models/study_task.dart';
 import 'core/services/schedule_notification_service.dart';
 import 'core/services/widget_intent_service.dart';
 import 'core/theme/app_theme.dart';
+import 'core/services/tts_service.dart';
 import 'core/models/score.dart';
 import 'core/services/resultat_cache.dart';
 import 'modules/modules_registry.dart';
@@ -140,9 +141,7 @@ final GoRouter _router = GoRouter(
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (context.mounted) context.go('/');
         });
-        return const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        );
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
       },
     ),
     GoRoute(
@@ -194,9 +193,8 @@ final GoRouter _router = GoRouter(
     ),
     GoRoute(
       path: '/extensions/host/:id',
-      builder: (context, state) => ExtensionHostPage(
-        extensionId: state.pathParameters['id']!,
-      ),
+      builder: (context, state) =>
+          ExtensionHostPage(extensionId: state.pathParameters['id']!),
     ),
   ],
 );
@@ -413,6 +411,11 @@ class _NgenouAppState extends State<NgenouApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       context.read<ScheduleProvider>().checkDueTasks();
+    }
+    // Stopper la lecture TTS quand l'app passe en arrière-plan ou est interrompue
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      TtsService.instance.stop();
     }
   }
 
