@@ -34,6 +34,7 @@ import 'features/tasks/tasks_hub_page.dart';
 import 'features/splash/splash_screen.dart';
 import 'features/splash/brand_setup_page.dart';
 import 'features/splash/onboarding_page.dart';
+import 'features/splash/initial_sync_overlay.dart';
 import 'features/auth/login_page.dart';
 import 'features/catalogue/catalogue_courses_page.dart';
 import 'features/enseignant/enseignant_dashboard_page.dart';
@@ -434,6 +435,7 @@ class _NgenouAppShell extends StatefulWidget {
 
 class _NgenouAppShellState extends State<_NgenouAppShell> {
   // false par défaut — on n'affiche rien tant que le check async n'est pas terminé.
+  bool _showInitialSync = false;
   bool _showBrandSetup = false;
   bool _showOnboarding = false;
   // Devient true quand _initOverlays() a fini : empêche tout flash avant de savoir
@@ -449,7 +451,7 @@ class _NgenouAppShellState extends State<_NgenouAppShell> {
     // Re-vérifier les overlays après chaque connexion.
     _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((state) {
       if (state.event == AuthChangeEvent.signedIn) {
-        _checkOnboardingThenBrandSetup();
+        _checkAllOverlays();
       }
     });
   }
@@ -461,44 +463,50 @@ class _NgenouAppShellState extends State<_NgenouAppShell> {
   }
 
   Future<void> _initOverlays() async {
-    // Vérifier d'abord l'onboarding — mais seulement si l'utilisateur
-    // est déjà connecté. Un nouvel utilisateur verra l'onboarding
-    // après sa première connexion via le listener _authSub.
+    await _checkAllOverlays();
+  }
+
+  /// Vérifie la synchronisation initiale en priorité absolue (séquestration),
+  /// puis l'onboarding, puis les permissions.
+  Future<void> _checkAllOverlays() async {
     if (AuthService.isAuthenticated) {
+      final needsSync = await shouldShowInitialSync();
+      if (needsSync) {
+        if (mounted) {
+          setState(() {
+            _showInitialSync = true;
+            _overlayReady = true;
+          });
+        }
+        return;
+      }
+
       final needsOnboarding = await shouldShowOnboarding();
       if (needsOnboarding) {
-        if (mounted)
+        if (mounted) {
           setState(() {
             _showOnboarding = true;
             _overlayReady = true;
           });
+        }
         return;
       }
     }
+
     final showBrand = await shouldShowBrandSetup();
     if (!mounted) return;
     await WidgetsBinding.instance.endOfFrame;
-    if (mounted)
+    if (mounted) {
       setState(() {
         _showBrandSetup = showBrand;
         _overlayReady = true;
       });
+    }
   }
 
   Future<void> _checkBrandSetup() async {
     final show = await shouldShowBrandSetup();
     if (mounted) setState(() => _showBrandSetup = show);
-  }
-
-  /// Vérifie l'onboarding en priorité, puis les permissions.
-  /// Appelé après chaque connexion réussie.
-  Future<void> _checkOnboardingThenBrandSetup() async {
-    final needsOnboarding = await shouldShowOnboarding();
-    if (needsOnboarding) {
-      if (mounted) setState(() => _showOnboarding = true);
-      return;
-    }
-    await _checkBrandSetup();
   }
 
   @override
@@ -521,24 +529,42 @@ class _NgenouAppShellState extends State<_NgenouAppShell> {
             // Couverture neutre pendant le check async (prévient tout flash)
             // Reste présente mais avec fondu de sortie une fois _overlayReady
             _LoadingCover(visible: !_overlayReady),
-            // Permissions Android (après onboarding)
-            if (_overlayReady && !_showOnboarding && _showBrandSetup)
+
+            // 1. Synchronisation initiale bloquante (séquestration prioritaire)
+            if (_overlayReady && _showInitialSync)
               Directionality(
                 textDirection: TextDirection.ltr,
-                child: BrandSetupPage(
-                  onDone: () => setState(() => _showBrandSetup = false),
+                child: InitialSyncOverlay(
+                  onDone: () async {
+                    if (mounted) {
+                      setState(() => _showInitialSync = false);
+                      await _checkAllOverlays();
+                    }
+                  },
                 ),
               ),
-            // Onboarding guidé (prioritaire, premier lancement uniquement)
-            if (_overlayReady && _showOnboarding)
+
+            // 2. Onboarding guidé (premier lancement uniquement, après sync)
+            if (_overlayReady && !_showInitialSync && _showOnboarding)
               Directionality(
                 textDirection: TextDirection.ltr,
                 child: OnboardingPage(
                   onDone: () async {
                     setState(() => _showOnboarding = false);
-                    // Vérifier les permissions Android après l'onboarding
                     await _checkBrandSetup();
                   },
+                ),
+              ),
+
+            // 3. Permissions Android (après sync et onboarding)
+            if (_overlayReady &&
+                !_showInitialSync &&
+                !_showOnboarding &&
+                _showBrandSetup)
+              Directionality(
+                textDirection: TextDirection.ltr,
+                child: BrandSetupPage(
+                  onDone: () => setState(() => _showBrandSetup = false),
                 ),
               ),
           ],

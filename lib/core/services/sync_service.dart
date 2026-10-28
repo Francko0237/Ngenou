@@ -77,6 +77,9 @@ class SyncService extends ChangeNotifier {
     try {
       final userId = AuthService.currentUser!.id;
 
+      // Nettoyer en amont les éventuels doublons locaux
+      await DatabaseHelper.instance.deduplicateTchatMessages();
+
       // Synchronisation séquentielle — SQLite ne supporte pas les accès
       // concurrents en écriture, donc on garde le séquentiel pour fiabilité.
       await _syncTable('scores', 'id', userId, useIdDistant: true);
@@ -94,6 +97,10 @@ class SyncService extends ChangeNotifier {
       );
       await _syncTable('tchat_ia_messages', 'id', userId, useIdDistant: true);
       await _syncBadges(userId);
+
+      // Re-nettoyage automatique post-sync pour garantir zéro doublon
+      await DatabaseHelper.instance.deduplicateTchatMessages();
+
       try {
         final pending = await DatabaseHelper.instance.getAllPendingTasks();
         await ScheduleNotificationService.rescheduleAll(pending);
@@ -218,6 +225,37 @@ class SyncService extends ChangeNotifier {
 
         try {
           if (idDistant == null || idDistant.toString().isEmpty) {
+            // Anti-doublon spécifique pour tchat_ia_messages dans Supabase
+            if (tableName == 'tchat_ia_messages') {
+              try {
+                final List<dynamic> existingRemote = await _client
+                    .from(tableName)
+                    .select('id, updated_at')
+                    .eq('user_id', userId)
+                    .eq('session_key', map['session_key'] ?? '')
+                    .eq('role', map['role'] ?? '')
+                    .eq('timestamp', map['timestamp'] ?? '')
+                    .limit(1);
+
+                if (existingRemote.isNotEmpty) {
+                  final remoteId = existingRemote.first['id'];
+                  final remoteUpdatedAt =
+                      existingRemote.first['updated_at']?.toString();
+                  await db.update(
+                    tableName,
+                    {
+                      'id_distant': remoteId.toString(),
+                      'is_synced': 1,
+                      if (remoteUpdatedAt != null) 'updated_at': remoteUpdatedAt,
+                    },
+                    where: '$primaryKey = ?',
+                    whereArgs: [localId],
+                  );
+                  continue;
+                }
+              } catch (_) {}
+            }
+
             final List<dynamic> inserted = await _client
                 .from(tableName)
                 .insert(map)
@@ -309,6 +347,34 @@ class SyncService extends ChangeNotifier {
             final isDeleted = remote['is_deleted'];
             final deleted = isDeleted == true || isDeleted == 1;
             if (!deleted) {
+              // Anti-doublon spécifique tchat_ia_messages :
+              // Réconcilier avec un message local qui n'a pas encore reçu son id_distant
+              if (tableName == 'tchat_ia_messages') {
+                final matchExisting = await db.query(
+                  tableName,
+                  where:
+                      'session_key = ? AND role = ? AND timestamp = ? AND content = ?',
+                  whereArgs: [
+                    remote['session_key'],
+                    remote['role'],
+                    remote['timestamp'],
+                    remote['content'],
+                  ],
+                );
+                if (matchExisting.isNotEmpty) {
+                  await db.update(
+                    tableName,
+                    {
+                      'id_distant': remoteIdVal,
+                      'is_synced': 1,
+                    },
+                    where: 'id = ?',
+                    whereArgs: [matchExisting.first['id']],
+                  );
+                  continue;
+                }
+              }
+
               final toInsert = Map<String, dynamic>.from(remote);
               toInsert['id_distant'] = remoteIdVal;
               toInsert['is_synced'] = 1;

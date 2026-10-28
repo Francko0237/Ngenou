@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/score.dart';
@@ -1153,6 +1154,28 @@ class DatabaseHelper {
       histories[key]!.add(row);
     }
     return histories;
+  }
+
+  /// Élimine les doublons dans tchat_ia_messages en conservant l'enregistrement le plus ancien.
+  Future<int> deduplicateTchatMessages() async {
+    final db = await database;
+    try {
+      final count = await db.rawDelete('''
+        DELETE FROM tchat_ia_messages
+        WHERE id NOT IN (
+          SELECT MIN(id)
+          FROM tchat_ia_messages
+          GROUP BY session_key, role, content, timestamp
+        )
+      ''');
+      if (count > 0) {
+        debugPrint('Nettoyage tchat_ia_messages : $count doublon(s) supprimé(s).');
+      }
+      return count;
+    } catch (e) {
+      debugPrint('Erreur deduplicateTchatMessages : $e');
+      return 0;
+    }
   }
 
   // ─── Badges Helper Methods ───────────────────────────────────────────────

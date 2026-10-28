@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ngenou — Votre Tuteur IA d'Apprentissage Intelligent</title>
+  <meta name="description" content="Ngenou est une application mobile d'apprentissage intelligent combinant tuteur IA, défis quotidiens, simulateur algorithmique et suivi de révision. 100% offline-first.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- ===================================================================
+       FLOATING GLASS NAVBAR
+       =================================================================== -->
+  <div class="navbar-wrap">
+    <nav class="navbar">
+      <a href="#" class="brand">
+        <div class="brand-icon">N</div>
+        <span class="brand-name">Ngenou</span>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="#showcase">Aperçu</a></li>
+        <li><a href="#features">Fonctionnalités</a></li>
+        <li><a href="#faq">FAQ</a></li>
+        <li><a href="privacy.html">Confidentialité & CGU</a></li>
+      </ul>
+
+      <a href="#download" class="nav-cta-btn">
+        <span>Installer l'app</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17l9.2-9.2M17 17V7H7"/></svg>
+      </a>
+    </nav>
+  </div>
+
+  <!-- ===================================================================
+       HERO SECTION
+       =================================================================== -->
+  <header class="hero">
+    <div class="container">
+      <div class="badge-pill">
+        <span class="badge-dot"></span>
+        <span>Version 1.1 • Prêt pour le Play Store & l'App Store</span>
+      </div>
+
+      <h1 class="hero-title">
+        L'apprentissage intelligent dont <span class="text-gradient">vous êtes le maître</span>.
+      </h1>
+
+      <p class="hero-subtitle">
+        Votre tuteur IA personnel, vos fiches de cours, vos défis quotidiens et votre simulateur d'algorithmes — disponible à 100% hors-ligne et synchronisé sur tous vos appareils.
+      </p>
+
+      <div class="hero-actions" id="download">
+        <!-- Lien Google Play / App Store (À remplacer par votre lien Store définitif) -->
+        <a href="#" class="btn-store">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M3.609 1.814L13.793 12 3.61 22.186a1.99 1.99 0 0 1-.61-1.428V3.242c0-.555.225-1.057.61-1.428zM15.207 13.414l2.793 2.793-11.455 6.545 8.662-9.338zM15.207 10.586L6.545 1.248 18 7.793l-2.793 2.793zm1.414 1.414l3.189-1.822c.783-.448.783-1.176 0-1.624L16.621 6.73l-1.414 1.414 1.414 1.414 1.414 1.414-1.414 1.414z"/>
+          </svg>
+          <span>Google Play</span>
+        </a>
+
+        <a href="#showcase" class="btn-secondary">
+          <span>Explorer les modules</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+
+      <div class="hero-specs">
+        <span>⚡ 100% Fonctionnel Hors-ligne</span>
+        <span>•</span>
+        <span>🛡️ Synchronisation Supabase chiffrée</span>
+        <span>•</span>
+        <span>🎓 Du Primaire au Supérieur</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===================================================================
+       INTERACTIVE PRODUCT SHOWCASE (Modèle Inspiré de Rakazo.com)
+       =================================================================== -->
+  <section class="showcase-section" id="showcase">
+    <div class="container">
+      <div class="showcase-container">
+        
+        <!-- Tab Selectors -->
+        <div class="showcase-tabs">
+          <button class="tab-btn active" data-tab="tab-tuteur">
+            <span>💬 Tuteur IA Conversationnel</span>
+          </button>
+          <button class="tab-btn" data-tab="tab-defis">
+            <span>🏆 Défis Quotidiens & Quiz</span>
+          </button>
+          <button class="tab-btn" data-tab="tab-algo">
+            <span>💻 Studio Algorithmique</span>
+          </button>
+          <button class="tab-btn" data-tab="tab-planning">
+            <span>⏰ Emploi du Temps & Alarmes</span>
+          </button>
+        </div>
+
+        <!-- Frame Display -->
+        <div class="mockup-frame">
+          <div class="mockup-header">
+            <div class="mockup-dots">
+              <span class="mockup-dot dot-red"></span>
+              <span class="mockup-dot dot-yellow"></span>
+              <span class="mockup-dot dot-green"></span>
+            </div>
+            <div class="mockup-title-bar">
+              <span>ngenou-app // interface-preview.dart</span>
+            </div>
+            <div style="width: 40px;"></div>
+          </div>
+
+          <!-- TAB 1: TUTEUR IA -->
+          <div class="tab-content active" id="tab-tuteur">
+            <!-- SCREENSHOT_PLACEHOLDER: Insérez votre capture d'écran du chat avec l'IA ici -->
+            <div class="screenshot-signal">
+              <span>📸 <b>SIGNAL CAPTURE :</b> Écran Tuteur IA (ex: <code>assets/screenshots/chat_ai.png</code>)</span>
+              <span>Remplaçable dans le code ci-dessous</span>
+            </div>
+
+            <div class="mockup-layout-split">
+              <div class="mockup-info">
+                <h3>Le tuteur qui explique pas-à-pas, sans donner la solution brute.</h3>
+                <p>
+                  Doté d'une méthode socratique rigoureuse, Ngenou décompose les problèmes de mathématiques, physique et informatique pour vous amener à comprendre le raisonnement par vous-même.
+                </p>
+                <div class="feature-pills">
+                  <div class="pill-item">
+                    <div class="pill-icon" style="background: rgba(108, 99, 255, 0.2); color: #818cf8;">🎙️</div>
+                    <span>Dictée vocale (Speech-to-Text) intégrée</span>
+                  </div>
+                  <div class="pill-item">
+                    <div class="pill-icon" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa;">🔊</div>
+                    <span>Synthèse vocale pour écouter les explications</span>
+                  </div>
+                  <div class="pill-item">
+                    <div class="pill-icon" style="background: rgba(16, 185, 129, 0.2); color: #34d399;">💾</div>
+                    <span>Historique complet et résumés de cours sauvegardés</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Visual Preview / Fallback Canvas -->
+              <div class="screen-card-preview">
+                <div class="demo-chat">
+                  <div class="chat-bubble chat-user">
+                    Explique-moi la résolution de l'équation 2x² - 4x - 6 = 0 avec le discriminant.
+                  </div>
+                  <div class="chat-bubble chat-bot">
+                    <b>Tuteur Ngenou :</b><br>
+                    Très bonne initiative ! Identifions d'abord les coefficients :<br>
+                    • a = 2, b = -4, c = -6<br><br>
+                    Calculons le discriminant : <b>Δ = b² - 4ac</b><br>
+                    Δ = (-4)² - 4(2)(-6) = 16 + 48 = <b>64</b>.<br><br>
+                    Comme Δ > 0, combien de solutions réelles avons-nous à ton avis ?
+                  </div>
+                  <div class="chat-bubble chat-user">
+                    Deux solutions ! x₁ et x₂.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 2: DEFIS QUOTIDIENS -->
+          <div class="tab-content" id="tab-defis">
+            <!-- SCREENSHOT_PLACEHOLDER: Insérez votre capture d'écran des Défis Quotidiens ici -->
+            <div class="screenshot-signal">
+              <span>📸 <b>SIGNAL CAPTURE :</b> Écran Défis Quotidiens (ex: <code>assets/screenshots/defis.png</code>)</span>
+              <span>Remplaçable dans le code ci-dessous</span>
+            </div>
+
+            <div class="mockup-layout-split">
+              <div class="mockup-info">
+                <h3>Une routine stimulante pour ancrer les connaissances.</h3>
+                <p>
+                  Chaque jour, relevez 3 défis ciblés sur vos matières clés pour entretenir votre série de jours consécutifs (streak) et débloquer des badges exclusifs.
+                </p>
+                <div class="feature-pills">
+                  <div class="pill-item">
+                    <div class="pill-icon" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24;">🔥</div>
+                    <span>Système de série (Streak) pour la constance</span>
+                  </div>
+                  <div class="pill-item">
+                    <div class="pill-icon" style="background: rgba(239, 68, 68, 0.2); color: #f87171;">🎯</div>
+                    <span>Quiz interactifs à choix multiples et corrections</span>
+                  </div>
+                  <div class="pill-item">
+                    <div class="pill-icon" style="background: rgba(6, 182, 212, 0.2); color: #22d3ee;">🏅</div>
+                    <span>Trophées & Badges de progression</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="screen-card-preview">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                  <span style="font-weight: 700; color: #fbbf24;">🔥 Série actuelle : 12 jours</span>
+                  <span style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 20px;">+150 XP</span>
+                </div>
+                <div style="background: rgba(255, 255, 255, 0.04); border-radius: 12px; padding: 16px; margin-bottom: 12px; border: 1px solid rgba(255, 255, 255, 0.08);">
+                  <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">Défi #1 • Algorithmique</div>
+                  <p style="font-size: 13px; color: #94a3b8;">Quelle est la complexité asymptotique de la recherche dichotomique sur tableau trié ?</p>
+                  <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;">
+                    <div style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; padding: 8px 12px; border-radius: 8px; font-size: 12.5px; color: #34d399; font-weight: 600;">✓ O(log n) — Réponse correcte !</div>
+                    <div style="background: rgba(255, 255, 255, 0.03); padding: 8px 12px; border-radius: 8px; font-size: 12.5px; color: #94a3b8;">O(n)</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 3: STUDIO ALGORITHMIQUE -->
+          <div class="tab-content" id="tab-algo">
+            <!-- SCREENSHOT_PLACEHOLDER: Insérez votre capture du Studio Algorithmique ici -->
+            <div class="screenshot-signal">
+              <span>📸 <b>SIGNAL CAPTURE :</b> Écran Studio Algorithmique (ex: <code>assets/screenshots/algo_studio.png</code>)</span>
+              <span>Remplaçable dans le code ci-dessous</span>
+            </div>
+
+            <div class="mockup-layout-split">
+              <div class="mockup-info">
+                <h3>Écrivez, testez et déboguez du pseudo-code en temps réel.</h3>
+                <p>
+                  Un interpréteur d'algorithmes complet conçu pour les étudiants : coloration syntaxique, exécution pas-à-pas, inspection des variables en mémoire et console intégrée.
+                </p>
+                <div class="feature-pills">
+                  <div class="pill-item">
+                    <div class="pill-icon" style="background: rgba(168, 85, 247, 0.2); color: #c084fc;">⚡</div>
+                    <span>Interpréteur natif sans dépendance externe</span>
+                  </div>
+                  <div class="pill-item">
+                    <div class="pill-icon" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8;">📊</div>
+                    <span>Visualisation des boucles et conditions (Si... Sinon...)</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="screen-card-preview">
+                <div style="font-size: 12px; color: #64748b; margin-bottom: 8px;">// Algorithme de factorielle</div>
+                <div class="demo-code-box">Algorithme Factorielle
+Variables: n, res, i : Entier
+Début
+  res <- 1
+  Pour i allant de 1 à 5 Faire
+    res <- res * i
+  FinPour
+  Afficher("Résultat = ", res)
+Fin</div>
+                <div style="background: #020617; border-radius: 8px; padding: 10px; margin-top: 10px; font-family: monospace; font-size: 12px; color: #22c55e;">
+                  > Exécution terminée en 4ms.<br>
+                  > Sortie standard: Résultat = 120
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 4: PLANNING & ALARMES -->
+          <div class="tab-content" id="tab-planning">
+            <!-- SCREENSHOT_PLACEHOLDER: Insérez votre capture de l'Emploi du temps ici -->
+            <div class="screenshot-signal">
+              <span>📸 <b>SIGNAL CAPTURE :</b> Écran Emploi du Temps & Alarmes (ex: <code>assets/screenshots/planning.png</code>)</span>
+              <span>Remplaçable dans le code ci-dessous</span>
+            </div>
+
+            <div class="mockup-layout-split">
+              <div class="mockup-info">
+                <h3>Votre planning d'étude avec rappels vocaux intelligents.</h3>
+                <p>
+                  Structurez vos sessions de travail. L'application déclenche des notifications et des synthèses vocales pour vos révisions, même en arrière-plan et hors-ligne.
+                </p>
+                <div class="feature-pills">
+                  <div class="pill-item">
+                    <div class="pill-icon" style="background: rgba(239, 68, 68, 0.2); color: #f87171;">🔔</div>
+                    <span>Rappels sonores et exemptions d'optimisation batterie</span>
+                  </div>
+                  <div class="pill-item">
+                    <div class="pill-icon" style="background: rgba(16, 185, 129, 0.2); color: #34d399;">🧘</div>
+                    <span>Mode Focus pour bloquer les distractions</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="screen-card-preview">
+                <div style="font-weight: 700; margin-bottom: 14px; font-size: 15px;">Aujourd'hui • Mercredi</div>
+                <div style="background: rgba(108, 99, 255, 0.12); border-left: 4px solid #6c63ff; padding: 12px 14px; border-radius: 8px; margin-bottom: 10px;">
+                  <div style="font-size: 13px; font-weight: 700; color: #c7d2fe;">15:00 - 16:30 • Mathématiques</div>
+                  <div style="font-size: 12px; color: #94a3b8;">Révision : Dérivées et intégrales avec le tuteur</div>
+                </div>
+                <div style="background: rgba(59, 130, 246, 0.12); border-left: 4px solid #3b82f6; padding: 12px 14px; border-radius: 8px;">
+                  <div style="font-size: 13px; font-weight: 700; color: #bfdbfe;">17:00 - 18:00 • Informatique</div>
+                  <div style="font-size: 12px; color: #94a3b8;">Studio : Implémentation du tri par sélection</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================================
+       BENTO GRID FEATURES
+       =================================================================== -->
+  <section class="container" id="features">
+    <div class="section-header">
+      <span class="section-label">Pourquoi Ngenou ?</span>
+      <h2 class="section-title">Une architecture taillée pour l'apprentissage.</h2>
+      <p class="section-desc">Conçu avec rigueur pour offrir une fluidité absolue sans dépendre d'une connexion permanente.</p>
+    </div>
+
+    <div class="bento-grid">
+      <div class="bento-card bento-span-2">
+        <div class="bento-icon">⚡</div>
+        <h4>Architecture 100% Offline-First</h4>
+        <p>Vos cours, synthèses, tâches et historiques de tchat sont stockés directement sur votre appareil dans une base de données SQLite locale ultra-rapide. Étudiez n'importe où, même sans réseau.</p>
+      </div>
+
+      <div class="bento-card">
+        <div class="bento-icon">🔒</div>
+        <h4>Sécurité & Isolation RLS</h4>
+        <p>Dès qu'une connexion est établie, la synchronisation Supabase s'active avec chiffrement TLS et politiques strictes Row Level Security.</p>
+      </div>
+
+      <div class="bento-card">
+        <div class="bento-icon">🧠</div>
+        <h4>Questionnement Socratique</h4>
+        <p>Le tuteur IA ne résout pas vos devoirs à votre place : il vous pose les bonnes questions pour susciter le déclic intellectuel et la maîtrise réelle.</p>
+      </div>
+
+      <div class="bento-card bento-span-2">
+        <div class="bento-icon">📱</div>
+        <h4>Design Moderne & Visites Guidées</h4>
+        <p>Interface soignée, mode sombre immersif, badges de gamification et bulles interactives réinitialisables pour accompagner vos premiers pas en toute confiance.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================================
+       FAQ ACCORDION
+       =================================================================== -->
+  <section class="faq-section" id="faq">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-label">Questions Fréquentes</span>
+        <h2 class="section-title">Tout ce que vous devez savoir.</h2>
+      </div>
+
+      <div class="faq-list">
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>Puis-je utiliser Ngenou sans connexion Internet ?</span>
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-answer">
+            Oui, absolument ! Ngenou est conçu selon une philosophie "Offline-First". Vos fiches de cours, votre simulateur d'algorithmes et votre planning restent pleinement accessibles hors-ligne grâce à la base locale SQLite. Dès que vous retrouvez une connexion, vos données sont synchronisées de façon transparente.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>Comment sont traitées mes questions posées au tuteur IA ?</span>
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-answer">
+            Vos questions sont chiffrées de bout en bout et transmises de manière anonymisée à nos modèles pédagogiques sécurisés. Vos échanges ne sont jamais utilisés pour entraîner des modèles publics et vous pouvez effacer votre historique de discussion à tout instant.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>Comment puis-je supprimer définitivement mon compte et mes données ?</span>
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-answer">
+            Conformément aux normes strictes du Google Play Store et de l'Apple App Store, vous disposez d'un bouton dédié "Supprimer définitivement mon compte" dans les Paramètres de l'application. Cette action purge instantanément vos données locales et supprime tous vos enregistrements sur les serveurs distants.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>Quels niveaux scolaires sont pris en charge ?</span>
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-answer">
+            Ngenou s'adapte au niveau défini dans votre profil : primaire, secondaire (collège et lycée) et enseignement supérieur / universitaire. Le ton, les exemples et la profondeur des explications du tuteur sont automatiquement ajustés.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================================
+       FOOTER
+       =================================================================== -->
+  <footer>
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <div class="brand" style="margin-bottom: 10px;">
+            <div class="brand-icon">N</div>
+            <span class="brand-name">Ngenou</span>
+          </div>
+          <p class="footer-desc">
+            L'application d'apprentissage intelligent qui allie tuteur IA personnalisé, simulateur algorithmique et suivi de révision.
+          </p>
+        </div>
+
+        <div class="footer-col">
+          <h5>Légal & Conformité</h5>
+          <ul>
+            <li><a href="privacy.html">Politique de Confidentialité</a></li>
+            <li><a href="privacy.html#cgu">Conditions d'Utilisation (CGU)</a></li>
+            <li><a href="privacy.html#deletion">Suppression de compte</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h5>Développeur & Support</h5>
+          <ul>
+            <li><a href="mailto:support@ngenou.app">support@ngenou.app</a></li>
+            <li><a href="https://github.com/Francko0237/Ngenou" target="_blank" rel="noopener">Dépôt GitHub</a></li>
+            <li><span>Par Yamgai Mokube Francko Daniel</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>© 2026 Ngenou. Tous droits réservés.</div>
+        <div>Conçu pour l'excellence académique.</div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
