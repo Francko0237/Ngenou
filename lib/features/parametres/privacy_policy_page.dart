@@ -158,7 +158,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage>
           textSecondary: textSecondary,
           content:
               'L\'application mobile Ngenou est développée et éditée par :\n\n'
-              '• Développeur / Responsable : Yamgai Mokube Franck Daniel\n'
+              '• Développeur / Responsable : Yamga Mokube Franck Daniel\n'
               '• Contact Support & DPO : support@ngenou.app\n'
               '• Site officiel : https://ngenou.app\n\n'
               'Ngenou respecte les réglementations applicables en matière de protection des données personnelles (Règlement Général sur la Protection des Données - RGPD UE 2016/679 et directives de l\'App Store d\'Apple et Google Play).',
@@ -320,7 +320,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage>
           textPrimary: textPrimary,
           textSecondary: textSecondary,
           content:
-              'Tous les éléments graphiques, marques, logos, algorithmes et architectures applicatives de Ngenou demeurent la propriété exclusive de Yamgai Mokube Franck Daniel.\n\n'
+              'Tous les éléments graphiques, marques, logos, algorithmes et architectures applicatives de Ngenou demeurent la propriété exclusive de Yamga Mokube Franck Daniel.\n\n'
               'Les notes, exercices et synthèses générés par l\'utilisateur lui appartiennent de plein droit.',
         ),
         const SizedBox(height: 14),
