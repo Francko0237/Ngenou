@@ -2,7 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class ExplorerTab extends StatelessWidget {
-  const ExplorerTab({super.key});
+  const ExplorerTab({
+    super.key,
+    this.catalogueKey,
+    this.createurKey,
+    this.extensionsKey,
+    this.progressionKey,
+  });
+
+  final GlobalKey? catalogueKey;
+  final GlobalKey? createurKey;
+  final GlobalKey? extensionsKey;
+  final GlobalKey? progressionKey;
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +54,7 @@ class ExplorerTab extends StatelessWidget {
               // ─── 1. Catalogue de cours publics ─────────────────────────────
               _buildFeatureCard(
                 context: context,
+                cardKey: catalogueKey,
                 title: 'Catalogue de Cours Publics',
                 badgeText: 'Partage',
                 badgeColor: const Color(0xFF2ECC71),
@@ -59,6 +71,7 @@ class ExplorerTab extends StatelessWidget {
               // ─── 2. Créateur de cours IA ────────────────────────────────────
               _buildFeatureCard(
                 context: context,
+                cardKey: createurKey,
                 title: 'Créateur de Cours IA',
                 badgeText: 'Studio IA',
                 badgeColor: const Color(0xFFF59E0B),
@@ -75,6 +88,7 @@ class ExplorerTab extends StatelessWidget {
               // ─── 3. Boîte à Outils & Extensions ─────────────────────────────
               _buildFeatureCard(
                 context: context,
+                cardKey: extensionsKey,
                 title: 'Boîte à Outils & Extensions',
                 badgeText: 'Interactif',
                 badgeColor: const Color(0xFFEC4899),
@@ -91,6 +105,7 @@ class ExplorerTab extends StatelessWidget {
               // ─── 4. Statistiques & Progression ─────────────────────────────
               _buildFeatureCard(
                 context: context,
+                cardKey: progressionKey,
                 title: 'Bilan & Progression Détaillée',
                 badgeText: 'Statistiques',
                 badgeColor: const Color(0xFF3B82F6),
@@ -112,6 +127,7 @@ class ExplorerTab extends StatelessWidget {
 
   Widget _buildFeatureCard({
     required BuildContext context,
+    GlobalKey? cardKey,
     required String title,
     required String badgeText,
     required Color badgeColor,
@@ -123,6 +139,7 @@ class ExplorerTab extends StatelessWidget {
     required bool isDark,
   }) {
     return Container(
+      key: cardKey,
       width: double.infinity,
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E26) : Colors.white,

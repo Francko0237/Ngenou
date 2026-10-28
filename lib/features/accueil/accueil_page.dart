@@ -30,7 +30,7 @@ class _AccueilPageState extends State<AccueilPage> {
   String _userRole = 'student';
   bool _wasSyncing = false;
 
-  // ── Clés globales pour le tutoriel ──────────────────────────────────────
+  // ── Clés globales pour le tutoriel Dashboard (onglet Cours) ─────────────
   final _keyTutorialBtn = GlobalKey();
   final _keyCourseToggle = GlobalKey();
   final _keyFab = GlobalKey();
@@ -38,7 +38,20 @@ class _AccueilPageState extends State<AccueilPage> {
   final _keySettings = GlobalKey();
   final _keyThemeToggle = GlobalKey();
 
+  // ── Clés pour le tutoriel Quotidien (onglet index 1) ─────────────────────
+  final _keyDefiHero = GlobalKey();
+  final _keyTachesSection = GlobalKey();
+  final _keyPlanningSection = GlobalKey();
+
+  // ── Clés pour le tutoriel Explorer (onglet index 2) ────────────────────
+  final _keyCatalogue = GlobalKey();
+  final _keyCreateur = GlobalKey();
+  final _keyExtensions = GlobalKey();
+  final _keyProgression = GlobalKey();
+
   bool _showTutorial = false;
+  bool _showQuotidienTutorial = false;
+  bool _showExplorerTutorial = false;
 
   @override
   void initState() {
@@ -52,11 +65,24 @@ class _AccueilPageState extends State<AccueilPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (SyncService.instance.isSyncing) return;
       _refreshAllDataQuietly();
-      // Démarrer le tuto si première ouverture
-      final should = await TutorialService.shouldShow();
-      if (should && mounted) setState(() => _showTutorial = true);
+      // Démarrer le bon tuto selon l'onglet actif
+      await _checkCurrentTabTutorial();
     });
   }
+
+  Future<void> _checkCurrentTabTutorial() async {
+    if (_navIndex == 0) {
+      final should = await TutorialService.shouldShow();
+      if (should && mounted) setState(() => _showTutorial = true);
+    } else if (_navIndex == 1) {
+      final should = await TutorialService.shouldShow('quotidien_tab');
+      if (should && mounted) setState(() => _showQuotidienTutorial = true);
+    } else if (_navIndex == 2) {
+      final should = await TutorialService.shouldShow('explorer_tab');
+      if (should && mounted) setState(() => _showExplorerTutorial = true);
+    }
+  }
+
 
   @override
   void dispose() {
@@ -103,10 +129,34 @@ class _AccueilPageState extends State<AccueilPage> {
     }
   }
 
+  /// Bouton ampoule — relance le tutoriel de l'onglet actif
   void _startTutorial() {
-    TutorialService.reset().then((_) {
-      if (mounted) setState(() => _showTutorial = true);
-    });
+    switch (_navIndex) {
+      case 0:
+        TutorialService.reset('dashboard').then((_) {
+          if (mounted) setState(() => _showTutorial = true);
+        });
+      case 1:
+        TutorialService.reset('quotidien_tab').then((_) {
+          if (mounted) setState(() => _showQuotidienTutorial = true);
+        });
+      case 2:
+        TutorialService.reset('explorer_tab').then((_) {
+          if (mounted) setState(() => _showExplorerTutorial = true);
+        });
+    }
+  }
+
+  // ── Gestion du changement d'onglet avec déclenchement du bon tutoriel ────
+  Future<void> _onTabChanged(int idx) async {
+    setState(() => _navIndex = idx);
+    if (idx == 1) {
+      final should = await TutorialService.shouldShow('quotidien_tab');
+      if (should && mounted) setState(() => _showQuotidienTutorial = true);
+    } else if (idx == 2) {
+      final should = await TutorialService.shouldShow('explorer_tab');
+      if (should && mounted) setState(() => _showExplorerTutorial = true);
+    }
   }
 
   List<TutorialStep> _buildSteps() => [
@@ -187,6 +237,96 @@ class _AccueilPageState extends State<AccueilPage> {
       spotShape: SpotShape.roundedRect,
       spotRadius: 12,
       padding: const EdgeInsets.all(4),
+    ),
+  ];
+
+  List<TutorialStep> _buildQuotidienSteps() => [
+    TutorialStep(
+      targetKey: _keyDefiHero,
+      spotShape: SpotShape.roundedRect,
+      spotRadius: 20,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      category: 'DÉFI DU JOUR',
+      icon: Icons.local_fire_department_rounded,
+      title: 'Ton défi du jour',
+      description:
+          "Chaque jour, l'IA génère une série de défis personnalisés. Appuie sur cette carte pour lancer ta session et gagner des XP.",
+      highlights: ['+20 XP par session', 'QCM + algo', 'Nouveau chaque jour'],
+    ),
+    TutorialStep(
+      targetKey: _keyTachesSection,
+      spotShape: SpotShape.roundedRect,
+      spotRadius: 18,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      category: 'TÂCHES',
+      icon: Icons.checklist_rounded,
+      title: "Tâches d'aujourd'hui",
+      description:
+          "Retrouve ici un aperçu de tes tâches du jour. Appuie sur \u00ab\u00a0Tout voir\u00a0\u00bb pour les gérer en détail ou ajouter une nouvelle tâche.",
+      highlights: ['Ajouter une tâche', 'Voir toutes les tâches'],
+    ),
+    TutorialStep(
+      targetKey: _keyPlanningSection,
+      spotShape: SpotShape.roundedRect,
+      spotRadius: 18,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      category: 'PLANNING',
+      icon: Icons.calendar_month_rounded,
+      title: 'Emploi du temps IA',
+      description:
+          "Gère tes créneaux de révision et ton emploi du temps. L'IA peut générer un planning adapté à tes matières et à ta disponibilité.",
+      highlights: ['Planning hebdomadaire', 'Rappels automatiques'],
+    ),
+  ];
+
+  List<TutorialStep> _buildExplorerSteps() => [
+    TutorialStep(
+      targetKey: _keyCatalogue,
+      spotShape: SpotShape.roundedRect,
+      spotRadius: 20,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      category: 'CATALOGUE',
+      icon: Icons.public_rounded,
+      title: 'Cours publics & partagés',
+      description:
+          'Parcourez les cours créés par les professeurs certifiés et la communauté. Inscrivez-vous et apprenez à votre rythme.',
+      highlights: ['Professeurs certifiés', 'Cours communautaires', 'Inscription libre'],
+    ),
+    TutorialStep(
+      targetKey: _keyCreateur,
+      spotShape: SpotShape.roundedRect,
+      spotRadius: 20,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      category: 'STUDIO IA',
+      icon: Icons.auto_awesome_rounded,
+      title: 'Crée ton propre cours',
+      description:
+          "L'IA génère pour toi un programme complet de leçons, cours et quiz sur mesure. Partage-le ensuite avec d'autres élèves ou gardez-le privé.",
+      highlights: ['Génération IA complète', 'Leçons + Quiz + Cours', 'Partage optionnel'],
+    ),
+    TutorialStep(
+      targetKey: _keyExtensions,
+      spotShape: SpotShape.roundedRect,
+      spotRadius: 20,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      category: 'OUTILS INTERACTIFS',
+      icon: Icons.extension_rounded,
+      title: 'Boîte à outils & Extensions',
+      description:
+          'Accède à des outils visuels interactifs : visualiseur de fractions, tableau de conversions des unités, droite graduée des nombres relatifs...',
+      highlights: ['Fractions', 'Conversions', 'Nombres relatifs'],
+    ),
+    TutorialStep(
+      targetKey: _keyProgression,
+      spotShape: SpotShape.roundedRect,
+      spotRadius: 20,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      category: 'PROGRESSION',
+      icon: Icons.insights_rounded,
+      title: 'Ton bilan d\'apprentissage',
+      description:
+          'Consulte tes courbes de progression, tes scores récents et les badges débloqués. Identifie tes points forts et axes d\'amélioration.',
+      highlights: ['Courbes de progression', 'Scores récents', 'Badges débloqués'],
     ),
   ];
 
@@ -295,8 +435,17 @@ class _AccueilPageState extends State<AccueilPage> {
                 onRefresh: _refreshAllDataQuietly,
                 toggleKey: _keyCourseToggle,
               ),
-              const QuotidienTab(),
-              const ExplorerTab(),
+              QuotidienTab(
+                defiHeroKey: _keyDefiHero,
+                tachesSectionKey: _keyTachesSection,
+                planningSectionKey: _keyPlanningSection,
+              ),
+              ExplorerTab(
+                catalogueKey: _keyCatalogue,
+                createurKey: _keyCreateur,
+                extensionsKey: _keyExtensions,
+                progressionKey: _keyProgression,
+              ),
             ],
           ),
           bottomNavigationBar: Container(
@@ -321,7 +470,7 @@ class _AccueilPageState extends State<AccueilPage> {
             ),
             child: NavigationBar(
               selectedIndex: _navIndex,
-              onDestinationSelected: (idx) => setState(() => _navIndex = idx),
+              onDestinationSelected: _onTabChanged,
               elevation: 0,
               backgroundColor: Colors.transparent,
               indicatorColor: primary.withValues(alpha: isDark ? 0.25 : 0.12),
@@ -359,12 +508,28 @@ class _AccueilPageState extends State<AccueilPage> {
           ),
         ),
 
-        // ── Overlay tutoriel ─────────────────────────────────────────────
-        if (_showTutorial)
+        // ── Overlay tutoriel Dashboard (onglet Cours) ────────────────────
+        if (_showTutorial && _navIndex == 0)
           TutorialOverlay(
             tutorialId: 'dashboard',
             steps: _buildSteps(),
             onDone: () => setState(() => _showTutorial = false),
+          ),
+
+        // ── Overlay tutoriel Quotidien ────────────────────────────────────
+        if (_showQuotidienTutorial && _navIndex == 1)
+          TutorialOverlay(
+            tutorialId: 'quotidien_tab',
+            steps: _buildQuotidienSteps(),
+            onDone: () => setState(() => _showQuotidienTutorial = false),
+          ),
+
+        // ── Overlay tutoriel Explorer ────────────────────────────────────
+        if (_showExplorerTutorial && _navIndex == 2)
+          TutorialOverlay(
+            tutorialId: 'explorer_tab',
+            steps: _buildExplorerSteps(),
+            onDone: () => setState(() => _showExplorerTutorial = false),
           ),
       ],
     );
