@@ -48,11 +48,13 @@ class TutorialStep {
 class TutorialOverlay extends StatefulWidget {
   final List<TutorialStep> steps;
   final VoidCallback onDone;
+  final String? tutorialId;
 
   const TutorialOverlay({
     super.key,
     required this.steps,
     required this.onDone,
+    this.tutorialId,
   });
 
   @override
@@ -209,10 +211,14 @@ class _TutorialOverlayState extends State<TutorialOverlay>
     }
   }
 
+  bool _isFinishing = false;
+
   void _finish() {
+    if (_isFinishing) return;
+    _isFinishing = true;
     HapticFeedback.mediumImpact();
-    TutorialService.markDone();
-    _fadeCtrl.reverse().then((_) {
+    TutorialService.markDone(widget.tutorialId);
+    Future.delayed(const Duration(milliseconds: 140), () {
       if (mounted) widget.onDone();
     });
   }
@@ -233,98 +239,74 @@ class _TutorialOverlayState extends State<TutorialOverlay>
           opacity: _fadeAnim,
           child: Stack(
             children: [
-              // ── 1. Fond découpé animé avec halo lumineux ────────────────
+              // ── 0. Bloqueur d'interactions plein écran (rend l'écran sous-jacent inactif) ──
               Positioned.fill(
-                child: AnimatedBuilder(
-                  animation: Listenable.merge([_morphAnim, _pulseAnim]),
-                  builder: (context, _) {
-                    final currentRect = Rect.lerp(
-                      _prevRect,
-                      _targetRect,
-                      _morphAnim.value,
-                    ) ?? _targetRect;
-
-                    return CustomPaint(
-                      painter: _ModernSpotlightPainter(
-                        targetRect: currentRect,
-                        shape: _targetShape,
-                        cornerRadius: _targetCornerRadius,
-                        pulseScale: _pulseAnim.value,
-                        primaryColor: primary,
-                        isDark: isDark,
-                      ),
-                    );
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    // Absorbe les clics sur l'écran pour éviter toute interaction avec la page
                   },
                 ),
               ),
 
-              // ── 2. Bouton Sauter / Passer (DISCRET EN HAUT À GAUCHE) ─────
-              SafeArea(
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 12, left: 18),
-                    child: TextButton.icon(
-                      onPressed: _finish,
-                      icon: Icon(
-                        Icons.close_rounded,
-                        size: 16,
-                        color: Colors.white.withValues(alpha: 0.85),
-                      ),
-                      label: Text(
-                        "Passer l'intro",
-                        style: GoogleFonts.plusJakartaSans(
-                          color: Colors.white.withValues(alpha: 0.95),
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                          decoration: TextDecoration.none,
+              // ── 1. Fond découpé animé avec halo ─────────────────────────
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: AnimatedBuilder(
+                    animation: Listenable.merge([_morphAnim, _pulseAnim]),
+                    builder: (context, _) {
+                      final currentRect = Rect.lerp(
+                        _prevRect,
+                        _targetRect,
+                        _morphAnim.value,
+                      ) ?? _targetRect;
+
+                      return CustomPaint(
+                        painter: _ModernSpotlightPainter(
+                          targetRect: currentRect,
+                          shape: _targetShape,
+                          cornerRadius: _targetCornerRadius,
+                          pulseScale: _pulseAnim.value,
+                          primaryColor: primary,
+                          isDark: isDark,
                         ),
-                      ),
-                      style: TextButton.styleFrom(
-                        backgroundColor: Colors.black.withValues(alpha: 0.45),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(22),
-                          side: BorderSide(
-                            color: Colors.white.withValues(alpha: 0.22),
-                            width: 1,
-                          ),
-                        ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 ),
               ),
 
-              // ── 3. Flèche en arc dynamique reliant le texte à la cible ───
+              // ── 2. Flèche en arc dynamique (IgnorePointer pour ne pas bloquer l'écran) ──
               Positioned.fill(
-                child: AnimatedBuilder(
-                  animation: Listenable.merge([_morphAnim, _pulseAnim]),
-                  builder: (context, _) {
-                    final currentRect = Rect.lerp(
-                      _prevRect,
-                      _targetRect,
-                      _morphAnim.value,
-                    ) ?? _targetRect;
+                child: IgnorePointer(
+                  child: AnimatedBuilder(
+                    animation: Listenable.merge([_morphAnim, _pulseAnim]),
+                    builder: (context, _) {
+                      final currentRect = Rect.lerp(
+                        _prevRect,
+                        _targetRect,
+                        _morphAnim.value,
+                      ) ?? _targetRect;
 
-                    final textRect = _calculateTextRect(
-                      screen: screen,
-                      targetRect: currentRect,
-                    );
-
-                    return CustomPaint(
-                      painter: _CurvedArcArrowPainter(
+                      final textRect = _calculateTextRect(
+                        screen: screen,
                         targetRect: currentRect,
-                        textRect: textRect,
-                        color: primary,
-                        pulse: _pulseAnim.value,
-                      ),
-                    );
-                  },
+                      );
+
+                      return CustomPaint(
+                        painter: _CurvedArcArrowPainter(
+                          targetRect: currentRect,
+                          textRect: textRect,
+                          color: primary,
+                          pulse: _pulseAnim.value,
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
 
-              // ── 4. Texte explicatif grand format, sans boîte opaque ──────
+              // ── 3. Texte explicatif grand format ─────────────────────────
               AnimatedBuilder(
                 animation: _morphAnim,
                 builder: (context, _) {
@@ -344,6 +326,62 @@ class _TutorialOverlayState extends State<TutorialOverlay>
                     isLast: isLast,
                   );
                 },
+              ),
+
+              // ── 4. Bouton Sauter / Passer (AU PREMIER PLAN ABSOLU) ───────
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: SafeArea(
+                  child: Align(
+                    alignment: Alignment.topLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 12, left: 18),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(22),
+                        child: Material(
+                          color: Colors.black.withValues(alpha: 0.65),
+                          child: InkWell(
+                            onTap: _finish,
+                            splashColor: primary.withValues(alpha: 0.35),
+                            highlightColor: Colors.white.withValues(alpha: 0.15),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(22),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.28),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.close_rounded,
+                                    size: 16,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    "Passer l'intro",
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                      decoration: TextDecoration.none,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -864,5 +902,46 @@ class _CurvedArcArrowPainter extends CustomPainter {
         oldDelegate.textRect != textRect ||
         oldDelegate.pulse != pulse ||
         oldDelegate.color != color;
+  }
+}
+
+// ── Bouton Ampoule Réutilisable pour l'AppBar ─────────────────────────────────
+
+class TutorialLightbulbButton extends StatelessWidget {
+  final VoidCallback onTap;
+  final String tooltip;
+  final GlobalKey? buttonKey;
+
+  const TutorialLightbulbButton({
+    super.key,
+    required this.onTap,
+    this.tooltip = 'Guide de la page',
+    this.buttonKey,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).primaryColor;
+    return IconButton(
+      key: buttonKey,
+      tooltip: tooltip,
+      icon: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: primary.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: primary.withValues(alpha: 0.35),
+            width: 1,
+          ),
+        ),
+        child: Icon(
+          Icons.lightbulb_rounded,
+          size: 19,
+          color: primary,
+        ),
+      ),
+      onPressed: onTap,
+    );
   }
 }

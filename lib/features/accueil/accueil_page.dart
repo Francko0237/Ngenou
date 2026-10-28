@@ -220,36 +220,10 @@ class _AccueilPageState extends State<AccueilPage> {
             elevation: 0,
             backgroundColor: Colors.transparent,
             actions: [
-              // ── Bouton guide interactif (ampoule moderne) ───────────────
-              Padding(
-                padding: const EdgeInsets.only(right: 2),
-                child: Tooltip(
-                  message: 'Guide interactif',
-                  child: InkWell(
-                    key: _keyTutorialBtn,
-                    onTap: _startTutorial,
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: primary.withValues(alpha: isDark ? 0.16 : 0.08),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: primary.withValues(alpha: isDark ? 0.35 : 0.22),
-                          width: 1.2,
-                        ),
-                      ),
-                      child: Center(
-                        child: Icon(
-                          Icons.lightbulb_outline_rounded,
-                          size: 17,
-                          color: primary,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+              TutorialLightbulbButton(
+                buttonKey: _keyTutorialBtn,
+                tooltip: 'Guide de bienvenue',
+                onTap: _startTutorial,
               ),
               const SizedBox(width: 4),
               // ── Toggle thème ───────────────────────────────────────────
@@ -388,6 +362,7 @@ class _AccueilPageState extends State<AccueilPage> {
         // ── Overlay tutoriel ─────────────────────────────────────────────
         if (_showTutorial)
           TutorialOverlay(
+            tutorialId: 'dashboard',
             steps: _buildSteps(),
             onDone: () => setState(() => _showTutorial = false),
           ),
