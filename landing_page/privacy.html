@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Politique de Confidentialité & CGU — Ngenou</title>
+  <meta name="description"
+    content="Politique de Confidentialité et Conditions Générales d'Utilisation de l'application mobile Ngenou. Conforme RGPD, Apple App Store et Google Play.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .legal-content {
+      padding-top: 130px;
+      padding-bottom: 80px;
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    .legal-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 36px;
+      margin-bottom: 28px;
+    }
+
+    .legal-card h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .legal-card p,
+    .legal-card li {
+      color: var(--text-muted);
+      font-size: 15px;
+      line-height: 1.7;
+      margin-bottom: 12px;
+    }
+
+    .legal-card ul {
+      padding-left: 24px;
+      margin-bottom: 16px;
+    }
+
+    .badge-highlight {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      display: inline-block;
+      margin-bottom: 14px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- NAVBAR -->
+  <div class="navbar-wrap">
+    <nav class="navbar">
+      <a href="index.html" class="brand">
+        <div class="brand-icon">N</div>
+        <span class="brand-name">Ngenou</span>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="index.html#showcase">Aperçu</a></li>
+        <li><a href="index.html#features">Fonctionnalités</a></li>
+        <li><a href="index.html#faq">FAQ</a></li>
+      </ul>
+
+      <a href="index.html" class="nav-cta-btn">
+        <span>← Retour à l'accueil</span>
+      </a>
+    </nav>
+  </div>
+
+  <main class="container legal-content">
+    <div style="text-align: center; margin-bottom: 40px;">
+
+      <h1 class="hero-title" style="font-size: 38px; margin-bottom: 12px;">Politique de Confidentialité & CGU</h1>
+      <p style="color: var(--text-dim); font-size: 14px;">Dernière mise à jour : 28 octobre 2026 • Application Ngenou
+        Version 1.1</p>
+    </div>
+
+    <!-- PRIVACY POLICY -->
+    <article class="legal-card" id="privacy">
+      <h2>1. Responsable du traitement des données</h2>
+      <p>L'application mobile <strong>Ngenou</strong> est éditée par <strong>Yamgai Mokube Franck Daniel</strong>.</p>
+      <p>Pour toute question relative à la protection de votre vie privée ou pour exercer vos droits légaux (accès,
+        rectification, suppression), vous pouvez nous contacter directement par courriel à : <a
+          href="mailto:support@ngenou.app" style="color: var(--primary-light);">support@ngenou.app</a>.</p>
+    </article>
+
+    <article class="legal-card">
+      <h2>2. Données collectées et Finalités</h2>
+      <p>Ngenou collecte et traite uniquement les données strictement nécessaires aux services d'apprentissage :</p>
+      <ul>
+        <li><strong>Données de compte :</strong> Pseudonyme / nom choisi, adresse email (si connexion via email ou
+          Google Sign-In) ou numéro de téléphone (utilisé sous forme d'identifiant chiffré), rôle (élève, enseignant) et
+          niveau scolaire (primaire, secondaire, supérieur).</li>
+        <li><strong>Contenu éducatif :</strong> Cours personnalisés créés ou importés, défis quotidiens, scores aux
+          quiz, fiches de révision et codes algorithmiques sauvegardés.</li>
+        <li><strong>Interactions avec le tuteur IA :</strong> Les questions et prompts posés au tuteur sont traités pour
+          délivrer des explications pédagogiques socratiques. Ces données restent privées et ne sont jamais vendues ni
+          utilisées pour entraîner des modèles publics tiers.</li>
+        <li><strong>Autorisations matérielles :</strong>
+          <ul>
+            <li><em>Microphone :</em> Activé exclusivement à la demande de l'utilisateur pour la saisie vocale
+              (Speech-to-Text). Aucun flux audio continu n'est enregistré.</li>
+            <li><em>Haut-parleur & Audio :</em> Pour la synthèse vocale (TTS) des cours et les alarmes d'étude.</li>
+            <li><em>Stockage local :</em> Base SQLite locale permettant à l'application de fonctionner à 100% sans
+              connexion Internet.</li>
+          </ul>
+        </li>
+      </ul>
+    </article>
+
+    <article class="legal-card">
+      <h2>3. Synchronisation Cloud & Sécurité</h2>
+      <p>Ngenou adopte une philosophie <strong>Offline-First</strong> :</p>
+      <ul>
+        <li>Toutes vos données sont prioritairement stockées localement sur votre appareil dans une base de données
+          chiffrée.</li>
+        <li>Lorsque vous disposez d'une connexion Internet et d'un compte actif, vos données sont synchronisées via
+          notre infrastructure Supabase avec chiffrement TLS et politiques strictes <em>Row Level Security (RLS)</em>
+          garantissant que seul votre compte a accès à vos données.</li>
+      </ul>
+    </article>
+
+    <article class="legal-card" id="deletion">
+      <h2>4. Droit à l'effacement et Suppression définitive du compte</h2>
+      <p>Conformément aux directives de l'<strong>Apple App Store (Guideline 5.1.1(v))</strong> et de <strong>Google
+          Play</strong> :</p>
+      <p>Chaque utilisateur peut à tout moment supprimer l'intégralité de son compte et de ses données personnelles :
+      </p>
+      <ul>
+        <li><strong>Directement dans l'application :</strong> Ouvrez l'onglet <em>Paramètres</em> > Faites défiler
+          jusqu'en bas > Cliquez sur <em>« Supprimer définitivement mon compte »</em>.</li>
+        <li>Cette action entraîne la suppression instantanée et irréversible de l'ensemble de vos données locales SQLite
+          et de tous vos enregistrements sur les serveurs distants.</li>
+        <li>Vous pouvez également formuler une demande de suppression par email à <a href="mailto:support@ngenou.app"
+            style="color: var(--primary-light);">support@ngenou.app</a>. Votre demande sera traitée sous 48 heures
+          ouvrées.</li>
+      </ul>
+    </article>
+
+    <!-- TERMS OF USE -->
+    <article class="legal-card" id="cgu">
+      <h2>5. Conditions Générales d'Utilisation (CGU)</h2>
+      <p>L'utilisation de Ngenou implique l'acceptation pleine et entière des présentes conditions :</p>
+      <ul>
+        <li><strong>Service d'appoint éducatif :</strong> Le tuteur IA est un compagnon pédagogique destiné à faciliter
+          la compréhension. Bien qu'optimisé pour une exactitude maximale, l'utilisateur est invité à vérifier les
+          résultats avec ses supports de cours officiels.</li>
+        <li><strong>Comportement acceptable :</strong> Il est strictement interdit d'utiliser le tuteur IA à des fins
+          illicites, haineuses ou de tentative d'exploitation technique des serveurs.</li>
+        <li><strong>Propriété intellectuelle :</strong> L'architecture, la marque, les logos et les modules logiciels de
+          Ngenou sont la propriété exclusive de Yamgai Mokube Francko Daniel.</li>
+      </ul>
+    </article>
+  </main>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="container" style="text-align: center; color: var(--text-dim); font-size: 13.5px;">
+      © 2026 Ngenou — Tous droits réservés • Développé par Yamgai Mokube Franck Daniel
+    </div>
+  </footer>
+
+</body>
+
+</html>

@@ -18,6 +18,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../auth/login_page.dart';
 import '../splash/onboarding_page.dart';
 import 'edit_profile_page.dart';
+import 'privacy_policy_page.dart';
 import '../../core/services/tutorial_service.dart';
 import '../../core/widgets/tutorial_overlay.dart';
 
@@ -222,6 +223,104 @@ class _ParametresPageState extends State<ParametresPage>
       await AuthService.signOut();
       await _loadUsername();
       if (mounted) context.go('/login');
+    }
+  }
+
+  Future<void> _handleDeleteAccount() async {
+    final confirmFirst = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded,
+                color: Color(0xFFE74C3C), size: 28),
+            SizedBox(width: 10),
+            Expanded(child: Text('Supprimer définitivement le compte ?')),
+          ],
+        ),
+        content: const Text(
+          'Attention : Cette action effacera immédiatement et définitivement toutes vos données d\'apprentissage (historique du tuteur IA, progression, cours et codes) de votre appareil et de nos serveurs.\n\nCette opération est IRRÉVERSIBLE.',
+          style: TextStyle(height: 1.45),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE74C3C),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Oui, continuer'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmFirst != true || !mounted) return;
+
+    final confirmFinal = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Dernière confirmation'),
+        content: const Text(
+          'Êtes-vous absolument certain ? Toutes vos données seront perdues et ne pourront jamais être récupérées.',
+          style: TextStyle(height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Abandonner'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFC0392B),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Supprimer pour toujours'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmFinal == true && mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      try {
+        await AuthService.deleteAccount();
+        await _loadUsername();
+        if (mounted) {
+          Navigator.of(context, rootNavigator: true).pop(); // dismiss loading
+          context.go('/login');
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Votre compte et toutes vos données ont été définitivement supprimés.'),
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          Navigator.of(context, rootNavigator: true).pop(); // dismiss loading
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erreur lors de la suppression : $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -1072,17 +1171,68 @@ class _ParametresPageState extends State<ParametresPage>
                 ),
               ),
               const SizedBox(height: 20),
-              _sectionLabel('À propos', isDark),
+              _sectionLabel('À propos & Légal', isDark),
               _card(
                 isDark: isDark,
                 cardColor: cardColor,
                 dividerColor: dividerColor,
-                child: _settingsTile(
-                  icon: Icons.info_outline_rounded,
-                  iconColor: const Color(0xFF4A90D9),
-                  title: 'Ngenou',
-                  subtitle: 'Version 1.1.1 • Par Yamgai Mokube Francko Daniel',
-                  isDark: isDark,
+                child: Column(
+                  children: [
+                    _settingsTile(
+                      icon: Icons.info_outline_rounded,
+                      iconColor: const Color(0xFF4A90D9),
+                      title: 'Ngenou',
+                      subtitle:
+                          'Version 1.1.1 • Par Yamgai Mokube Franck Daniel',
+                      isDark: isDark,
+                    ),
+                    Divider(height: 1, color: dividerColor),
+                    _settingsTile(
+                      icon: Icons.privacy_tip_outlined,
+                      iconColor: const Color(0xFF10B981),
+                      title: 'Politique de Confidentialité',
+                      subtitle:
+                          'Traitement des données, IA, RGPD & Stores',
+                      trailing: Icon(
+                        Icons.chevron_right_rounded,
+                        color: textSecondary,
+                        size: 20,
+                      ),
+                      isDark: isDark,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (ctx) =>
+                                const PrivacyPolicyPage(initialTab: 0),
+                          ),
+                        );
+                      },
+                    ),
+                    Divider(height: 1, color: dividerColor),
+                    _settingsTile(
+                      icon: Icons.gavel_rounded,
+                      iconColor: const Color(0xFF6C63FF),
+                      title: "Conditions Générales d'Utilisation (CGU)",
+                      subtitle:
+                          "Règles d'utilisation du tuteur et services Ngenou",
+                      trailing: Icon(
+                        Icons.chevron_right_rounded,
+                        color: textSecondary,
+                        size: 20,
+                      ),
+                      isDark: isDark,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (ctx) =>
+                                const PrivacyPolicyPage(initialTab: 1),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 20),
@@ -1201,6 +1351,37 @@ class _ParametresPageState extends State<ParametresPage>
                       shadowColor: const Color(
                         0xFFE74C3C,
                       ).withValues(alpha: 0.35),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed: _handleDeleteAccount,
+                    icon: const Icon(
+                      Icons.delete_forever_rounded,
+                      color: Color(0xFFE74C3C),
+                      size: 20,
+                    ),
+                    label: const Text(
+                      'Supprimer définitivement mon compte',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
+                        color: Color(0xFFE74C3C),
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(
+                        color: Color(0xFFE74C3C),
+                        width: 1.2,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),

@@ -492,6 +492,76 @@ class AuthService {
       await prefs.remove(_localUsernameKey);
       await prefs.remove(_localRoleKey);
       await prefs.remove(_localLevelKey);
+      final syncKeys = prefs.getKeys().where((k) => k.startsWith('ngenou_initial_sync_done_')).toList();
+      for (final k in syncKeys) {
+        await prefs.remove(k);
+      }
+    }
+  }
+
+  // ─── SUPPRESSION DU COMPTE (STORE COMPLIANCE) ──────────────────────────
+
+  /// Supprime définitivement le compte et toutes les données associées.
+  /// Obligatoire pour Google Play et Apple App Store (Guideline 5.1.1(v)).
+  static Future<void> deleteAccount() async {
+    final user = currentUser;
+    if (user != null) {
+      final userId = user.id;
+      // 1. Suppression des données sur les tables distantes Supabase
+      final tables = [
+        'tchat_ia_messages',
+        'defis_quotidiens_sessions',
+        'taches_revision',
+        'emplois_du_temps',
+        'projets',
+        'cours_personnalises',
+        'codes_sauvegardes',
+        'progression',
+        'scores',
+        'badges',
+        'profiles',
+      ];
+      for (final table in tables) {
+        try {
+          await _client.from(table).delete().eq('user_id', userId);
+        } catch (e) {
+          debugPrint('Suppression distante table $table (continuing): $e');
+        }
+      }
+
+      // Tenter une procédure stockée RPC si configurée côté Supabase
+      try {
+        await _client.rpc('delete_user_account');
+      } catch (e) {
+        debugPrint('Appel rpc delete_user_account (continuing): $e');
+      }
+    }
+
+    // 2. Déconnexion Google OAuth si initialisé
+    try {
+      await GoogleSignIn.instance.signOut();
+    } catch (_) {}
+
+    // 3. Déconnexion de la session Supabase
+    try {
+      await _client.auth.signOut();
+    } catch (_) {}
+
+    // 4. Purge intégrale de la base de données SQLite locale
+    await DatabaseHelper.instance.clearLocalData();
+
+    // 5. Nettoyage de toutes les préférences locales
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_localPhoneKey);
+    await prefs.remove(_localUsernameKey);
+    await prefs.remove(_localRoleKey);
+    await prefs.remove(_localLevelKey);
+    final allKeys = prefs.getKeys().toList();
+    for (final k in allKeys) {
+      if (k.startsWith('ngenou_') || k.startsWith('local_')) {
+        await prefs.remove(k);
+      }
     }
   }
 }
+

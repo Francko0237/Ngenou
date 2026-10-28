@@ -68,91 +68,18 @@ class _LoginPageState extends State<LoginPage> {
     String successMsg,
   ) async {
     if (mounted) setState(() => _isLoading = false);
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => PopScope(
-        canPop: false,
-        child: AlertDialog(
+    if (context.mounted) {
+      context.go('/');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(successMsg),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 12),
-              CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  Theme.of(ctx).primaryColor,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                "Synchronisation en cours",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 17,
-                  color: Theme.of(ctx).colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                "Récupération de vos cours et progression...",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Theme.of(
-                    ctx,
-                  ).colorScheme.onSurface.withValues(alpha: 0.6),
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
-      ),
-    );
-
-    try {
-      await SyncService.instance.syncAll().timeout(
-        const Duration(seconds: 30),
-        onTimeout: () => debugPrint("Sync timeout — on continue"),
       );
-    } catch (e) {
-      debugPrint("Erreur sync : $e");
-    } finally {
-      try {
-        final navContext = Navigator.of(
-          rootNavigatorKey.currentContext!,
-          rootNavigator: true,
-        );
-        if (navContext.canPop()) navContext.pop();
-      } catch (_) {}
-
-      if (context.mounted) {
-        await context.read<CustomCoursesProvider>().loadCustomCourses();
-        await context.read<ProjetsProvider>().loadProjets();
-        await context.read<ScheduleProvider>().load();
-        if (context.mounted) {
-          context.read<ProgressionProvider>().loadAllProgressions();
-          context.read<DefisProvider>().loadTodaySession();
-        }
-      }
-
-      if (context.mounted) {
-        context.go('/');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(successMsg),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-      }
     }
   }
 
