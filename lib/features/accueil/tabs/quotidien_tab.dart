@@ -6,7 +6,16 @@ import '../../../core/providers/defis_provider.dart';
 import '../../../core/providers/schedule_provider.dart';
 
 class QuotidienTab extends StatelessWidget {
-  const QuotidienTab({super.key});
+  const QuotidienTab({
+    super.key,
+    this.defiHeroKey,
+    this.tachesSectionKey,
+    this.planningSectionKey,
+  });
+
+  final GlobalKey? defiHeroKey;
+  final GlobalKey? tachesSectionKey;
+  final GlobalKey? planningSectionKey;
 
   @override
   Widget build(BuildContext context) {
@@ -48,11 +57,12 @@ class QuotidienTab extends StatelessWidget {
               const SizedBox(height: 18),
 
               // ─── 1. Le Défi du Jour (Hero Card valorisante) ──────────────────
-              _buildDefiDuJourHero(context, defisProvider, isDark),
+              _buildDefiDuJourHero(context, defisProvider, isDark, defiHeroKey),
               const SizedBox(height: 20),
 
               // ─── 2. Tâches d'aujourd'hui ─────────────────────────────────────
               Row(
+                key: tachesSectionKey,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
@@ -76,6 +86,7 @@ class QuotidienTab extends StatelessWidget {
 
               // ─── 3. Emploi du temps & Planning ──────────────────────────────
               Row(
+                key: planningSectionKey,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
@@ -106,8 +117,9 @@ class QuotidienTab extends StatelessWidget {
   Widget _buildDefiDuJourHero(
     BuildContext context,
     DefisProvider defisProvider,
-    bool isDark,
-  ) {
+    bool isDark, [
+    GlobalKey? heroKey,
+  ]) {
     final session = defisProvider.todaySession;
     final hasSession = session != null;
     final isComplete = hasSession && session.completed;
@@ -115,6 +127,7 @@ class QuotidienTab extends StatelessWidget {
     final total = hasSession ? session.total : 0;
 
     return Container(
+      key: heroKey,
       width: double.infinity,
       decoration: BoxDecoration(
         gradient: LinearGradient(

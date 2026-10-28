@@ -18,6 +18,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../auth/login_page.dart';
 import '../splash/onboarding_page.dart';
 import 'edit_profile_page.dart';
+import '../../core/services/tutorial_service.dart';
+import '../../core/widgets/tutorial_overlay.dart';
 
 class ParametresPage extends StatefulWidget {
   const ParametresPage({super.key});
@@ -35,6 +37,16 @@ class _ParametresPageState extends State<ParametresPage>
   String _username = 'Ami';
   String _userRole = 'student';
   String _schoolLevel = 'secondaire';
+
+  // ── Clés pour le tutoriel interactif des paramètres ─────────────────────────
+  final GlobalKey _keyAccountCard = GlobalKey();
+  final GlobalKey _keyAppearanceCard = GlobalKey();
+  final GlobalKey _keyFocusCard = GlobalKey();
+  final GlobalKey _keyAlarmsCard = GlobalKey();
+  final GlobalKey _keyHelpCard = GlobalKey();
+  final GlobalKey _keyGuideBtn = GlobalKey();
+
+  bool _showTutorial = false;
 
   @override
   void initState() {
@@ -55,6 +67,89 @@ class _ParametresPageState extends State<ParametresPage>
     if (Platform.isAndroid) {
       _checkBatteryExemption();
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkTutorial();
+    });
+  }
+
+  Future<void> _checkTutorial() async {
+    final should = await TutorialService.shouldShow('parametres');
+    if (should && mounted) setState(() => _showTutorial = true);
+  }
+
+  void _dismissTutorial() {
+    if (mounted) setState(() => _showTutorial = false);
+  }
+
+  void _startTutorial() {
+    TutorialService.reset('parametres').then((_) {
+      if (mounted) setState(() => _showTutorial = true);
+    });
+  }
+
+  List<TutorialStep> _buildTutorialSteps() {
+    return [
+      TutorialStep(
+        targetKey: _keyAccountCard,
+        spotShape: SpotShape.roundedRect,
+        spotRadius: 20,
+        padding: const EdgeInsets.all(8),
+        category: 'PROFIL & COMPTE',
+        icon: Icons.account_circle_rounded,
+        title: 'Gère ton compte & profil',
+        description:
+            'Retrouve ton profil, ton niveau scolaire et le statut de synchronisation cloud Supabase pour ne jamais perdre tes données.',
+        highlights: const ['Niveau scolaire', 'Modifier le profil', 'Synchronisation Supabase'],
+      ),
+      TutorialStep(
+        targetKey: _keyAppearanceCard,
+        spotShape: SpotShape.roundedRect,
+        spotRadius: 18,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        category: 'APPARENCE',
+        icon: Icons.palette_rounded,
+        title: 'Choisis ton thème',
+        description:
+            'Bascule instantanément entre le mode sombre et le mode clair pour un confort visuel adapté à tes conditions de révision.',
+        highlights: const ['Mode sombre', 'Mode clair', 'Confort visuel'],
+      ),
+      TutorialStep(
+        targetKey: _keyFocusCard,
+        spotShape: SpotShape.roundedRect,
+        spotRadius: 20,
+        padding: const EdgeInsets.all(8),
+        category: 'CONCENTRATION',
+        icon: Icons.center_focus_strong_rounded,
+        title: 'Mode Focus sans distractions',
+        description:
+            'Active le Mode Focus pour neutraliser les notifications et rester concentré à 100% sur ton apprentissage.',
+        highlights: const ['Mode Focus', 'Ne pas déranger', 'Zéro distraction'],
+      ),
+      TutorialStep(
+        targetKey: _keyAlarmsCard,
+        spotShape: SpotShape.roundedRect,
+        spotRadius: 20,
+        padding: const EdgeInsets.all(8),
+        category: 'ALARMES & RAPPELS',
+        icon: Icons.alarm_rounded,
+        title: 'Personnalise tes sonneries',
+        description:
+            'Choisis le son qui te réveille pour tes cours : mélodies intégrées ou fichiers MP3/WAV personnalisés avec aperçu audio.',
+        highlights: const ['Sonneries personnalisées', 'Aperçu audio', 'Rappels réguliers'],
+      ),
+      TutorialStep(
+        targetKey: _keyHelpCard,
+        spotShape: SpotShape.roundedRect,
+        spotRadius: 20,
+        padding: const EdgeInsets.all(8),
+        category: 'AIDE & DÉCOUVERTE',
+        icon: Icons.explore_rounded,
+        title: 'Guides & visites guidées',
+        description:
+            'Revois l\'introduction de Ngenou, réinitialise la checklist des premiers pas ou relance les tutoriels guidés de toute l\'application.',
+        highlights: const ['Revoir l\'introduction', 'Réinitialiser checklist', 'Relancer visites guidées'],
+      ),
+    ];
   }
 
   String get _schoolLevelLabel {
@@ -461,29 +556,40 @@ class _ParametresPageState extends State<ParametresPage>
         ? Colors.white.withValues(alpha: 0.5)
         : Colors.black.withValues(alpha: 0.45);
 
-    return Scaffold(
-      backgroundColor: bgColor,
-      appBar: AppBar(
-        backgroundColor: bgColor,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.transparent,
-        titleSpacing: 20,
-        title: Text(
-          'Paramètres',
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-            fontSize: 22,
-            letterSpacing: -0.3,
-            color: isDark ? Colors.white : const Color(0xFF15151C),
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: bgColor,
+          appBar: AppBar(
+            backgroundColor: bgColor,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            surfaceTintColor: Colors.transparent,
+            titleSpacing: 20,
+            title: Text(
+              'Paramètres',
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 22,
+                letterSpacing: -0.3,
+                color: isDark ? Colors.white : const Color(0xFF15151C),
+              ),
+            ),
+            centerTitle: false,
+            actions: [
+              IconButton(
+                key: _keyGuideBtn,
+                tooltip: 'Visite guidée des paramètres',
+                icon: const Icon(Icons.lightbulb_outline_rounded, size: 22),
+                onPressed: _startTutorial,
+              ),
+              const SizedBox(width: 8),
+            ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(1),
+              child: Container(height: 1, color: dividerColor),
+            ),
           ),
-        ),
-        centerTitle: false,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: dividerColor),
-        ),
-      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 900),
@@ -495,6 +601,7 @@ class _ParametresPageState extends State<ParametresPage>
             children: [
               _sectionLabel('Compte', isDark),
               _card(
+                key: _keyAccountCard,
                 isDark: isDark,
                 cardColor: cardColor,
                 dividerColor: dividerColor,
@@ -754,6 +861,7 @@ class _ParametresPageState extends State<ParametresPage>
               const SizedBox(height: 20),
               _sectionLabel('Apparence', isDark),
               _card(
+                key: _keyAppearanceCard,
                 isDark: isDark,
                 cardColor: cardColor,
                 dividerColor: dividerColor,
@@ -795,6 +903,7 @@ class _ParametresPageState extends State<ParametresPage>
               const SizedBox(height: 20),
               _sectionLabel('Concentration', isDark),
               _card(
+                key: _keyFocusCard,
                 isDark: isDark,
                 cardColor: cardColor,
                 dividerColor: dividerColor,
@@ -854,6 +963,7 @@ class _ParametresPageState extends State<ParametresPage>
               const SizedBox(height: 20),
               _sectionLabel('Alarmes', isDark),
               _card(
+                key: _keyAlarmsCard,
                 isDark: isDark,
                 cardColor: cardColor,
                 dividerColor: dividerColor,
@@ -978,6 +1088,7 @@ class _ParametresPageState extends State<ParametresPage>
               const SizedBox(height: 20),
               _sectionLabel('Aide & Découverte', isDark),
               _card(
+                key: _keyHelpCard,
                 isDark: isDark,
                 cardColor: cardColor,
                 dividerColor: dividerColor,
@@ -1031,6 +1142,34 @@ class _ParametresPageState extends State<ParametresPage>
                         }
                       },
                     ),
+                    Divider(height: 1, color: dividerColor),
+                    _settingsTile(
+                      icon: Icons.school_rounded,
+                      iconColor: const Color(0xFFE67E22),
+                      title: "Relancer toutes les visites guidées",
+                      subtitle:
+                          "Réactiver les bulles d'aide interactives sur tous les écrans",
+                      isDark: isDark,
+                      trailing: Icon(
+                        Icons.chevron_right_rounded,
+                        color: textSecondary,
+                        size: 20,
+                      ),
+                      onTap: () async {
+                        await TutorialService.resetAll();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  "Toutes les visites guidées ont été réinitialisées !"),
+                              behavior: SnackBarBehavior.floating,
+                              duration: Duration(seconds: 3),
+                            ),
+                          );
+                          _startTutorial();
+                        }
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -1074,8 +1213,16 @@ class _ParametresPageState extends State<ParametresPage>
           ),
         ),
       ),
-    );
-  }
+    ),
+    if (_showTutorial)
+      TutorialOverlay(
+        tutorialId: 'parametres',
+        steps: _buildTutorialSteps(),
+        onDone: _dismissTutorial,
+      ),
+    ],
+  );
+}
 
   Widget _sectionLabel(String label, bool isDark) {
     return Padding(
@@ -1110,12 +1257,14 @@ class _ParametresPageState extends State<ParametresPage>
   }
 
   Widget _card({
+    Key? key,
     required bool isDark,
     required Color cardColor,
     required Color dividerColor,
     required Widget child,
   }) {
     return Container(
+      key: key,
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(18),
