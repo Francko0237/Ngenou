@@ -6,7 +6,9 @@ import '../../core/models/notion.dart';
 import '../../core/providers/custom_courses_provider.dart';
 import '../../core/providers/progression_provider.dart';
 import '../../core/services/ai_tutor_service.dart';
+import '../../core/services/tutorial_service.dart';
 import '../../core/utils/lesson_content_parser.dart';
+import '../../core/widgets/tutorial_overlay.dart';
 import '../../modules/modules_registry.dart';
 import '../../core/widgets/extension_download_dialog.dart';
 import '../course_builder/course_studio_page.dart';
@@ -38,6 +40,14 @@ class _LeconPageState extends State<LeconPage> {
   int _sectionIndex = 0;
   final PageController _sectionController = PageController();
 
+  // ── Clés de cible pour le tutoriel ────────────────────────────────────────
+  final GlobalKey _progressBarKey = GlobalKey();
+  final GlobalKey _aiTutorKey = GlobalKey();
+  final GlobalKey _contentKey = GlobalKey();
+  final GlobalKey _nextBtnKey = GlobalKey();
+
+  bool _showTutorial = false;
+
   @override
   void initState() {
     super.initState();
@@ -64,7 +74,17 @@ class _LeconPageState extends State<LeconPage> {
       if (widget.openChat) {
         _openAiTutor();
       }
+      _checkTutorial();
     });
+  }
+
+  Future<void> _checkTutorial() async {
+    final show = await TutorialService.shouldShow('lecon_page');
+    if (show && mounted) setState(() => _showTutorial = true);
+  }
+
+  void _dismissTutorial() {
+    if (mounted) setState(() => _showTutorial = false);
   }
 
   @override
@@ -513,6 +533,58 @@ class _LeconPageState extends State<LeconPage> {
     );
   }
 
+  List<TutorialStep> _buildTutorialSteps() {
+    return [
+      TutorialStep(
+        targetKey: _progressBarKey,
+        spotShape: SpotShape.roundedRect,
+        spotRadius: 16,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        category: 'PROGRESSION',
+        icon: Icons.timeline_rounded,
+        title: 'Tes concepts en un coup d\'œil',
+        description:
+            'Cette barre affiche tous les concepts de la leçon. Clique sur un concept pour y accéder directement, ou navigue avec les boutons en bas.',
+        highlights: const ['Navigation rapide', 'Concept actif mis en avant', 'Concepts complétés cochés'],
+      ),
+      TutorialStep(
+        targetKey: _aiTutorKey,
+        spotShape: SpotShape.circle,
+        spotRadius: 30,
+        category: 'TUTEUR IA',
+        icon: Icons.psychology_rounded,
+        title: 'Ton tuteur IA personnel',
+        description:
+            'Quelque chose n\'est pas clair ? Tape sur cette icône pour ouvrir le tuteur IA. Il connaît exactement la leçon que tu lis et peut t\'expliquer n\'importe quel point.',
+        highlights: const ['Contextuel à ta leçon', 'Explication simplifiée', 'Disponible à tout moment'],
+      ),
+      TutorialStep(
+        targetKey: _contentKey,
+        spotShape: SpotShape.roundedRect,
+        spotRadius: 20,
+        padding: const EdgeInsets.all(12),
+        category: 'CONTENU',
+        icon: Icons.menu_book_rounded,
+        title: 'Le contenu de la leçon',
+        description:
+            'Lis le concept actuel ici. Si la leçon contient plusieurs concepts, glisse vers le haut ou le bas pour naviguer entre eux.',
+        highlights: const ['Glisse haut/bas', 'Contenu enrichi', 'Exemples interactifs'],
+      ),
+      TutorialStep(
+        targetKey: _nextBtnKey,
+        spotShape: SpotShape.roundedRect,
+        spotRadius: 14,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        category: 'NAVIGATION',
+        icon: Icons.arrow_forward_rounded,
+        title: 'Avancer dans la leçon',
+        description:
+            'Appuie sur ce bouton pour passer au concept suivant. À la fin de la leçon, tu pourras faire des exercices ou passer à la notion suivante.',
+        highlights: const ['Concept suivant', 'Leçon suivante', 'Exercices à la fin'],
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     if (lecons.isEmpty) {
@@ -526,7 +598,9 @@ class _LeconPageState extends State<LeconPage> {
     final primary = Theme.of(context).primaryColor;
     final combinedProgress = (_currentConceptOffset) / _totalConcepts;
 
-    return Scaffold(
+    return Stack(
+      children: [
+    Scaffold(
       backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF5F7FA),
       appBar: AppBar(
         elevation: 0,
@@ -607,6 +681,7 @@ class _LeconPageState extends State<LeconPage> {
             ),
           // ── Bulle tuteur IA ────────────────────────────────────────────
           Padding(
+            key: _aiTutorKey,
             padding: const EdgeInsets.only(right: 8),
             child: GestureDetector(
               onTap: _openAiTutor,
@@ -660,6 +735,7 @@ class _LeconPageState extends State<LeconPage> {
           // ── Barre de progression interactive par étapes ─────────────
           if (_currentSections.isNotEmpty)
             Padding(
+              key: _progressBarKey,
               padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
               child: Container(
                   margin: const EdgeInsets.fromLTRB(16, 6, 16, 6),
@@ -817,6 +893,7 @@ class _LeconPageState extends State<LeconPage> {
 
           // PageView vertical pour lire les concepts
           Expanded(
+            key: _contentKey,
             child: PageView.builder(
               key: ValueKey('lesson_$_lessonIndex'),
               controller: _sectionController,
@@ -883,6 +960,7 @@ class _LeconPageState extends State<LeconPage> {
               else
                 const SizedBox.shrink(),
               ElevatedButton.icon(
+                key: _nextBtnKey,
                 onPressed: _handleNext,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primary,
@@ -908,6 +986,15 @@ class _LeconPageState extends State<LeconPage> {
           ),
         ),
       ),
+    ),
+    // ── Tutoriel interactif ────────────────────────────────────────────────
+    if (_showTutorial)
+      TutorialOverlay(
+        tutorialId: 'lecon_page',
+        steps: _buildTutorialSteps(),
+        onDone: _dismissTutorial,
+      ),
+      ],
     );
   }
 }
