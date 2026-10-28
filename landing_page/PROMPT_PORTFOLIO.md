@@ -6,8 +6,8 @@ Voici le prompt complet et prêt à l'emploi si tu souhaites regénérer ou adap
 Crée un site web portfolio et landing page SaaS ultra-moderne pour l'application mobile "Ngenou", en t'inspirant du style visuel, du minimalisme et des animations du site https://rakazo.com.
 
 ### 1. Direction Artistique & Design (Style Rakazo) :
-- Palette de couleurs : Thème sombre immersif (#0a0e1a, #10182e), reflets subtils en dégradé violet/bleu (radial gradients #6c63ff et #3b82f6), bordures discrètes en semi-transparence (rgba(255, 255, 255, 0.08)), et typographie géométrique ultra-moderne ('Outfit' ou 'Geist' de Google Fonts).
-- Navigation : Barre de navigation flottante "pill/dock" en verre dépoli (backdrop-filter: blur(16px)) avec logo, liens d'ancrage et bouton CTA d'action avec micro-lueur.
+- Palette de couleurs : Thème clair moderne, épuré et lumineux (#f8fafc, cartes blanches #ffffff), dégradés subtils violet/indigo (radial gradients rgba(99, 102, 241, 0.1) et rgba(37, 99, 235, 0.06)), bordures raffinées (#e2e8f0), ombres portées douces et typographie géométrique ultra-moderne ('Outfit' ou 'Geist' de Google Fonts).
+- Navigation : Barre de navigation flottante "pill/dock" en verre dépoli blanc (backdrop-filter: blur(16px)) avec logo officiel de l'application, liens d'ancrage et bouton CTA d'action avec micro-lueur.
 - Hero Section :
   * Badge pill supérieur avec pastille verte pulsante ("Version 1.1 • Prêt pour le Play Store & App Store").
   * Titre fort et percutant avec dégradé de texte : "L'apprentissage intelligent dont vous êtes le maître".
@@ -16,14 +16,11 @@ Crée un site web portfolio et landing page SaaS ultra-moderne pour l'applicatio
 
 ### 2. Showcase Démo Interactif (Élément Clé Rakazo) :
 - Une boîte de prévisualisation d'application mobile avec barre d'onglets commutable en JavaScript :
-  1. Onglet 1 : "Tuteur IA Conversationnel" (Interface de chat décomposant une équation mathématique pas-à-pas avec méthode socratique).
-  2. Onglet 2 : "Défis Quotidiens & Quiz" (Streak de 12 jours, XP, badges et questions interactives).
-  3. Onglet 3 : "Studio Algorithmique" (Éditeur pseudo-code avec console d'exécution en temps réel).
-  4. Onglet 4 : "Emploi du Temps & Alarmes" (Planning avec alarmes vocales TTS).
-- IMPORTANT POUR LES IMAGES :
-  * Laisse des signaux clairs sous forme de commentaires HTML et badges :
-    `<!-- SCREENSHOT_PLACEHOLDER: Insérez ici la capture d'écran (ex: <img src="screenshots/chat.png">) -->`
-  * Prévois un mockup UI en HTML/CSS stylisé comme fallback pour que le site soit immédiatement magnifique même avant l'insertion des vraies captures.
+  1. Onglet 1 : "Tuteur IA Conversationnel" (Interface de chat décomposant une notion pas-à-pas avec quiz rapides).
+  2. Onglet 2 : "Défis Quotidiens & Quiz" (Questions QCM interactives, série de jours / streak, badges).
+  3. Onglet 3 : "Extensions & Ngenou Assets" (Catalogue d'outils modulaires : Interpréteur Algorithmique & Console, Atelier Visuel des Fractions, Droite Graduée).
+  4. Onglet 4 : "Emploi du Temps, Alarmes & Tâches" (Planning d'étude structuré, rappels vocaux TTS et gestion des tâches).
+- Mockups mobiles embellis : Intégrer les captures réelles dans des cadres smartphone stylisés avec encoches et ombres douces.
 
 ### 3. Bento Grid & Fonctionnalités :
 - Carte 1 (Large) : Architecture 100% Offline-First avec base locale SQLite.

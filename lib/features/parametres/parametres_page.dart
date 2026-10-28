@@ -1183,7 +1183,7 @@ class _ParametresPageState extends State<ParametresPage>
                       iconColor: const Color(0xFF4A90D9),
                       title: 'Ngenou',
                       subtitle:
-                          'Version 1.1.1 • Par Yamgai Mokube Franck Daniel',
+                          'Version 1.1.1 • Par Yamga Mokube Franck Daniel',
                       isDark: isDark,
                     ),
                     Divider(height: 1, color: dividerColor),
