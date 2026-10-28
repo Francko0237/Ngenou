@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../../core/providers/defis_provider.dart';
 import '../../core/models/daily_challenge.dart';
 import '../../core/models/deep_seek_model.dart';
+import '../../core/services/tutorial_service.dart';
+import '../../core/widgets/tutorial_overlay.dart';
 import 'widgets/qcm_solve_widget.dart';
 import 'widgets/defis_history_tab.dart';
 import 'daily_defi_algo_solve_page.dart';
@@ -20,13 +22,71 @@ class _DailyDefisPageState extends State<DailyDefisPage>
   bool _inclutAlgo = true;
   DeepSeekModel _selectedModel = DeepSeekModel.flash;
 
+  // ── Clés pour le tutoriel ──────────────────────────────────────────────────
+  final GlobalKey _modelSelectorKey = GlobalKey();
+  final GlobalKey _tabBarKey = GlobalKey();
+  final GlobalKey _bodyKey = GlobalKey();
+
+  bool _showTutorial = false;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DefisProvider>().loadTodaySession();
+      _checkTutorial();
     });
+  }
+
+  Future<void> _checkTutorial() async {
+    final show = await TutorialService.shouldShow('daily_defis');
+    if (show && mounted) setState(() => _showTutorial = true);
+  }
+
+  void _dismissTutorial() {
+    if (mounted) setState(() => _showTutorial = false);
+  }
+
+  List<TutorialStep> _buildTutorialSteps() {
+    return [
+      TutorialStep(
+        targetKey: _tabBarKey,
+        spotShape: SpotShape.roundedRect,
+        spotRadius: 14,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        category: 'DÉFIS DU JOUR',
+        icon: Icons.local_fire_department_rounded,
+        title: 'Tes défis quotidiens',
+        description:
+            "Chaque jour, l'IA génère une série de défis personnalisés selon tes matières. Passe du défi d'aujourd'hui à ton historique avec ces onglets.",
+        highlights: const ['Aujourd\'hui', 'Historique'],
+      ),
+      TutorialStep(
+        targetKey: _modelSelectorKey,
+        spotShape: SpotShape.roundedRect,
+        spotRadius: 20,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        category: 'INTELLIGENCE ARTIFICIELLE',
+        icon: Icons.auto_awesome_rounded,
+        title: 'Choisis ton modèle IA',
+        description:
+            'Sélectionne le modèle IA qui va générer tes défis. Le modèle Flash est rapide, le modèle Pro est plus précis et approfondi.',
+        highlights: const ['Flash : rapide', 'Pro : approfondi'],
+      ),
+      TutorialStep(
+        targetKey: _bodyKey,
+        spotShape: SpotShape.roundedRect,
+        spotRadius: 20,
+        padding: const EdgeInsets.all(16),
+        category: 'CONTENU',
+        icon: Icons.quiz_rounded,
+        title: 'Lance tes défis ici',
+        description:
+            "Configure le type de défis (QCM, exercice algo), puis appuie sur \u00ab\u00a0Générer mes défis du jour\u00a0\u00bb. L'IA te prépare une session personnalisée en quelques secondes.",
+        highlights: const ['QCM par matière', 'Exercice algo optionnel', '+20 XP par session'],
+      ),
+    ];
   }
 
   @override
@@ -40,7 +100,9 @@ class _DailyDefisPageState extends State<DailyDefisPage>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = Theme.of(context).primaryColor;
 
-    return Scaffold(
+    return Stack(
+      children: [
+    Scaffold(
       backgroundColor: isDark
           ? const Color(0xFF121212)
           : const Color(0xFFF5F7FA),
@@ -77,6 +139,7 @@ class _DailyDefisPageState extends State<DailyDefisPage>
           const SizedBox(width: 8),
         ],
         bottom: TabBar(
+          key: _tabBarKey,
           controller: _tabController,
           labelColor: primary,
           unselectedLabelColor: isDark ? Colors.grey[500] : Colors.grey[600],
@@ -93,9 +156,19 @@ class _DailyDefisPageState extends State<DailyDefisPage>
         ),
       ),
       body: TabBarView(
+        key: _bodyKey,
         controller: _tabController,
         children: [_buildTodayTab(isDark, primary), const DefisHistoryTab()],
       ),
+    ),
+    // ── Tutoriel interactif ────────────────────────────────────────────────
+    if (_showTutorial)
+      TutorialOverlay(
+        tutorialId: 'daily_defis',
+        steps: _buildTutorialSteps(),
+        onDone: _dismissTutorial,
+      ),
+      ],
     );
   }
 
@@ -399,6 +472,7 @@ class _DailyDefisPageState extends State<DailyDefisPage>
   Widget _buildModelSelector(bool isDark, Color primary) {
     final isPro = _selectedModel == DeepSeekModel.pro;
     return GestureDetector(
+      key: _modelSelectorKey,
       onTap: () => _showModelPicker(isDark, primary),
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 10),

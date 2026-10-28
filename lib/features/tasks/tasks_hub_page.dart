@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../../core/models/study_task.dart';
 import '../../../core/models/task_priority.dart';
 import '../../../core/providers/schedule_provider.dart';
+import '../../../core/services/tutorial_service.dart';
+import '../../../core/widgets/tutorial_overlay.dart';
 import 'task_format.dart';
 import 'widgets/add_task_sheet.dart';
 import 'widgets/task_action_sheet.dart';
@@ -40,6 +42,14 @@ class _TasksHubPageState extends State<TasksHubPage> {
   // Debounce de la recherche pour éviter des requêtes BDD à chaque frappe
   Timer? _searchDebounce;
 
+  // ── Clés pour le tutoriel ──────────────────────────────────────────────────
+  final GlobalKey _taskListKey = GlobalKey();
+  final GlobalKey _dateChipsKey = GlobalKey();
+  final GlobalKey _fabKey = GlobalKey();
+  final GlobalKey _bottomNavKey = GlobalKey();
+
+  bool _showTutorial = false;
+
   @override
   void initState() {
     super.initState();
@@ -60,7 +70,69 @@ class _TasksHubPageState extends State<TasksHubPage> {
         );
         if (newDate != null) await _afterTaskSaved(newDate);
       }
+      _checkTutorial();
     });
+  }
+
+  Future<void> _checkTutorial() async {
+    final show = await TutorialService.shouldShow('tasks_hub');
+    if (show && mounted) setState(() => _showTutorial = true);
+  }
+
+  void _dismissTutorial() {
+    if (mounted) setState(() => _showTutorial = false);
+  }
+
+  List<TutorialStep> _buildTutorialSteps() {
+    return [
+      TutorialStep(
+        targetKey: _dateChipsKey,
+        spotShape: SpotShape.roundedRect,
+        spotRadius: 18,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        category: 'NAVIGATION TEMPORELLE',
+        icon: Icons.calendar_today_rounded,
+        title: 'Navigue entre les jours',
+        description:
+            'Appuie sur Hier, Auj. ou Demain pour voir tes tâches de chaque jour. Tu peux planifier à l\'avance ou rattraper ce que tu as manqué.',
+        highlights: const ['Hier', 'Aujourd\'hui', 'Demain'],
+      ),
+      TutorialStep(
+        targetKey: _taskListKey,
+        spotShape: SpotShape.roundedRect,
+        spotRadius: 20,
+        padding: const EdgeInsets.all(12),
+        category: 'TES TÂCHES',
+        icon: Icons.checklist_rounded,
+        title: 'Tes tâches du jour',
+        description:
+            'Retrouve ici toutes tes tâches planifiées. Coche une tâche pour la marquer comme terminée, ou appuie dessus pour voir les options (reporter, modifier, supprimer).',
+        highlights: const ['Cocher = terminé', 'Appuyer = options', 'Reporter possible'],
+      ),
+      TutorialStep(
+        targetKey: _fabKey,
+        spotShape: SpotShape.circle,
+        spotRadius: 36,
+        category: 'AJOUTER',
+        icon: Icons.add_rounded,
+        title: 'Ajouter une tâche',
+        description:
+            'Ce bouton ouvre le formulaire d\'ajout de tâche. Tu peux y définir le titre, la matière, la priorité et la date.',
+        highlights: const ['Titre', 'Matière', 'Priorité', 'Date'],
+      ),
+      TutorialStep(
+        targetKey: _bottomNavKey,
+        spotShape: SpotShape.roundedRect,
+        spotRadius: 12,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        category: 'HISTORIQUE',
+        icon: Icons.history_rounded,
+        title: 'Consulte ton historique',
+        description:
+            'Dans l\'onglet Historique, retrouve toutes tes tâches passées. Tu peux les filtrer par statut ou les rechercher par nom.',
+        highlights: const ['Filtre par statut', 'Recherche par nom', 'Tâches antérieures'],
+      ),
+    ];
   }
 
   @override
@@ -173,7 +245,9 @@ class _TasksHubPageState extends State<TasksHubPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = Theme.of(context).primaryColor;
 
-    return Scaffold(
+    return Stack(
+      children: [
+    Scaffold(
       backgroundColor: isDark
           ? const Color(0xFF121212)
           : const Color(0xFFF5F7FA),
@@ -204,6 +278,7 @@ class _TasksHubPageState extends State<TasksHubPage> {
       ),
       floatingActionButton: _navIndex == 1
           ? FloatingActionButton(
+              key: _fabKey,
               onPressed: () async {
                 final newDate = await showAddTaskSheet(
                   context,
@@ -229,6 +304,7 @@ class _TasksHubPageState extends State<TasksHubPage> {
         ],
       ),
       bottomNavigationBar: NavigationBar(
+        key: _bottomNavKey,
         selectedIndex: _navIndex,
         onDestinationSelected: (i) {
           setState(() => _navIndex = i);
@@ -248,6 +324,15 @@ class _TasksHubPageState extends State<TasksHubPage> {
           ),
         ],
       ),
+    ),
+    // ── Tutoriel interactif ────────────────────────────────────────────────
+    if (_showTutorial)
+      TutorialOverlay(
+        tutorialId: 'tasks_hub',
+        steps: _buildTutorialSteps(),
+        onDone: _dismissTutorial,
+      ),
+      ],
     );
   }
 
@@ -263,6 +348,7 @@ class _TasksHubPageState extends State<TasksHubPage> {
         await _reloadToday();
       },
       child: ListView.builder(
+        key: _taskListKey,
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
         // Calcul du nombre d'items pour la liste virtualisée
@@ -286,6 +372,7 @@ class _TasksHubPageState extends State<TasksHubPage> {
           }
           if (index == 1) {
             return Padding(
+              key: _dateChipsKey,
               padding: const EdgeInsets.only(bottom: 18),
               child: Row(
                 children: [
