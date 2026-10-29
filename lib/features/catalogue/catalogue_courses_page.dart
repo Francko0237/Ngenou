@@ -67,7 +67,8 @@ class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
         setState(() {
           _courses = [];
           _isLoading = false;
-          _errorMessage = "Impossible de contacter le serveur.\nVérifiez la connexion Internet de votre appareil.";
+          _errorMessage =
+              "Impossible de contacter le serveur.\nVérifiez la connexion Internet de votre appareil.";
         });
       }
     }
@@ -75,12 +76,15 @@ class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
 
   Future<void> _downloadCourse(TeacherCourseItem course) async {
     final customProvider = context.read<CustomCoursesProvider>();
-    final isAlreadyInstalled =
-        customProvider.modules.any((m) => m.matiere.id == course.matiereId);
+    final isAlreadyInstalled = customProvider.modules.any(
+      (m) => m.matiere.id == course.matiereId,
+    );
 
     if (isAlreadyInstalled) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ce cours est déjà installé sur votre appareil.')),
+        const SnackBar(
+          content: Text('Ce cours est déjà installé sur votre appareil.'),
+        ),
       );
       return;
     }
@@ -94,21 +98,29 @@ class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
       await TeacherCoursesService.incrementDownloads(course.id);
 
       if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..clearSnackBars()
-          ..showSnackBar(
-            SnackBar(
-              backgroundColor: const Color(0xFF2ECC71),
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 4),
-              content: Text('Cours "${course.titre}" téléchargé avec succès !'),
-              action: SnackBarAction(
-                label: 'Ouvrir',
-                textColor: Colors.white,
-                onPressed: () => context.push('/cours/${course.matiereId}'),
-              ),
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.clearSnackBars();
+        final controller = messenger.showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFF2ECC71),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+            dismissDirection: DismissDirection.horizontal,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
-          );
+            content: Text('Cours "${course.titre}" téléchargé avec succès !'),
+            action: SnackBarAction(
+              label: 'Ouvrir',
+              textColor: Colors.white,
+              onPressed: () => context.push('/cours/${course.matiereId}'),
+            ),
+          ),
+        );
+        // Force la fermeture après 3s même si l'action n'a pas été tapée
+        Future.delayed(const Duration(seconds: 3), () {
+          controller.close();
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -133,7 +145,9 @@ class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
     final customProvider = context.watch<CustomCoursesProvider>();
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF5F7FA),
+      backgroundColor: isDark
+          ? const Color(0xFF121212)
+          : const Color(0xFFF5F7FA),
       appBar: AppBar(
         title: const Text(
           'Cours publics',
@@ -206,7 +220,9 @@ class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
                     color: isSelected
                         ? Colors.white
                         : (isDark ? Colors.white70 : Colors.black87),
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                     fontSize: 12.5,
                   ),
                   onSelected: (val) {
@@ -226,162 +242,170 @@ class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _errorMessage != null
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24.0),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: Colors.redAccent.withValues(alpha: 0.12),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.wifi_off_rounded,
-                                  size: 48,
-                                  color: Colors.redAccent,
-                                ),
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.redAccent.withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.wifi_off_rounded,
+                              size: 48,
+                              color: Colors.redAccent,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            _errorMessage!,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white70 : Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            onPressed: _loadCatalog,
+                            icon: const Icon(Icons.refresh_rounded),
+                            label: const Text('Réessayer'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
                               ),
-                              const SizedBox(height: 16),
-                              Text(
-                                _errorMessage!,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDark ? Colors.white70 : Colors.black87,
-                                ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              const SizedBox(height: 16),
-                              ElevatedButton.icon(
-                                onPressed: _loadCatalog,
-                                icon: const Icon(Icons.refresh_rounded),
-                                label: const Text('Réessayer'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: primary,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 20,
-                                    vertical: 12,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                            ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : _courses.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.menu_book_rounded,
+                          size: 64,
+                          color: isDark ? Colors.white24 : Colors.black26,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Aucun cours trouvé dans ce cycle',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white70 : Colors.black87,
                           ),
                         ),
-                      )
-                    : _courses.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.menu_book_rounded,
-                                  size: 64,
-                                  color: isDark ? Colors.white24 : Colors.black26,
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Aucun cours trouvé dans ce cycle',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark ? Colors.white70 : Colors.black87,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  'Les cours publiés par les enseignants apparaîtront ici.',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: isDark ? Colors.white38 : Colors.black45,
-                                  ),
-                                ),
-                              ],
+                        const SizedBox(height: 6),
+                        Text(
+                          'Les cours publiés par les enseignants apparaîtront ici.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: isDark ? Colors.white38 : Colors.black45,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: _loadCatalog,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final w = constraints.maxWidth;
+                        // Responsive : 1 col mobile, 2 tablette, 3 desktop, 4 large
+                        final cols = w > 1400
+                            ? 4
+                            : w > 1050
+                            ? 3
+                            : w > 650
+                            ? 2
+                            : 1;
+                        final hPad = w > 1200
+                            ? w * 0.08
+                            : w > 800
+                            ? w * 0.05
+                            : 16.0;
+
+                        if (cols == 1) {
+                          return ListView.builder(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: hPad,
+                              vertical: 12,
                             ),
-                          )
-                    : RefreshIndicator(
-                        onRefresh: _loadCatalog,
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            final w = constraints.maxWidth;
-                            // Responsive : 1 col mobile, 2 tablette, 3 desktop, 4 large
-                            final cols = w > 1400 ? 4 : w > 1050 ? 3 : w > 650 ? 2 : 1;
-                            final hPad = w > 1200
-                                ? w * 0.08
-                                : w > 800
-                                    ? w * 0.05
-                                    : 16.0;
-
-                            if (cols == 1) {
-                              return ListView.builder(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: hPad,
-                                  vertical: 12,
-                                ),
-                                itemCount: _courses.length,
-                                itemBuilder: (context, index) {
-                                  final course = _courses[index];
-                                  final isInstalled = customProvider.modules
-                                      .any((m) => m.matiere.id == course.matiereId);
-                                  final isDownloading =
-                                      _downloadingCourseIds.contains(course.id);
-                                  return _buildCourseCard(
-                                    course: course,
-                                    isDark: isDark,
-                                    primary: primary,
-                                    isInstalled: isInstalled,
-                                    isDownloading: isDownloading,
-                                    isGrid: false,
-                                  );
-                                },
+                            itemCount: _courses.length,
+                            itemBuilder: (context, index) {
+                              final course = _courses[index];
+                              final isInstalled = customProvider.modules.any(
+                                (m) => m.matiere.id == course.matiereId,
                               );
-                            }
+                              final isDownloading = _downloadingCourseIds
+                                  .contains(course.id);
+                              return _buildCourseCard(
+                                course: course,
+                                isDark: isDark,
+                                primary: primary,
+                                isInstalled: isInstalled,
+                                isDownloading: isDownloading,
+                                isGrid: false,
+                              );
+                            },
+                          );
+                        }
 
-                            final colWidth =
-                                (w - (2 * hPad) - ((cols - 1) * 16)) / cols;
-                            // Hauteur ciblée pour éviter tout espace blanc en bas
-                            const targetHeight = 365.0;
-                            final childAspectRatio =
-                                (colWidth / targetHeight).clamp(0.60, 2.0);
+                        final colWidth =
+                            (w - (2 * hPad) - ((cols - 1) * 16)) / cols;
+                        // Hauteur ciblée pour éviter tout espace blanc en bas
+                        const targetHeight = 365.0;
+                        final childAspectRatio = (colWidth / targetHeight)
+                            .clamp(0.60, 2.0);
 
-                            return GridView.builder(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: hPad,
-                                vertical: 16,
-                              ),
-                              gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
+                        return GridView.builder(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: hPad,
+                            vertical: 16,
+                          ),
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: cols,
                                 mainAxisSpacing: 16,
                                 crossAxisSpacing: 16,
                                 childAspectRatio: childAspectRatio,
                               ),
-                              itemCount: _courses.length,
-                              itemBuilder: (context, index) {
-                                final course = _courses[index];
-                                final isInstalled = customProvider.modules
-                                    .any((m) => m.matiere.id == course.matiereId);
-                                final isDownloading =
-                                    _downloadingCourseIds.contains(course.id);
-                                return _buildCourseCard(
-                                  course: course,
-                                  isDark: isDark,
-                                  primary: primary,
-                                  isInstalled: isInstalled,
-                                  isDownloading: isDownloading,
-                                  isGrid: true,
-                                );
-                              },
+                          itemCount: _courses.length,
+                          itemBuilder: (context, index) {
+                            final course = _courses[index];
+                            final isInstalled = customProvider.modules.any(
+                              (m) => m.matiere.id == course.matiereId,
+                            );
+                            final isDownloading = _downloadingCourseIds
+                                .contains(course.id);
+                            return _buildCourseCard(
+                              course: course,
+                              isDark: isDark,
+                              primary: primary,
+                              isInstalled: isInstalled,
+                              isDownloading: isDownloading,
+                              isGrid: true,
                             );
                           },
-                        ),
-                      ),
+                        );
+                      },
+                    ),
+                  ),
           ),
         ],
       ),
@@ -489,14 +513,19 @@ class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
                   ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF2ECC71),
-                    side: const BorderSide(color: Color(0xFF2ECC71), width: 1.5),
+                    side: const BorderSide(
+                      color: Color(0xFF2ECC71),
+                      width: 1.5,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
                 )
               : ElevatedButton.icon(
-                  onPressed: isDownloading ? null : () => _downloadCourse(course),
+                  onPressed: isDownloading
+                      ? null
+                      : () => _downloadCourse(course),
                   icon: isDownloading
                       ? const SizedBox(
                           width: 18,
@@ -555,7 +584,12 @@ class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                _buildCourseCover(course: course, couleur: couleur, icone: icone, isDark: isDark),
+                _buildCourseCover(
+                  course: course,
+                  couleur: couleur,
+                  icone: icone,
+                  isDark: isDark,
+                ),
                 // Gradient overlay en bas de la couverture
                 Positioned.fill(
                   child: DecoratedBox(
@@ -582,7 +616,8 @@ class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
                         label: course.schoolLevel.toUpperCase(),
                         color: const Color(0xFFE67E22),
                       ),
-                      if (course.classe != null && course.classe!.trim().isNotEmpty) ...[
+                      if (course.classe != null &&
+                          course.classe!.trim().isNotEmpty) ...[
                         const SizedBox(width: 6),
                         _buildHeaderTag(
                           label: course.classe!.trim(),
@@ -597,7 +632,10 @@ class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
                   top: 12,
                   right: 12,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFF2ECC71),
                       borderRadius: BorderRadius.circular(12),
@@ -693,7 +731,9 @@ class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
       if (cover.startsWith('data:image')) {
         try {
           final commaIdx = cover.indexOf(',');
-          final base64Str = commaIdx != -1 ? cover.substring(commaIdx + 1) : cover;
+          final base64Str = commaIdx != -1
+              ? cover.substring(commaIdx + 1)
+              : cover;
           final bytes = base64Decode(base64Str);
           return Image.memory(bytes, fit: BoxFit.cover);
         } catch (_) {}
@@ -747,10 +787,7 @@ class _CatalogueCoursesPageState extends State<CatalogueCoursesPage> {
         color: color.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 4,
-          ),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4),
         ],
       ),
       child: Text(
