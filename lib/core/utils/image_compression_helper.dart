@@ -4,63 +4,95 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 
-/// Utilitaire de compression d'images équilibrée (non agressive)
-/// pour optimiser les temps de chargement et le stockage des cours.
-class ImageCompressionHelper {
-  static const int defaultMaxWidth = 1080;
-  static const int defaultMaxHeight = 720;
-  static const int defaultQuality = 80; // Compression douce (80%), qualité visuelle préservée
+// ─────────────────────────────────────────────────────────────────────────────
+// Paramètres
+// ─────────────────────────────────────────────────────────────────────────────
 
-  /// Sélectionne une image depuis la galerie ou la caméra avec compression modérée intégrée.
+const _kMaxWidth = 960;
+const _kMaxHeight = 640;
+const _kQuality = 78; // qualité JPEG pour ImagePicker
+const _kMaxBytes = 350 * 1024; // 350 Ko — seuil avant 2ème passe
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Traitement dans un isolate séparé (fonction top-level obligatoire)
+// ─────────────────────────────────────────────────────────────────────────────
+
+Future<Uint8List> _resizeInIsolate(Uint8List bytes) async {
+  ui.Codec? codec;
+  ui.FrameInfo? frame;
+  try {
+    codec = await ui.instantiateImageCodec(
+      bytes,
+      targetWidth: _kMaxWidth,
+      targetHeight: _kMaxHeight,
+    );
+    frame = await codec.getNextFrame();
+    final data = await frame.image.toByteData(format: ui.ImageByteFormat.png);
+    if (data != null) return data.buffer.asUint8List();
+  } catch (e) {
+    debugPrint('[ImageCompression] isolate error: $e');
+  } finally {
+    // Libération explicite des ressources GPU — crucial pour éviter le crash
+    try {
+      frame?.image.dispose();
+    } catch (_) {}
+    try {
+      codec?.dispose();
+    } catch (_) {}
+  }
+  return bytes; // fallback : retourne les bytes d'origine
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper public
+// ─────────────────────────────────────────────────────────────────────────────
+
+class ImageCompressionHelper {
+  /// Sélectionne et compresse une image de couverture.
+  ///
+  /// Étape 1 : ImagePicker réduit déjà à 960×640 + qualité 78
+  ///           → résultat JPEG typiquement < 200 Ko
+  /// Étape 2 : Si encore > 350 Ko (ex. format PNG/HEIC depuis galerie),
+  ///           on redimensionne dans un `compute()` isolate pour ne JAMAIS
+  ///           bloquer ni crasher le thread principal
   static Future<String?> pickAndCompressCoverImage(ImageSource source) async {
     try {
       final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(
+      final picked = await picker.pickImage(
         source: source,
-        maxWidth: defaultMaxWidth.toDouble(),
-        maxHeight: defaultMaxHeight.toDouble(),
-        imageQuality: defaultQuality,
+        maxWidth: _kMaxWidth.toDouble(),
+        maxHeight: _kMaxHeight.toDouble(),
+        imageQuality: _kQuality,
       );
 
-      if (pickedFile == null) return null;
+      if (picked == null) return null;
 
-      final file = File(pickedFile.path);
-      Uint8List bytes = await file.readAsBytes();
+      Uint8List bytes = await File(picked.path).readAsBytes();
 
-      // Si le fichier dépasse 400 Ko (cas de certaines plateformes de bureau),
-      // appliquer un redimensionnement via le moteur graphique
-      if (bytes.lengthInBytes > 400 * 1024) {
-        bytes = await compressRawBytes(bytes, maxWidth: 960, maxHeight: 600);
+      // Recompression uniquement si le fichier est encore trop lourd
+      if (bytes.lengthInBytes > _kMaxBytes) {
+        bytes = await compute(_resizeInIsolate, bytes);
       }
 
-      final base64String = base64Encode(bytes);
-      return 'data:image/jpeg;base64,$base64String';
+      return 'data:image/jpeg;base64,${base64Encode(bytes)}';
     } catch (e) {
-      debugPrint('Erreur lors de la sélection et compression de l\'image : $e');
+      debugPrint('[ImageCompression] pick error: $e');
       return null;
     }
   }
 
-  /// Redimensionne des octets bruts d'image sans dépendance externe
+  /// Compresse des bytes bruts dans un isolate.
   static Future<Uint8List> compressRawBytes(
     Uint8List bytes, {
-    int maxWidth = defaultMaxWidth,
-    int maxHeight = defaultMaxHeight,
+    int maxWidth = _kMaxWidth,
+    int maxHeight = _kMaxHeight,
   }) async {
+    if (bytes.lengthInBytes <= _kMaxBytes) return bytes;
     try {
-      final codec = await ui.instantiateImageCodec(
-        bytes,
-        targetWidth: maxWidth,
-        targetHeight: maxHeight,
-      );
-      final frame = await codec.getNextFrame();
-      final byteData = await frame.image.toByteData(format: ui.ImageByteFormat.png);
-      if (byteData != null) {
-        return byteData.buffer.asUint8List();
-      }
+      return await compute(_resizeInIsolate, bytes);
     } catch (e) {
-      debugPrint('Fallback compression bytes : $e');
+      debugPrint('[ImageCompression] compressRawBytes error: $e');
+      return bytes;
     }
-    return bytes;
   }
 }
