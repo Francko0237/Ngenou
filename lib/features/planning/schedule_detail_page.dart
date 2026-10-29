@@ -609,6 +609,7 @@ class _WeekScheduleTableState extends State<_WeekScheduleTable> {
   late final TransformationController _transController;
   double _currentScale = 1.0;
   bool _initializedFit = false;
+  Size _viewportSize = Size.zero;
 
   static const double _hourColWidth = 65.0;
   static const double _dayColWidth = 135.0;
@@ -640,10 +641,30 @@ class _WeekScheduleTableState extends State<_WeekScheduleTable> {
   }
 
   void _zoom(double factor) {
-    final current = _transController.value.getMaxScaleOnAxis();
-    final newScale = (current * factor).clamp(0.25, 2.5);
+    final currentScale = _transController.value.getMaxScaleOnAxis();
+    final newScale = (currentScale * factor).clamp(0.25, 3.0);
+    final actualFactor = newScale / currentScale;
+    if ((actualFactor - 1.0).abs() < 0.001) return;
+
+    final focalPoint = Offset(
+      _viewportSize.width > 0 ? _viewportSize.width / 2 : 180,
+      _viewportSize.height > 0 ? _viewportSize.height / 2 : 240,
+    );
+
+    final scenePointBefore = _transController.toScene(focalPoint);
+
+    final matrix = _transController.value.clone();
+    matrix.scaleByDouble(actualFactor, actualFactor, 1.0, 1.0);
+    _transController.value = matrix;
+
+    final scenePointAfter = _transController.toScene(focalPoint);
+    final dx = scenePointAfter.dx - scenePointBefore.dx;
+    final dy = scenePointAfter.dy - scenePointBefore.dy;
+
+    matrix.translateByDouble(dx, dy, 0.0, 1.0);
+    _transController.value = matrix;
+
     setState(() {
-      _transController.value = Matrix4.diagonal3Values(newScale, newScale, 1.0);
       _currentScale = newScale;
     });
   }
@@ -719,6 +740,7 @@ class _WeekScheduleTableState extends State<_WeekScheduleTable> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final availableWidth = constraints.maxWidth;
+        _viewportSize = Size(availableWidth, containerHeight);
 
         // Auto-fit initial pour que la semaine entière soit immédiatement visible
         if (!_initializedFit && availableWidth > 0) {
@@ -808,7 +830,6 @@ class _WeekScheduleTableState extends State<_WeekScheduleTable> {
                             ],
                           ),
                         ),
-                        // (fullscreen déplacé dans barre zoom)
                       ],
                     ),
                     const SizedBox(height: 10),
@@ -816,8 +837,8 @@ class _WeekScheduleTableState extends State<_WeekScheduleTable> {
                     // ─── Barre de contrôle du Zoom ─────────────────────────
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
+                        horizontal: 8,
+                        vertical: 3,
                       ),
                       decoration: BoxDecoration(
                         color: widget.isDark
@@ -829,54 +850,72 @@ class _WeekScheduleTableState extends State<_WeekScheduleTable> {
                         ),
                       ),
                       child: Row(
-                        mainAxisSize: MainAxisSize.max,
                         children: [
                           // Bouton Dézoomer (-)
-                          _zoomIconBtn(Icons.remove_circle_outline_rounded, () => _zoom(0.8)),
-                          // Badge pourcentage
-                          Flexible(
-                            child: InkWell(
-                              onTap: () {
-                                if (_currentScale < 0.7) {
-                                  _resetZoom();
-                                } else {
-                                  _fitToWidth(availableWidth, tableWidth);
-                                }
-                              },
+                          _zoomIconBtn(
+                            Icons.remove_circle_outline_rounded,
+                            () => _zoom(0.8),
+                            tooltip: 'Dézoomer',
+                          ),
+                          const SizedBox(width: 4),
+                          // Badge pourcentage (statique, pas d'onTap parasite)
+                          Container(
+                            constraints: const BoxConstraints(minWidth: 46),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: widget.primary.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(8),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: widget.primary.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  '${(_currentScale * 100).toInt()}%',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    color: widget.primary,
-                                  ),
-                                ),
+                            ),
+                            child: Text(
+                              '${(_currentScale * 100).toInt()}%',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: widget.primary,
                               ),
                             ),
                           ),
-                          // Bouton Zoomer (+)
-                          _zoomIconBtn(Icons.add_circle_outline_rounded, () => _zoom(1.25)),
                           const SizedBox(width: 4),
+                          // Bouton Zoomer (+)
+                          _zoomIconBtn(
+                            Icons.add_circle_outline_rounded,
+                            () => _zoom(1.25),
+                            tooltip: 'Zoomer',
+                          ),
+                          const Spacer(),
                           // Séparateur
                           Container(width: 1, height: 20, color: borderColor),
                           const SizedBox(width: 4),
                           // Bouton Ajuster
-                          _zoomIconBtn(Icons.fit_screen_rounded, () => _fitToWidth(availableWidth, tableWidth), color: widget.primary),
+                          _zoomIconBtn(
+                            Icons.fit_screen_rounded,
+                            () => _fitToWidth(availableWidth, tableWidth),
+                            color: widget.primary,
+                            tooltip: 'Ajuster à l\'écran',
+                          ),
                           // Bouton reset 100%
-                          _zoomIconBtn(Icons.crop_free_rounded, _resetZoom, color: textMuted ?? Colors.grey),
+                          _zoomIconBtn(
+                            Icons.crop_free_rounded,
+                            _resetZoom,
+                            color: textMuted ?? Colors.grey,
+                            tooltip: 'Taille 100%',
+                          ),
                           // Bouton Plein Écran
-                          _zoomIconBtn(Icons.open_in_full_rounded, () => _openFullscreen(context, tableWidth, minHour, hourRowsCount), color: widget.primary),
+                          _zoomIconBtn(
+                            Icons.open_in_full_rounded,
+                            () => _openFullscreen(
+                              context,
+                              tableWidth,
+                              minHour,
+                              hourRowsCount,
+                            ),
+                            color: widget.primary,
+                            tooltip: 'Plein écran',
+                          ),
                         ],
                       ),
                     ),
@@ -1015,12 +1054,18 @@ class _WeekScheduleTableState extends State<_WeekScheduleTable> {
       );
   }
 
-  Widget _zoomIconBtn(IconData icon, VoidCallback onPressed, {Color? color}) {
+  Widget _zoomIconBtn(
+    IconData icon,
+    VoidCallback onPressed, {
+    Color? color,
+    String? tooltip,
+  }) {
     return IconButton(
       icon: Icon(icon, size: 20, color: color),
+      tooltip: tooltip,
       visualDensity: VisualDensity.compact,
       padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
       onPressed: onPressed,
     );
   }
@@ -1302,11 +1347,29 @@ class _FullscreenSchedulePageState extends State<_FullscreenSchedulePage> {
   }
 
   void _zoom(double factor) {
-    final current = _controller.value.getMaxScaleOnAxis();
-    final next = (current * factor).clamp(0.25, 3.0);
+    final currentScale = _controller.value.getMaxScaleOnAxis();
+    final nextScale = (currentScale * factor).clamp(0.25, 3.5);
+    final actualFactor = nextScale / currentScale;
+    if ((actualFactor - 1.0).abs() < 0.001) return;
+
+    final size = MediaQuery.of(context).size;
+    final focalPoint = Offset(size.width / 2, size.height / 2);
+
+    final scenePointBefore = _controller.toScene(focalPoint);
+
+    final matrix = _controller.value.clone();
+    matrix.scaleByDouble(actualFactor, actualFactor, 1.0, 1.0);
+    _controller.value = matrix;
+
+    final scenePointAfter = _controller.toScene(focalPoint);
+    final dx = scenePointAfter.dx - scenePointBefore.dx;
+    final dy = scenePointAfter.dy - scenePointBefore.dy;
+
+    matrix.translateByDouble(dx, dy, 0.0, 1.0);
+    _controller.value = matrix;
+
     setState(() {
-      _controller.value = Matrix4.diagonal3Values(next, next, 1.0);
-      _scale = next;
+      _scale = nextScale;
     });
   }
 
@@ -1340,7 +1403,9 @@ class _FullscreenSchedulePageState extends State<_FullscreenSchedulePage> {
             tooltip: 'Dézoomer',
             onPressed: () => _zoom(0.8),
           ),
-          Center(
+          Container(
+            constraints: const BoxConstraints(minWidth: 44),
+            alignment: Alignment.center,
             child: Text(
               '${(_scale * 100).toInt()}%',
               style: const TextStyle(
