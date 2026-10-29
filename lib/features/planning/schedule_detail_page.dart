@@ -26,6 +26,10 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
   late StudySchedule _schedule;
   ScheduleProvider? _scheduleProvider;
 
+  // ScrollController pour bloquer le scroll quand l'utilisateur interagit avec un tableau
+  final ScrollController _listScrollController = ScrollController();
+  bool _tableGestureLocked = false;
+
   // Cache des jours de la période
   List<DateTime>? _daysCache;
   StudySchedule? _scheduleForCache;
@@ -48,6 +52,7 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
   @override
   void dispose() {
     _scheduleProvider?.removeListener(_onScheduleUpdated);
+    _listScrollController.dispose();
     super.dispose();
   }
 
@@ -103,14 +108,31 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
     return _daysCache!;
   }
 
-  // Découpage en intervalles stricts de 7 jours
+  // Découpage en semaines ISO (Lundi → Dimanche)
   List<List<DateTime>> get _weeksInPeriod {
     final days = _daysInPeriod;
     if (days.isEmpty) return [];
+
+    // Trouver le Lundi de la semaine du premier jour
+    final firstDay = days.first;
+    // weekday: 1=Lun … 7=Dim
+    final mondayOffset = (firstDay.weekday - 1);
+    var monday = firstDay.subtract(Duration(days: mondayOffset));
+
+    // Trouver le Dimanche de la semaine du dernier jour
+    final lastDay = days.last;
+    final sundayOffset = (7 - lastDay.weekday) % 7;
+    final sunday = lastDay.add(Duration(days: sundayOffset));
+
     final weeks = <List<DateTime>>[];
-    for (var i = 0; i < days.length; i += 7) {
-      final end = (i + 7 < days.length) ? i + 7 : days.length;
-      weeks.add(days.sublist(i, end));
+    var cursor = monday;
+    while (!cursor.isAfter(sunday)) {
+      final week = <DateTime>[];
+      for (var i = 0; i < 7; i++) {
+        week.add(cursor.add(Duration(days: i)));
+      }
+      weeks.add(week);
+      cursor = cursor.add(const Duration(days: 7));
     }
     return weeks;
   }
@@ -484,23 +506,32 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
       backgroundColor:
           isDark ? const Color(0xFF121212) : const Color(0xFFF4F6F9),
       appBar: AppBar(
-        title: Text(_schedule.titre),
+        title: Text(
+          _schedule.titre,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            fontSize: 17,
+          ),
+        ),
         backgroundColor: isDark ? const Color(0xFF1F1F1F) : primary,
         foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
+        actionsIconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.picture_as_pdf_rounded),
+            icon: const Icon(Icons.picture_as_pdf_rounded, color: Colors.white),
             tooltip: 'Exporter en PDF / Imprimer',
             onPressed: _loading ? null : _exportPdf,
           ),
           IconButton(
-            icon: const Icon(Icons.edit_rounded),
+            icon: const Icon(Icons.edit_rounded, color: Colors.white),
             tooltip: 'Modifier',
             onPressed: _openEdit,
           ),
           IconButton(
-            icon: const Icon(Icons.refresh_rounded),
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
             onPressed: _load,
           ),
         ],
@@ -517,6 +548,10 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
                   ),
                 )
               : ListView.builder(
+                  controller: _listScrollController,
+                  physics: _tableGestureLocked
+                      ? const NeverScrollableScrollPhysics()
+                      : const ClampingScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(16, 20, 16, 80),
                   itemCount: weeks.length,
                   itemBuilder: (context, weekIdx) {
@@ -531,6 +566,11 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
                         onTaskTap: _showTaskDetailDialog,
                         isDark: isDark,
                         primary: primary,
+                        onScrollLockChange: (locked) {
+                          if (_tableGestureLocked != locked) {
+                            setState(() => _tableGestureLocked = locked);
+                          }
+                        },
                       ),
                     );
                   },
@@ -539,8 +579,8 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
   }
 }
 
-/// Widget représentant une table spatiale complète de 7 jours (style PDF)
-class _WeekScheduleTable extends StatelessWidget {
+/// Widget représentant une table spatiale complète de 7 jours (style PDF) avec Zoom interactif
+class _WeekScheduleTable extends StatefulWidget {
   final int weekIndex;
   final List<DateTime> weekDays;
   final StudySchedule schedule;
@@ -548,6 +588,7 @@ class _WeekScheduleTable extends StatelessWidget {
   final void Function(StudyTask task) onTaskTap;
   final bool isDark;
   final Color primary;
+  final void Function(bool locked) onScrollLockChange;
 
   const _WeekScheduleTable({
     required this.weekIndex,
@@ -557,179 +598,430 @@ class _WeekScheduleTable extends StatelessWidget {
     required this.onTaskTap,
     required this.isDark,
     required this.primary,
+    required this.onScrollLockChange,
   });
 
   @override
+  State<_WeekScheduleTable> createState() => _WeekScheduleTableState();
+}
+
+class _WeekScheduleTableState extends State<_WeekScheduleTable> {
+  late final TransformationController _transController;
+  double _currentScale = 1.0;
+  bool _initializedFit = false;
+
+  static const double _hourColWidth = 65.0;
+  static const double _dayColWidth = 135.0;
+  static const double _hourRowHeight = 72.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _transController = TransformationController();
+    _transController.addListener(_onTransformChanged);
+  }
+
+  @override
+  void dispose() {
+    _transController.removeListener(_onTransformChanged);
+    _transController.dispose();
+    super.dispose();
+  }
+
+  void _onTransformChanged() {
+    final scale = _transController.value.getMaxScaleOnAxis();
+    if ((scale - _currentScale).abs() > 0.02) {
+      if (mounted) {
+        setState(() {
+          _currentScale = scale;
+        });
+      }
+    }
+  }
+
+  void _zoom(double factor) {
+    final current = _transController.value.getMaxScaleOnAxis();
+    final newScale = (current * factor).clamp(0.25, 2.5);
+    setState(() {
+      _transController.value = Matrix4.diagonal3Values(newScale, newScale, 1.0);
+      _currentScale = newScale;
+    });
+  }
+
+  void _fitToWidth(double availableWidth, double tableWidth) {
+    final targetScale = (availableWidth / tableWidth).clamp(0.25, 1.0);
+    setState(() {
+      _transController.value =
+          Matrix4.diagonal3Values(targetScale, targetScale, 1.0);
+      _currentScale = targetScale;
+    });
+  }
+
+  void _resetZoom() {
+    setState(() {
+      _transController.value = Matrix4.identity();
+      _currentScale = 1.0;
+    });
+  }
+
+
+  void _openFullscreen(
+    BuildContext context,
+    double tableWidth,
+    int minHour,
+    int hourRowsCount,
+  ) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (ctx) => _FullscreenSchedulePage(
+          weekIndex: widget.weekIndex,
+          weekDays: widget.weekDays,
+          schedule: widget.schedule,
+          tasksForDay: widget.tasksForDay,
+          onTaskTap: widget.onTaskTap,
+          isDark: widget.isDark,
+          primary: widget.primary,
+          minHour: minHour,
+          hourRowsCount: hourRowsCount,
+          tableWidth: tableWidth,
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final startDay = weekDays.first;
-    final endDay = weekDays.last;
-    final allWeekTasks = weekDays.expand((d) => tasksForDay(d)).toList();
+    final startDay = widget.weekDays.first;
+    final endDay = widget.weekDays.last;
+    final allWeekTasks = widget.weekDays.expand((d) => widget.tasksForDay(d)).toList();
 
     // Déterminer la plage horaire dynamique (entre minHour et maxHour)
     int minHour = 7;
     int maxHour = 21;
     for (final t in allWeekTasks) {
       if (t.scheduledAt.hour < minHour) minHour = t.scheduledAt.hour;
-      final endH =
-          t.scheduledAt.add(Duration(minutes: t.durationMinutes)).hour;
+      final endH = t.scheduledAt.add(Duration(minutes: t.durationMinutes)).hour;
       if (endH > maxHour) maxHour = (endH <= 23 ? endH : 23);
     }
     final hourRowsCount = (maxHour - minHour) + 1;
+    final tableWidth = _hourColWidth + (widget.weekDays.length * _dayColWidth) + 24.0;
 
-    final cardBg = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final cardBg = widget.isDark ? const Color(0xFF1E1E1E) : Colors.white;
     final borderColor =
-        isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE2E8F0);
-    final textMain = isDark ? Colors.white : const Color(0xFF1E293B);
-    final textMuted = isDark ? Colors.grey[400] : const Color(0xFF64748B);
+        widget.isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE2E8F0);
+    final textMain = widget.isDark ? Colors.white : const Color(0xFF1E293B);
+    final textMuted =
+        widget.isDark ? Colors.grey[400] : const Color(0xFF64748B);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: borderColor, width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+    final screenHeight = MediaQuery.of(context).size.height;
+    final containerHeight = (screenHeight * 0.58).clamp(420.0, 580.0);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+
+        // Auto-fit initial pour que la semaine entière soit immédiatement visible
+        if (!_initializedFit && availableWidth > 0) {
+          _initializedFit = true;
+          final initialScale = (availableWidth / tableWidth).clamp(0.28, 0.95);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() {
+                _transController.value =
+                    Matrix4.diagonal3Values(initialScale, initialScale, 1.0);
+                _currentScale = initialScale;
+              });
+            }
+          });
+        }
+
+        return Container(
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: borderColor, width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: widget.isDark ? 0.35 : 0.06),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // ─── En-tête de la semaine (Semaine X + Plage de dates) ───────────
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? const Color(0xFF252525)
-                  : primary.withValues(alpha: 0.06),
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(20)),
-              border: Border(bottom: BorderSide(color: borderColor)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: primary,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    'Semaine ${weekIndex + 1}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 13,
-                    ),
-                  ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ─── En-tête de la semaine + Barre d'outils Zoom ───────────
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: widget.isDark
+                      ? const Color(0xFF252525)
+                      : widget.primary.withValues(alpha: 0.06),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(20)),
+                  border: Border(bottom: BorderSide(color: borderColor)),
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Du ${TaskFormat.shortDate(startDay)} au ${TaskFormat.shortDate(endDay)}',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: textMain,
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: widget.primary,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'Semaine ${widget.weekIndex + 1}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12.5,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Du ${TaskFormat.shortDate(startDay)} au ${TaskFormat.shortDate(endDay)}',
+                                style: TextStyle(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: textMain,
+                                ),
+                              ),
+                              Text(
+                                '${allWeekTasks.length} créneaux planifiés',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: textMuted,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // (fullscreen déplacé dans barre zoom)
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // ─── Barre de contrôle du Zoom ─────────────────────────
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: widget.isDark
+                            ? Colors.black26
+                            : Colors.white.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: borderColor.withValues(alpha: 0.6),
                         ),
                       ),
-                      Text(
-                        '${allWeekTasks.length} créneaux planifiés cette semaine',
+                      child: Row(
+                        mainAxisSize: MainAxisSize.max,
+                        children: [
+                          // Bouton Dézoomer (-)
+                          _zoomIconBtn(Icons.remove_circle_outline_rounded, () => _zoom(0.8)),
+                          // Badge pourcentage
+                          Flexible(
+                            child: InkWell(
+                              onTap: () {
+                                if (_currentScale < 0.7) {
+                                  _resetZoom();
+                                } else {
+                                  _fitToWidth(availableWidth, tableWidth);
+                                }
+                              },
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: widget.primary.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '${(_currentScale * 100).toInt()}%',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: widget.primary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          // Bouton Zoomer (+)
+                          _zoomIconBtn(Icons.add_circle_outline_rounded, () => _zoom(1.25)),
+                          const SizedBox(width: 4),
+                          // Séparateur
+                          Container(width: 1, height: 20, color: borderColor),
+                          const SizedBox(width: 4),
+                          // Bouton Ajuster
+                          _zoomIconBtn(Icons.fit_screen_rounded, () => _fitToWidth(availableWidth, tableWidth), color: widget.primary),
+                          // Bouton reset 100%
+                          _zoomIconBtn(Icons.crop_free_rounded, _resetZoom, color: textMuted ?? Colors.grey),
+                          // Bouton Plein Écran
+                          _zoomIconBtn(Icons.open_in_full_rounded, () => _openFullscreen(context, tableWidth, minHour, hourRowsCount), color: widget.primary),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ─── Mini guide d'interaction ──────────────────────────────
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                color: widget.isDark
+                    ? const Color(0xFF1A1A1A)
+                    : const Color(0xFFF8FAFC),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.touch_app_rounded,
+                      size: 14,
+                      color: textMuted,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Pincez pour zoomer • Glissez pour explorer • 2x tap pour basculer',
                         style: TextStyle(
-                          fontSize: 12.5,
+                          fontSize: 11,
                           color: textMuted,
                           fontWeight: FontWeight.w500,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-
-          // ─── Grille Spatiale (7 Jours x Heures) avec défilement horizontal ──
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Ligne d'en-tête (Colonnes des jours)
-                  Row(
-                    children: [
-                      // Colonne heure
-                      _headerCell(
-                        text: 'Heure',
-                        width: 65,
-                        isDark: isDark,
-                        borderColor: borderColor,
-                        isAxis: true,
-                      ),
-                      // 7 colonnes pour les jours
-                      ...weekDays.map((d) {
-                        final isToday =
-                            TaskFormat.isSameDay(d, DateTime.now());
-                        return _dayHeaderCell(
-                          day: d,
-                          width: 135,
-                          isToday: isToday,
-                          primary: primary,
-                          isDark: isDark,
-                          borderColor: borderColor,
-                        );
-                      }),
-                    ],
-                  ),
-
-                  // Lignes des heures
-                  ...List.generate(hourRowsCount, (rowIdx) {
-                    final hour = minHour + rowIdx;
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Cellule heure (Axe vertical)
-                        _timeCell(
-                          hour: hour,
-                          width: 65,
-                          height: 72,
-                          isDark: isDark,
-                          borderColor: borderColor,
-                        ),
-                        // 7 cellules pour chaque jour
-                        ...weekDays.map((d) {
-                          final dayTasks = tasksForDay(d);
-                          final hourTasks = dayTasks
-                              .where((t) => t.scheduledAt.hour == hour)
-                              .toList();
-                          return _dayHourCell(
-                            context: context,
-                            tasks: hourTasks,
-                            width: 135,
-                            height: 72,
-                            isDark: isDark,
-                            borderColor: borderColor,
-                            onTaskTap: onTaskTap,
-                          );
-                        }),
-                      ],
-                    );
-                  }),
-                ],
               ),
+
+              // ─── Grille Spatiale Zoomable & Déplaçable (InteractiveViewer) ─
+              // Le Listener capture les pointer events pour bloquer le scroll
+              // de la ListView parente pendant que l'utilisateur interagit ici.
+              Listener(
+                behavior: HitTestBehavior.opaque,
+                onPointerDown: (_) => widget.onScrollLockChange(true),
+                onPointerUp: (_) => widget.onScrollLockChange(false),
+                onPointerCancel: (_) => widget.onScrollLockChange(false),
+                child: SizedBox(
+                height: containerHeight,
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(20),
+                  ),
+                  child: InteractiveViewer(
+                    transformationController: _transController,
+                    constrained: false,
+                    // Pas de boundaryMargin pour éviter de bloquer le pan
+                    boundaryMargin: const EdgeInsets.all(double.infinity),
+                    minScale: 0.20,
+                    maxScale: 3.0,
+                    panEnabled: true,
+                    scaleEnabled: true,
+                    clipBehavior: Clip.none,
+                    child: SizedBox(
+                        width: tableWidth,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Ligne d'en-tête (Colonnes des jours)
+                              Row(
+                                children: [
+                                  _headerCell(
+                                    text: 'Heure',
+                                    width: _hourColWidth,
+                                    isDark: widget.isDark,
+                                    borderColor: borderColor,
+                                  ),
+                                  ...widget.weekDays.map((d) {
+                                    final isToday =
+                                        TaskFormat.isSameDay(d, DateTime.now());
+                                    return _dayHeaderCell(
+                                      day: d,
+                                      width: _dayColWidth,
+                                      isToday: isToday,
+                                      primary: widget.primary,
+                                      isDark: widget.isDark,
+                                      borderColor: borderColor,
+                                    );
+                                  }),
+                                ],
+                              ),
+
+                              // Lignes des heures
+                              ...List.generate(hourRowsCount, (rowIdx) {
+                                final hour = minHour + rowIdx;
+                                return Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _timeCell(
+                                      hour: hour,
+                                      width: _hourColWidth,
+                                      height: _hourRowHeight,
+                                      isDark: widget.isDark,
+                                      borderColor: borderColor,
+                                    ),
+                                    ...widget.weekDays.map((d) {
+                                      final dayTasks = widget.tasksForDay(d);
+                                      final hourTasks = dayTasks
+                                          .where((t) => t.scheduledAt.hour == hour)
+                                          .toList();
+                                      return _dayHourCell(
+                                        context: context,
+                                        tasks: hourTasks,
+                                        width: _dayColWidth,
+                                        height: _hourRowHeight,
+                                        isDark: widget.isDark,
+                                        borderColor: borderColor,
+                                        onTaskTap: widget.onTaskTap,
+                                      );
+                                    }),
+                                  ],
+                                );
+                              }),
+                            ],
+                          ),
+                        ),
+                      ),  // SizedBox (InteractiveViewer child)
+                    ),  // InteractiveViewer
+                  ),  // ClipRRect
+                ),  // SizedBox (height)
+              ),  // Listener (scroll lock)
+            ],
             ),
-          ),
-        ],
-      ),
+          );
+        },
+      );
+  }
+
+  Widget _zoomIconBtn(IconData icon, VoidCallback onPressed, {Color? color}) {
+    return IconButton(
+      icon: Icon(icon, size: 20, color: color),
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      onPressed: onPressed,
     );
   }
 
@@ -738,16 +1030,13 @@ class _WeekScheduleTable extends StatelessWidget {
     required double width,
     required bool isDark,
     required Color borderColor,
-    bool isAxis = false,
   }) {
     return Container(
       width: width,
       height: 48,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: isDark
-            ? const Color(0xFF232323)
-            : const Color(0xFFF1F5F9),
+        color: isDark ? const Color(0xFF232323) : const Color(0xFFF1F5F9),
         border: Border.all(color: borderColor, width: 0.8),
       ),
       child: Text(
@@ -822,9 +1111,7 @@ class _WeekScheduleTable extends StatelessWidget {
       height: height,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: isDark
-            ? const Color(0xFF1B1B1B)
-            : const Color(0xFFF8FAFC),
+        color: isDark ? const Color(0xFF1B1B1B) : const Color(0xFFF8FAFC),
         border: Border.all(color: borderColor, width: 0.8),
       ),
       child: Text(
@@ -939,3 +1226,388 @@ class _WeekScheduleTable extends StatelessWidget {
     );
   }
 }
+
+/// Page immersive Plein Écran pour explorer la grille spatiale en toute liberté
+class _FullscreenSchedulePage extends StatefulWidget {
+  final int weekIndex;
+  final List<DateTime> weekDays;
+  final StudySchedule schedule;
+  final List<StudyTask> Function(DateTime day) tasksForDay;
+  final void Function(StudyTask task) onTaskTap;
+  final bool isDark;
+  final Color primary;
+  final int minHour;
+  final int hourRowsCount;
+  final double tableWidth;
+
+  const _FullscreenSchedulePage({
+    required this.weekIndex,
+    required this.weekDays,
+    required this.schedule,
+    required this.tasksForDay,
+    required this.onTaskTap,
+    required this.isDark,
+    required this.primary,
+    required this.minHour,
+    required this.hourRowsCount,
+    required this.tableWidth,
+  });
+
+  @override
+  State<_FullscreenSchedulePage> createState() =>
+      _FullscreenSchedulePageState();
+}
+
+class _FullscreenSchedulePageState extends State<_FullscreenSchedulePage> {
+  static const double _hourColWidth = 65.0;
+  static const double _dayColWidth = 135.0;
+  static const double _hourRowHeight = 72.0;
+  static const double _horizontalPadding = 16.0;
+
+  double get _calculatedTableWidth =>
+      _hourColWidth +
+      (widget.weekDays.length * _dayColWidth) +
+      (_horizontalPadding * 2);
+
+  late final TransformationController _controller;
+  double _scale = 1.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TransformationController();
+    _controller.addListener(() {
+      final s = _controller.value.getMaxScaleOnAxis();
+      if ((s - _scale).abs() > 0.02) {
+        if (mounted) setState(() => _scale = s);
+      }
+    });
+
+    // Auto-fit plein écran
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final size = MediaQuery.of(context).size;
+      final target = (size.width / _calculatedTableWidth).clamp(0.25, 1.2);
+      setState(() {
+        _controller.value = Matrix4.diagonal3Values(target, target, 1.0);
+        _scale = target;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _zoom(double factor) {
+    final current = _controller.value.getMaxScaleOnAxis();
+    final next = (current * factor).clamp(0.25, 3.0);
+    setState(() {
+      _controller.value = Matrix4.diagonal3Values(next, next, 1.0);
+      _scale = next;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final startDay = widget.weekDays.first;
+    final endDay = widget.weekDays.last;
+    final borderColor =
+        widget.isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE2E8F0);
+
+    return Scaffold(
+      backgroundColor:
+          widget.isDark ? const Color(0xFF121212) : const Color(0xFFF4F6F9),
+      appBar: AppBar(
+        title: Text(
+          'Semaine ${widget.weekIndex + 1} (${TaskFormat.shortDate(startDay)} - ${TaskFormat.shortDate(endDay)})',
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        backgroundColor:
+            widget.isDark ? const Color(0xFF1E1E1E) : widget.primary,
+        foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
+        actionsIconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.zoom_out_rounded, color: Colors.white),
+            tooltip: 'Dézoomer',
+            onPressed: () => _zoom(0.8),
+          ),
+          Center(
+            child: Text(
+              '${(_scale * 100).toInt()}%',
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.zoom_in_rounded, color: Colors.white),
+            tooltip: 'Zoomer',
+            onPressed: () => _zoom(1.25),
+          ),
+          IconButton(
+            icon: const Icon(Icons.fit_screen_rounded, color: Colors.white),
+            tooltip: 'Ajuster',
+            onPressed: () {
+              final size = MediaQuery.of(context).size;
+              final target =
+                  (size.width / _calculatedTableWidth).clamp(0.25, 1.2);
+              setState(() {
+                _controller.value =
+                    Matrix4.diagonal3Values(target, target, 1.0);
+                _scale = target;
+              });
+            },
+          ),
+        ],
+      ),
+      body: InteractiveViewer(
+        transformationController: _controller,
+        constrained: false,
+        boundaryMargin: const EdgeInsets.all(double.infinity),
+        minScale: 0.2,
+        maxScale: 3.5,
+        panEnabled: true,
+        scaleEnabled: true,
+        clipBehavior: Clip.none,
+        child: SizedBox(
+          width: _calculatedTableWidth,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: _horizontalPadding,
+              vertical: 16,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // En-tête des jours
+                Row(
+                  children: [
+                    Container(
+                      width: _hourColWidth,
+                      height: 48,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: widget.isDark
+                            ? const Color(0xFF232323)
+                            : const Color(0xFFF1F5F9),
+                        border: Border.all(color: borderColor, width: 0.8),
+                      ),
+                      child: Text(
+                        'Heure',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: widget.isDark
+                              ? Colors.grey[400]
+                              : const Color(0xFF475569),
+                        ),
+                      ),
+                    ),
+                    ...widget.weekDays.map((d) {
+                      final isToday = TaskFormat.isSameDay(d, DateTime.now());
+                      return Container(
+                        width: _dayColWidth,
+                        height: 48,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: isToday
+                              ? widget.primary
+                                  .withValues(alpha: widget.isDark ? 0.25 : 0.12)
+                              : (widget.isDark
+                                  ? const Color(0xFF232323)
+                                  : const Color(0xFFF8FAFC)),
+                          border: Border.all(
+                            color: isToday ? widget.primary : borderColor,
+                            width: isToday ? 1.5 : 0.8,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              TaskFormat.weekdayShort(d).split(' ').first,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: isToday
+                                    ? widget.primary
+                                    : (widget.isDark
+                                        ? Colors.white
+                                        : const Color(0xFF1E293B)),
+                              ),
+                            ),
+                            Text(
+                              '${d.day} ${TaskFormat.shortDate(d).split(' ').last}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: isToday
+                                    ? widget.primary
+                                    : (widget.isDark
+                                        ? Colors.grey[400]
+                                        : const Color(0xFF64748B)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+                // Lignes horaires
+                ...List.generate(widget.hourRowsCount, (rowIdx) {
+                  final hour = widget.minHour + rowIdx;
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: _hourColWidth,
+                        height: _hourRowHeight,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: widget.isDark
+                              ? const Color(0xFF1B1B1B)
+                              : const Color(0xFFF8FAFC),
+                          border: Border.all(color: borderColor, width: 0.8),
+                        ),
+                        child: Text(
+                          '${hour.toString().padLeft(2, '0')}:00',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: widget.isDark
+                                ? Colors.grey[400]
+                                : const Color(0xFF475569),
+                          ),
+                        ),
+                      ),
+                      ...widget.weekDays.map((d) {
+                        final dayTasks = widget.tasksForDay(d);
+                        final hourTasks = dayTasks
+                            .where((t) => t.scheduledAt.hour == hour)
+                            .toList();
+                        return Container(
+                          width: _dayColWidth,
+                          height: _hourRowHeight,
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: Colors.transparent,
+                            border: Border.all(color: borderColor, width: 0.8),
+                          ),
+                          child: hourTasks.isEmpty
+                              ? const SizedBox()
+                              : SingleChildScrollView(
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  child: Column(
+                                    children: hourTasks.map((task) {
+                                      final isDone =
+                                          task.status == TaskStatus.completed;
+                                      final accent = activityColor(
+                                        task.activityType,
+                                        matiereId: task.matiereId,
+                                        context: context,
+                                      );
+
+                                      return InkWell(
+                                        onTap: () => widget.onTaskTap(task),
+                                        borderRadius: BorderRadius.circular(6),
+                                        child: Container(
+                                          width: double.infinity,
+                                          margin:
+                                              const EdgeInsets.only(bottom: 2),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 5,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: accent.withValues(
+                                              alpha: widget.isDark ? 0.28 : 0.15,
+                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                            border: Border(
+                                              left: BorderSide(
+                                                color: accent,
+                                                width: 3.5,
+                                              ),
+                                            ),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      task.displayTitle,
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                        decoration: isDone
+                                                            ? TextDecoration
+                                                                .lineThrough
+                                                            : null,
+                                                        color: isDone
+                                                            ? Colors.grey
+                                                            : (widget.isDark
+                                                                ? Colors.white
+                                                                : Colors
+                                                                    .black87),
+                                                      ),
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                  if (isDone)
+                                                    const Icon(
+                                                      Icons.check_circle,
+                                                      size: 11,
+                                                      color: Colors.green,
+                                                    ),
+                                                ],
+                                              ),
+                                              Text(
+                                                '${TaskFormat.time(task.scheduledAt)} (${task.durationMinutes}m)',
+                                                style: TextStyle(
+                                                  fontSize: 9.5,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: widget.isDark
+                                                      ? Colors.grey[300]
+                                                      : const Color(0xFF475569),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
+                        );
+                      }),
+                    ],
+                  );
+                }),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
