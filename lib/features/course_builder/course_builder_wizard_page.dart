@@ -24,10 +24,13 @@ import '../../core/models/ngenou_extension.dart';
 import '../../core/services/extensions_service.dart';
 import 'course_studio_page.dart';
 
-class CourseBuilderWizardPage extends StatefulWidget {
-  /// Si fourni, le cours créé sera automatiquement rattaché à ce projet.
-  final String? projetId;
+// ── Constantes visuelles ──────────────────────────────────────────────────────
+const _kSurface = Color(0xFF1E1E26);
+const _kBg = Color(0xFF121216);
+const _kBgLight = Color(0xFFF7F8FA);
 
+class CourseBuilderWizardPage extends StatefulWidget {
+  final String? projetId;
   const CourseBuilderWizardPage({super.key, this.projetId});
 
   @override
@@ -35,7 +38,8 @@ class CourseBuilderWizardPage extends StatefulWidget {
       _CourseBuilderWizardPageState();
 }
 
-class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
+class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage>
+    with TickerProviderStateMixin {
   final _pageController = PageController();
   int _step = 0;
 
@@ -48,14 +52,13 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
   String _objectif = 'comprehension';
   String _langue = 'fr';
   String _niveau = '';
-  String _schoolLevel = 'secondaire'; // primaire, secondaire, superieur
+  String _schoolLevel = 'secondaire';
   String? _coverImageUrl;
   String? _userRole;
   bool _hasDocuments = false;
   bool _enableTerminal = false;
   final List<String> _chapitres = [];
   DeepSeekModel _selectedModel = DeepSeekModel.flash;
-  bool _addExtension = false;
   NgenouExtension? _selectedExtension;
 
   String? _generatedPrompt;
@@ -63,6 +66,17 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
   bool _isOcrProcessing = false;
   late final String _matiereId =
       'custom_${DateTime.now().millisecondsSinceEpoch}';
+
+  // Étapes : 0 Infos · 1 Objectif · 2 Langue · 3 Documents · 4 Structure · 5 Génération
+  static const _stepLabels = [
+    'Infos',
+    'Objectif',
+    'Langue',
+    'Documents',
+    'Structure',
+    'Générer',
+  ];
+  static const int _totalSteps = 6;
 
   @override
   void initState() {
@@ -79,9 +93,7 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
         _userRole = role;
         if (lvl != null && lvl.isNotEmpty) {
           _schoolLevel = lvl;
-          if (_classeCtrl.text.isEmpty) {
-            _classeCtrl.text = _getDefaultClasseForLevel(lvl);
-          }
+          if (_classeCtrl.text.isEmpty) _classeCtrl.text = _defaultClasse(lvl);
         } else if (_classeCtrl.text.isEmpty) {
           _classeCtrl.text = '6ème';
         }
@@ -89,31 +101,17 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
     }
   }
 
-  String _getDefaultClasseForLevel(String lvl) {
-    switch (lvl) {
-      case 'primaire':
-        return 'CM2';
-      case 'secondaire':
-        return '6ème';
-      case 'superieur':
-        return 'Licence 1';
-      default:
-        return '6ème';
-    }
-  }
+  String _defaultClasse(String lvl) => switch (lvl) {
+    'primaire' => 'CM2',
+    'superieur' => 'Licence 1',
+    _ => '6ème',
+  };
 
-  List<String> _getSuggestedClassesForLevel(String lvl) {
-    switch (lvl) {
-      case 'primaire':
-        return ['SIL', 'CP', 'CE1', 'CE2', 'CM1', 'CM2'];
-      case 'secondaire':
-        return ['6ème', '5ème', '4ème', '3ème', '2nde', '1ère', 'Terminale'];
-      case 'superieur':
-        return ['Licence 1', 'Licence 2', 'Licence 3', 'Master'];
-      default:
-        return ['6ème', '5ème', '4ème', '3ème', '2nde', '1ère', 'Terminale'];
-    }
-  }
+  List<String> _suggestedClasses(String lvl) => switch (lvl) {
+    'primaire' => ['SIL', 'CP', 'CE1', 'CE2', 'CM1', 'CM2'],
+    'superieur' => ['Licence 1', 'Licence 2', 'Licence 3', 'Master'],
+    _ => ['6ème', '5ème', '4ème', '3ème', '2nde', '1ère', 'Terminale'],
+  };
 
   @override
   void dispose() {
@@ -126,94 +124,23 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
     super.dispose();
   }
 
-  Future<void> _pickCoverImage(ImageSource source) async {
-    final compressedBase64 =
-        await ImageCompressionHelper.pickAndCompressCoverImage(source);
-    if (compressedBase64 != null) {
-      setState(() {
-        _coverImageUrl = compressedBase64;
-      });
-    }
-  }
-
-  Future<void> _pickImage(ImageSource source) async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: source);
-    if (pickedFile != null) {
-      await _processFileForOcr(File(pickedFile.path), isPdf: false);
-    }
-  }
-
-  Future<void> _pickPdf() async {
-    final result = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf'],
-    );
-    if (result != null && result.files.single.path != null) {
-      await _processFileForOcr(File(result.files.single.path!), isPdf: true);
-    }
-  }
-
-  Future<void> _processFileForOcr(File file, {required bool isPdf}) async {
-    setState(() => _isOcrProcessing = true);
-    try {
-      final text = isPdf
-          ? await OcrService.extractTextFromPdf(file)
-          : await OcrService.extractTextFromImage(file);
-
-      if (text.isEmpty) {
-        throw Exception(
-          "Aucun texte exploitable n'a pu être extrait de ce fichier.",
-        );
-      }
-
-      setState(() {
-        final currentText = _docsCtrl.text.trim();
-        if (currentText.isEmpty) {
-          _docsCtrl.text = text;
-        } else {
-          _docsCtrl.text = '$currentText\n\n---\n\n$text';
-        }
-        _hasDocuments = true;
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Texte extrait avec succès ! Vous pouvez le relire et le modifier ci-dessous.',
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(formatUserError(e))));
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isOcrProcessing = false);
-      }
-    }
-  }
+  // ── Navigation ──────────────────────────────────────────────────────────────
 
   void _next() {
-    final err = _validateCurrentStep();
+    final err = _validate();
     if (err != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+      _snack(err);
       return;
     }
-    if (_step == 5) {
-      _buildPrompt();
-    }
-    if (_step < 6) {
+    if (_step == _totalSteps - 2) _buildPrompt();
+    if (_step < _totalSteps - 1) {
       setState(() => _step++);
       _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
+        duration: const Duration(milliseconds: 320),
         curve: Curves.easeInOut,
       );
+    } else {
+      _generateWithDeepSeek();
     }
   }
 
@@ -224,33 +151,26 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
     }
     setState(() => _step--);
     _pageController.previousPage(
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 320),
       curve: Curves.easeInOut,
     );
   }
 
-  String? _validateCurrentStep() {
-    switch (_step) {
-      case 0:
-        if (_nomCtrl.text.trim().isEmpty) {
-          return 'Indiquez le nom du cours.';
-        }
-        if (_classeCtrl.text.trim().isEmpty) {
-          return 'Veuillez préciser la classe ciblée (ex: 3ème, CM2, Terminale...).';
-        }
-        return null;
-      case 1:
-        return null;
-      case 2:
-        return null;
-      case 3:
-        return null;
-      case 4:
-        return null;
-      default:
-        return null;
+  String? _validate() {
+    if (_step == 0) {
+      if (_nomCtrl.text.trim().isEmpty) return 'Indiquez le nom du cours.';
+      if (_classeCtrl.text.trim().isEmpty) return 'Précisez la classe ciblée.';
     }
+    return null;
   }
+
+  void _snack(String msg) => ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(msg),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+  );
 
   void _buildPrompt() {
     final input = CourseWizardInput(
@@ -273,9 +193,7 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
       selectedExtensionName: _selectedExtension?.nom,
       selectedExtensionPrompt: _selectedExtension?.aiPrompt,
     );
-    setState(() {
-      _generatedPrompt = CoursePromptBuilder.build(input);
-    });
+    setState(() => _generatedPrompt = CoursePromptBuilder.build(input));
   }
 
   void _addChapitre() {
@@ -287,1282 +205,216 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
     });
   }
 
+  // ── OCR ─────────────────────────────────────────────────────────────────────
+
+  Future<void> _pickCoverImage(ImageSource source) async {
+    final b64 = await ImageCompressionHelper.pickAndCompressCoverImage(source);
+    if (b64 != null) setState(() => _coverImageUrl = b64);
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    final f = await ImagePicker().pickImage(source: source);
+    if (f != null) await _ocrFile(File(f.path), isPdf: false);
+  }
+
+  Future<void> _pickPdf() async {
+    final r = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+    );
+    if (r?.files.single.path != null)
+      await _ocrFile(File(r!.files.single.path!), isPdf: true);
+  }
+
+  Future<void> _ocrFile(File f, {required bool isPdf}) async {
+    setState(() => _isOcrProcessing = true);
+    try {
+      final text = isPdf
+          ? await OcrService.extractTextFromPdf(f)
+          : await OcrService.extractTextFromImage(f);
+      if (text.isEmpty) throw Exception("Aucun texte exploitable extrait.");
+      setState(() {
+        final cur = _docsCtrl.text.trim();
+        _docsCtrl.text = cur.isEmpty ? text : '$cur\n\n---\n\n$text';
+        _hasDocuments = true;
+      });
+      if (mounted) _snack('Texte extrait avec succès !');
+    } catch (e) {
+      if (mounted) _snack(formatUserError(e));
+    } finally {
+      if (mounted) setState(() => _isOcrProcessing = false);
+    }
+  }
+
+  // ── Build principal ──────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final titles = [
-      'Informations',
-      'Objectif',
-      'Langue',
-      'Documents',
-      'Structure',
-      'Options',
-      'Génération',
-    ];
+    final primary = Theme.of(context).primaryColor;
+    final bgColor = isDark ? _kBg : _kBgLight;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Créer un cours — ${titles[_step]}'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: _back,
-        ),
-      ),
-      body: Column(
-        children: [
-          LinearProgressIndicator(
-            value: (_step + 1) / titles.length,
-            minHeight: 4,
-          ),
-          Expanded(
-            child: PageView(
-              controller: _pageController,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _stepInfo(isDark),
-                _stepObjectif(isDark),
-                _stepLangue(isDark),
-                _stepDocuments(isDark),
-                _stepStructure(isDark),
-                _stepOptions(isDark),
-                _stepPrompt(isDark),
-              ],
-            ),
-          ),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  if (_step > 0 && !_isGenerating)
-                    TextButton(onPressed: _back, child: const Text('Retour')),
-                  const Spacer(),
-                  if (_step < 6)
-                    ElevatedButton(
-                      onPressed: _next,
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size(120, 48),
-                      ),
-                      child: _step == 5
-                          ? const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.auto_awesome, size: 16),
-                                SizedBox(width: 8),
-                                Text('Générer le cours'),
-                              ],
-                            )
-                          : const Text('Suivant'),
-                    )
-                  else ...[
-                    ElevatedButton.icon(
-                      onPressed: _isGenerating ? null : _generateWithDeepSeek,
-                      icon: const Icon(Icons.auto_awesome),
-                      label: const Text('Générer le cours'),
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size(160, 48),
-                        backgroundColor: Theme.of(context).primaryColor,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+      backgroundColor: bgColor,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final w = constraints.maxWidth;
+            final hPad = w > 1200
+                ? w * 0.12
+                : w > 800
+                ? w * 0.07
+                : 16.0;
 
-  Widget _stepInfo(bool isDark) {
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        Card(
-          elevation: 0,
-          color: Theme.of(context).primaryColor.withOpacity(0.08),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(
-              color: Theme.of(context).primaryColor.withOpacity(0.35),
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            return Column(
               children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.upload_file_rounded,
-                      color: Theme.of(context).primaryColor,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Importer un cours existant',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : Colors.black87,
-                        ),
-                      ),
-                    ),
-                  ],
+                // ── Header + stepper ──────────────────────────────────────
+                _WizardHeader(
+                  step: _step,
+                  totalSteps: _totalSteps,
+                  labels: _stepLabels,
+                  primary: primary,
+                  isDark: isDark,
+                  onBack: _back,
                 ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.push<void>(
-                        context,
-                        MaterialPageRoute<void>(
-                          builder: (_) => const CourseImportPage(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.folder_open),
-                    label: const Text('Sélectionner le fichier'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-        Row(
-          children: [
-            Expanded(
-              child: Divider(
-                color: isDark ? Colors.grey[700] : Colors.grey[400],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Text(
-                'ou assistant',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark ? Colors.grey[500] : Colors.grey[600],
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            Expanded(
-              child: Divider(
-                color: isDark ? Colors.grey[700] : Colors.grey[400],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
-        if (_userRole == 'teacher') ...[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: const Color(0xFF6C63FF).withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: const Color(0xFF6C63FF).withValues(alpha: 0.3),
-              ),
-            ),
-            child: const Row(
-              children: [
-                Icon(
-                  Icons.verified_user_rounded,
-                  color: Color(0xFF6C63FF),
-                  size: 20,
-                ),
-                SizedBox(width: 10),
+
+                // ── Pages ─────────────────────────────────────────────────
                 Expanded(
-                  child: Text(
-                    'Compte Enseignant : Ce cours sera publié dans les « Cours publics » dès sa création.',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF6C63FF),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-        ],
-        Text(
-          'Donnez un titre à votre cours',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Ce nom apparaîtra sur l\'écran d\'accueil après import.',
-          style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
-        ),
-        const SizedBox(height: 24),
-        TextField(
-          controller: _nomCtrl,
-          decoration: const InputDecoration(
-            labelText: 'Nom du cours *',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _descCtrl,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: 'Description courte',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        const SizedBox(height: 24),
-
-        // Photo de couverture
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Photo de couverture',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-            ),
-            if (_coverImageUrl != null)
-              TextButton.icon(
-                onPressed: () => setState(() => _coverImageUrl = null),
-                icon: const Icon(
-                  Icons.delete_outline,
-                  size: 16,
-                  color: Colors.redAccent,
-                ),
-                label: const Text(
-                  'Supprimer',
-                  style: TextStyle(color: Colors.redAccent, fontSize: 12),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        _buildCoverImagePicker(isDark),
-        const SizedBox(height: 24),
-
-        // Niveau d'enseignement
-        Text(
-          'Niveau d\'enseignement *',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Indique le cycle scolaire du cours.',
-          style: TextStyle(
-            fontSize: 12.5,
-            color: isDark ? Colors.white54 : Colors.black54,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _schoolLevelChip(
-              'primaire',
-              'Primaire',
-              Icons.child_care_rounded,
-              isDark,
-            ),
-            _schoolLevelChip(
-              'secondaire',
-              'Secondaire',
-              Icons.school_rounded,
-              isDark,
-            ),
-            _schoolLevelChip(
-              'superieur',
-              'Supérieur',
-              Icons.psychology_rounded,
-              isDark,
-            ),
-          ],
-        ),
-        const SizedBox(height: 22),
-
-        // Classe
-        Text(
-          'Classe ciblée *',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Précisez la classe pour adapter le niveau pédagogique.',
-          style: TextStyle(
-            fontSize: 12.5,
-            color: isDark ? Colors.white54 : Colors.black54,
-          ),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: _classeCtrl,
-          decoration: InputDecoration(
-            labelText: 'Classe (ex: 3ème, CM2, Terminale...)',
-            border: const OutlineInputBorder(),
-            prefixIcon: const Icon(Icons.class_rounded),
-            suffixIcon: _classeCtrl.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.clear, size: 18),
-                    onPressed: () => setState(() => _classeCtrl.clear()),
-                  )
-                : null,
-          ),
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: _getSuggestedClassesForLevel(_schoolLevel).map((c) {
-            final isSelected =
-                _classeCtrl.text.trim().toLowerCase() == c.toLowerCase();
-            return ActionChip(
-              avatar: isSelected
-                  ? const Icon(Icons.check, size: 14, color: Colors.white)
-                  : null,
-              label: Text(c),
-              backgroundColor: isSelected
-                  ? Theme.of(context).primaryColor
-                  : (isDark
-                        ? const Color(0xFF2A2A2A)
-                        : const Color(0xFFEFF2F7)),
-              labelStyle: TextStyle(
-                color: isSelected
-                    ? Colors.white
-                    : (isDark ? Colors.white70 : Colors.black87),
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                fontSize: 12,
-              ),
-              onPressed: () {
-                setState(() {
-                  _classeCtrl.text = c;
-                });
-              },
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-
-  Widget _schoolLevelChip(
-    String level,
-    String label,
-    IconData icon,
-    bool isDark,
-  ) {
-    final isSelected = _schoolLevel == level;
-    final primary = Theme.of(context).primaryColor;
-
-    return ChoiceChip(
-      avatar: Icon(
-        icon,
-        size: 16,
-        color: isSelected
-            ? Colors.white
-            : (isDark ? Colors.white60 : Colors.black54),
-      ),
-      label: Text(label),
-      selected: isSelected,
-      selectedColor: primary,
-      backgroundColor: isDark
-          ? const Color(0xFF222222)
-          : const Color(0xFFF0F2F5),
-      labelStyle: TextStyle(
-        color: isSelected
-            ? Colors.white
-            : (isDark ? Colors.white70 : Colors.black87),
-        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-      ),
-      onSelected: (val) {
-        if (val) {
-          setState(() {
-            _schoolLevel = level;
-            final suggestions = _getSuggestedClassesForLevel(level);
-            if (suggestions.isNotEmpty && !_classeCtrl.text.contains(level)) {
-              _classeCtrl.text = suggestions.last;
-            }
-          });
-        }
-      },
-    );
-  }
-
-  Widget _buildCoverImagePicker(bool isDark) {
-    final primary = Theme.of(context).primaryColor;
-
-    if (_coverImageUrl != null && _coverImageUrl!.isNotEmpty) {
-      return Container(
-        height: 160,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: isDark ? Colors.white24 : Colors.black12),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            _buildCoverPreviewWidget(_coverImageUrl!),
-            Positioned(
-              bottom: 8,
-              right: 8,
-              child: ElevatedButton.icon(
-                onPressed: () => _showCoverPickerDialog(isDark),
-                icon: const Icon(Icons.edit, size: 14),
-                label: const Text(
-                  'Changer l\'image',
-                  style: TextStyle(fontSize: 11.5),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black87,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: () => _showCoverPickerDialog(isDark),
-      child: Container(
-        height: 120,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: primary.withValues(alpha: 0.35),
-            width: 1.5,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: primary.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.add_photo_alternate_rounded,
-                color: primary,
-                size: 26,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Choisir une photo de couverture',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13.5,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'Galerie, appareil photo ou illustration prédéfinie',
-              style: TextStyle(
-                fontSize: 11.5,
-                color: isDark ? Colors.white54 : Colors.black54,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCoverPreviewWidget(String url) {
-    if (url.startsWith('data:image')) {
-      try {
-        final commaIdx = url.indexOf(',');
-        final base64Str = commaIdx != -1 ? url.substring(commaIdx + 1) : url;
-        final bytes = base64Decode(base64Str);
-        return Image.memory(bytes, fit: BoxFit.cover);
-      } catch (_) {
-        return const Center(child: Icon(Icons.broken_image, size: 36));
-      }
-    } else if (url.startsWith('http')) {
-      return Image.network(
-        url,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) =>
-            const Center(child: Icon(Icons.broken_image, size: 36)),
-      );
-    } else if (url.startsWith('assets/')) {
-      return Image.asset(url, fit: BoxFit.cover);
-    } else {
-      return Image.file(
-        File(url),
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) =>
-            const Center(child: Icon(Icons.broken_image, size: 36)),
-      );
-    }
-  }
-
-  void _showCoverPickerDialog(bool isDark) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Photo de couverture du cours',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(
-                  Icons.photo_library_rounded,
-                  color: Color(0xFF3498DB),
-                ),
-                title: const Text('Choisir dans la galerie'),
-                subtitle: const Text(
-                  'Importer une image depuis votre appareil',
-                ),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _pickCoverImage(ImageSource.gallery);
-                },
-              ),
-              ListTile(
-                leading: const Icon(
-                  Icons.camera_alt_rounded,
-                  color: Color(0xFF2ECC71),
-                ),
-                title: const Text('Prendre une photo'),
-                subtitle: const Text(
-                  'Prendre directement une photo avec la caméra',
-                ),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _pickCoverImage(ImageSource.camera);
-                },
-              ),
-              ListTile(
-                leading: const Icon(
-                  Icons.auto_stories_rounded,
-                  color: Color(0xFF9B59B6),
-                ),
-                title: const Text('Choisir une illustration prédéfinie'),
-                subtitle: const Text(
-                  'Maths, Sciences, Informatique, Littérature...',
-                ),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _showPresetIllustrationsDialog(isDark);
-                },
-              ),
-              ListTile(
-                leading: const Icon(
-                  Icons.link_rounded,
-                  color: Color(0xFFE67E22),
-                ),
-                title: const Text('Saisir l\'URL d\'une image web'),
-                subtitle: const Text('Coller un lien https vers une image'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _showUrlInputDialog();
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showPresetIllustrationsDialog(bool isDark) {
-    final presets = [
-      {
-        'title': 'Mathématiques',
-        'url':
-            'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=600&auto=format&fit=crop&q=80',
-        'icon': Icons.calculate_rounded,
-      },
-      {
-        'title': 'Sciences & Chimie',
-        'url':
-            'https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=600&auto=format&fit=crop&q=80',
-        'icon': Icons.biotech_rounded,
-      },
-      {
-        'title': 'Informatique & Code',
-        'url':
-            'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600&auto=format&fit=crop&q=80',
-        'icon': Icons.code_rounded,
-      },
-      {
-        'title': 'Littérature & Français',
-        'url':
-            'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?w=600&auto=format&fit=crop&q=80',
-        'icon': Icons.menu_book_rounded,
-      },
-      {
-        'title': 'Histoire & Géographie',
-        'url':
-            'https://images.unsplash.com/photo-1524661135-423995f22d0b?w=600&auto=format&fit=crop&q=80',
-        'icon': Icons.public_rounded,
-      },
-      {
-        'title': 'Économie & Gestion',
-        'url':
-            'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=600&auto=format&fit=crop&q=80',
-        'icon': Icons.trending_up_rounded,
-      },
-    ];
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Illustrations prédéfinies'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: GridView.builder(
-            shrinkWrap: true,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 1.1,
-            ),
-            itemCount: presets.length,
-            itemBuilder: (context, index) {
-              final p = presets[index];
-              return InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () {
-                  setState(() => _coverImageUrl = p['url'] as String);
-                  Navigator.pop(ctx);
-                },
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Stack(
-                    fit: StackFit.expand,
+                  child: PageView(
+                    controller: _pageController,
+                    physics: const NeverScrollableScrollPhysics(),
                     children: [
-                      Image.network(p['url'] as String, fit: BoxFit.cover),
-                      Container(color: Colors.black.withValues(alpha: 0.45)),
-                      Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              p['icon'] as IconData,
-                              color: Colors.white,
-                              size: 24,
-                            ),
-                            const SizedBox(height: 6),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                              ),
-                              child: Text(
-                                p['title'] as String,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 11.5,
-                                ),
-                              ),
-                            ),
-                          ],
+                      _StepInfos(
+                        nomCtrl: _nomCtrl,
+                        descCtrl: _descCtrl,
+                        classeCtrl: _classeCtrl,
+                        schoolLevel: _schoolLevel,
+                        userRole: _userRole,
+                        coverImageUrl: _coverImageUrl,
+                        isDark: isDark,
+                        primary: primary,
+                        hPad: hPad,
+                        onSchoolLevelChanged: (v) {
+                          setState(() {
+                            _schoolLevel = v;
+                            _classeCtrl.text = _suggestedClasses(v).last;
+                          });
+                        },
+                        onClasseChanged: () => setState(() {}),
+                        suggestedClasses: _suggestedClasses(_schoolLevel),
+                        onCoverPick: _pickCoverImage,
+                        onCoverDelete: () =>
+                            setState(() => _coverImageUrl = null),
+                        onImport: () => Navigator.push<void>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CourseImportPage(),
+                          ),
                         ),
+                      ),
+                      _StepObjectif(
+                        objectif: _objectif,
+                        isDark: isDark,
+                        primary: primary,
+                        hPad: hPad,
+                        onChanged: (v) => setState(() => _objectif = v),
+                      ),
+                      _StepLangue(
+                        langue: _langue,
+                        isDark: isDark,
+                        primary: primary,
+                        hPad: hPad,
+                        onChanged: (v) => setState(() => _langue = v),
+                      ),
+                      _StepDocuments(
+                        docsCtrl: _docsCtrl,
+                        isOcrProcessing: _isOcrProcessing,
+                        isDark: isDark,
+                        primary: primary,
+                        hPad: hPad,
+                        onPickCamera: () => _pickImage(ImageSource.camera),
+                        onPickGallery: () => _pickImage(ImageSource.gallery),
+                        onPickPdf: _pickPdf,
+                        onTextChanged: (v) {
+                          final has = v.trim().isNotEmpty;
+                          if (has != _hasDocuments)
+                            setState(() => _hasDocuments = has);
+                        },
+                      ),
+                      _StepStructure(
+                        chapitres: _chapitres,
+                        chapitreCtrl: _chapitreCtrl,
+                        niveau: _niveau,
+                        enableTerminal: _enableTerminal,
+                        selectedModel: _selectedModel,
+                        selectedExtension: _selectedExtension,
+                        isDark: isDark,
+                        primary: primary,
+                        hPad: hPad,
+                        onAddChapitre: _addChapitre,
+                        onRemoveChapitre: (c) =>
+                            setState(() => _chapitres.remove(c)),
+                        onNiveauChanged: (v) => setState(() => _niveau = v),
+                        onTerminalChanged: (v) =>
+                            setState(() => _enableTerminal = v),
+                        onModelChanged: (v) =>
+                            setState(() => _selectedModel = v),
+                        onOpenExtensionPicker: () =>
+                            _openExtensionPicker(isDark),
+                        onRemoveExtension: () =>
+                            setState(() => _selectedExtension = null),
+                      ),
+                      _StepGeneration(
+                        isGenerating: _isGenerating,
+                        nomCtrl: _nomCtrl,
+                        classeCtrl: _classeCtrl,
+                        objectif: _objectif,
+                        langue: _langue,
+                        chapitres: _chapitres,
+                        schoolLevel: _schoolLevel,
+                        coverImageUrl: _coverImageUrl,
+                        enableTerminal: _enableTerminal,
+                        selectedModel: _selectedModel,
+                        isDark: isDark,
+                        primary: primary,
+                        hPad: hPad,
                       ),
                     ],
                   ),
                 ),
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Fermer'),
-          ),
-        ],
-      ),
-    );
-  }
 
-  void _showUrlInputDialog() {
-    final urlCtrl = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('URL de l\'image'),
-        content: TextField(
-          controller: urlCtrl,
-          decoration: const InputDecoration(
-            labelText: 'https://exemple.com/image.jpg',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final url = urlCtrl.text.trim();
-              if (url.isNotEmpty) {
-                setState(() => _coverImageUrl = url);
-              }
-              Navigator.pop(ctx);
-            },
-            child: const Text('Valider'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _stepObjectif(bool isDark) {
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        Text(
-          'Quel est votre objectif ?',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 16),
-        _objectifTile(
-          'revision',
-          'Révision',
-          'Fiches, rappels, QCM pour préparer un contrôle',
-          Icons.schedule_rounded,
-        ),
-        _objectifTile(
-          'comprehension',
-          'Comprendre de A à Z',
-          'Progression terrain, exemples concrets',
-          Icons.school_rounded,
-        ),
-        _objectifTile(
-          'culture',
-          'Culture & curiosité',
-          'Enrichissement, liens, ton plus narratif',
-          Icons.auto_stories_rounded,
-        ),
-      ],
-    );
-  }
-
-  Widget _objectifTile(
-    String value,
-    String title,
-    String subtitle,
-    IconData icon,
-  ) {
-    final selected = _objectif == value;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      color: selected ? Theme.of(context).primaryColor.withOpacity(0.12) : null,
-      child: ListTile(
-        leading: Icon(
-          icon,
-          color: selected ? Theme.of(context).primaryColor : null,
-        ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(subtitle),
-        trailing: selected
-            ? Icon(Icons.check_circle, color: Theme.of(context).primaryColor)
-            : null,
-        onTap: () => setState(() => _objectif = value),
-      ),
-    );
-  }
-
-  Widget _stepLangue(bool isDark) {
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        Text(
-          'Langue du contenu généré',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 24),
-        RadioListTile<String>(
-          title: const Text('Français'),
-          value: 'fr',
-          groupValue: _langue,
-          onChanged: (v) => setState(() => _langue = v!),
-        ),
-        RadioListTile<String>(
-          title: const Text('English'),
-          value: 'en',
-          groupValue: _langue,
-          onChanged: (v) => setState(() => _langue = v!),
-        ),
-      ],
-    );
-  }
-
-  Widget _stepDocuments(bool isDark) {
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        Text(
-          'Documents & Images',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Générez votre cours à partir de vos propres supports .',
-          style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _isOcrProcessing
-                    ? null
-                    : () => _pickImage(ImageSource.camera),
-                icon: const Icon(Icons.camera_alt),
-                label: const Text('Photo', style: TextStyle(fontSize: 13)),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _isOcrProcessing
-                    ? null
-                    : () => _pickImage(ImageSource.gallery),
-                icon: const Icon(Icons.photo_library),
-                label: const Text('Galerie', style: TextStyle(fontSize: 13)),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: _isOcrProcessing ? null : _pickPdf,
-            icon: const Icon(Icons.picture_as_pdf),
-            label: const Text('Importer un PDF'),
-          ),
-        ),
-        if (_isOcrProcessing) ...[
-          const SizedBox(height: 16),
-          const Center(child: CircularProgressIndicator()),
-          const SizedBox(height: 8),
-          const Center(child: Text("Extraction du texte en cours...")),
-        ],
-        const SizedBox(height: 24),
-        TextField(
-          controller: _docsCtrl,
-          maxLines: 15,
-          onChanged: (v) {
-            final hasDoc = v.trim().isNotEmpty;
-            if (hasDoc != _hasDocuments) {
-              setState(() {
-                _hasDocuments = hasDoc;
-              });
-            }
+                // ── Footer navigation ─────────────────────────────────────
+                if (!_isGenerating)
+                  _WizardFooter(
+                    step: _step,
+                    totalSteps: _totalSteps,
+                    primary: primary,
+                    isDark: isDark,
+                    onBack: _back,
+                    onNext: _next,
+                  ),
+              ],
+            );
           },
-          decoration: const InputDecoration(
-            labelText: 'Texte extrait (Modifiable)',
-            alignLabelWithHint: true,
-            border: OutlineInputBorder(),
-            hintText:
-                'Le texte extrait de vos images ou PDF apparaîtra ici. Vous pouvez le relire et le corriger si nécessaire avant de générer le cours.',
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _stepStructure(bool isDark) {
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        Text(
-          'Structure du cours',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Chapitres et niveau sont facultatifs. L\'IA les génère automatiquement si vous ne les précisez pas.',
-          style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
-        ),
-        const SizedBox(height: 24),
-        Text(
-          'Chapitres du cours (facultatif)',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          _chapitres.isEmpty
-              ? 'Aucun chapitre ajouté — l\'IA proposera un plan adapté.'
-              : '${_chapitres.length} chapitre(s) défini(s)',
-          style: TextStyle(
-            fontSize: 13,
-            color: isDark ? Colors.grey[500] : Colors.grey[600],
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _chapitreCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Nouveau chapitre',
-                  hintText: 'Ex : Les variables',
-                  border: OutlineInputBorder(),
-                ),
-                onSubmitted: (_) => _addChapitre(),
-              ),
-            ),
-            const SizedBox(width: 8),
-            IconButton.filled(
-              onPressed: _addChapitre,
-              icon: const Icon(Icons.add),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        ..._chapitres.map(
-          (c) => Card(
-            child: ListTile(
-              title: Text(c),
-              trailing: IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => setState(() => _chapitres.remove(c)),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 28),
-        Text(
-          'Niveau du cours (facultatif)',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          _niveau.isEmpty
-              ? 'Non précisé — l\'IA déterminera le niveau adapté.'
-              : 'Niveau sélectionné : ${_niveauLabel(_niveau)}',
-          style: TextStyle(
-            fontSize: 13,
-            color: isDark ? Colors.grey[500] : Colors.grey[600],
-          ),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _niveauChip('', 'Auto', isDark),
-            _niveauChip('debutant', 'Débutant', isDark),
-            _niveauChip('intermediaire', 'Intermédiaire', isDark),
-            _niveauChip('avance', 'Avancé', isDark),
-          ],
-        ),
-      ],
-    );
-  }
-
-  String _niveauLabel(String value) => switch (value) {
-    'debutant' => 'Débutant',
-    'intermediaire' => 'Intermédiaire',
-    'avance' => 'Avancé',
-    _ => 'Auto',
-  };
-
-  Widget _niveauChip(String value, String label, bool isDark) {
-    final selected = _niveau == value;
-    return FilterChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => setState(() => _niveau = value),
-      selectedColor: Theme.of(context).primaryColor.withOpacity(0.2),
-      checkmarkColor: Theme.of(context).primaryColor,
-      side: BorderSide(
-        color: selected
-            ? Theme.of(context).primaryColor
-            : (isDark ? Colors.grey[700]! : Colors.grey[400]!),
-      ),
-    );
-  }
-
-  Widget _stepOptions(bool isDark) {
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        Text(
-          'Options avancées',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 16),
-        // ── Sélecteur de modèle ──────────────────────────────────────────
-        _buildModelSelectorTile(isDark),
-        const SizedBox(height: 16),
-        // ── Sélecteur d'extension pédagogique ─────────────────────────────
-        _buildExtensionSelectorCard(isDark),
-        const SizedBox(height: 16),
-        SwitchListTile(
-          title: const Text(
-            'Exercices avec terminal pour les cours d\'algorithmique)',
-          ),
-          subtitle: const Text(
-            'Autorise les exercices "editeur" avec pseudo-code exécutable',
-          ),
-          value: _enableTerminal,
-          onChanged: (v) => setState(() => _enableTerminal = v),
-        ),
-        const SizedBox(height: 16),
-        ListTile(
-          leading: const Icon(Icons.tag),
-          title: const Text('Identifiant du cours'),
-          subtitle: Text(
-            _matiereId,
-            style: const TextStyle(fontFamily: 'monospace'),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildExtensionSelectorCard(bool isDark) {
-    final hasExtension = _selectedExtension != null;
-    return Container(
-      decoration: BoxDecoration(
-        color: hasExtension
-            ? const Color(0xFFE67E22).withValues(alpha: 0.08)
-            : (isDark ? const Color(0xFF1E1E1E) : Colors.grey[50]),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: hasExtension
-              ? const Color(0xFFE67E22).withValues(alpha: 0.4)
-              : (isDark ? Colors.grey[800]! : Colors.grey[200]!),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CheckboxListTile(
-            value: _addExtension || hasExtension,
-            activeColor: const Color(0xFFE67E22),
-            title: Text(
-              'Ajouter une extension (optionnel)',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-            ),
-            subtitle: Text(
-              hasExtension
-                  ? 'Extension active : ${_selectedExtension!.nom}'
-                  : 'Associe un outil interactif (fractions, conversion, algo...)',
-              style: TextStyle(
-                fontSize: 12,
-                color: isDark ? Colors.grey[400] : Colors.grey[600],
-              ),
-            ),
-            onChanged: (val) {
-              if (val == true) {
-                _openExtensionPickerModal(isDark);
-              } else {
-                setState(() {
-                  _addExtension = false;
-                  _selectedExtension = null;
-                });
-              }
-            },
-          ),
-          if (hasExtension) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.grey[900] : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: const Color(0xFFE67E22).withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: _selectedExtension!.color.withValues(
-                          alpha: 0.15,
-                        ),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        _selectedExtension!.icon,
-                        color: _selectedExtension!.color,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _selectedExtension!.nom,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                          Text(
-                            _selectedExtension!.categorie,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: isDark
-                                  ? Colors.grey[400]
-                                  : Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () => _openExtensionPickerModal(isDark),
-                      child: const Text('Changer'),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 18),
-                      tooltip: 'Retirer',
-                      onPressed: () {
-                        setState(() {
-                          _addExtension = false;
-                          _selectedExtension = null;
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ] else ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.extension_rounded, size: 16),
-                label: const Text('Choisir une extension'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFE67E22),
-                  side: const BorderSide(color: Color(0xFFE67E22)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                onPressed: () => _openExtensionPickerModal(isDark),
-              ),
-            ),
-          ],
-        ],
-      ),
     );
   }
 
-  void _openExtensionPickerModal(bool isDark) {
+  // ── Extension picker ─────────────────────────────────────────────────────────
+
+  void _openExtensionPicker(bool isDark) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        String? tempSelectedId = _selectedExtension?.id;
-        final pendingDownloads = <String>{};
-
+        String? tempId = _selectedExtension?.id;
+        final pending = <String>{};
         return StatefulBuilder(
-          builder: (modalContext, setModalState) {
-            final service = ExtensionsService.instance;
-            final extensions = service.extensions;
-
+          builder: (mCtx, setModal) {
+            final svc = ExtensionsService.instance;
+            final exts = svc.extensions;
             return Container(
               height: MediaQuery.of(context).size.height * 0.82,
               decoration: BoxDecoration(
@@ -1573,9 +425,9 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
               ),
               child: Column(
                 children: [
-                  // En-tête
+                  // Handle + titre
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
+                    padding: const EdgeInsets.fromLTRB(20, 14, 12, 10),
                     child: Row(
                       children: [
                         Container(
@@ -1600,18 +452,20 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                               Text(
                                 'Extensions disponibles',
                                 style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark ? Colors.white : Colors.black87,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF1A1A2E),
                                 ),
                               ),
                               Text(
-                                'Choisissez une seule extension pour ce cours',
+                                'Choisissez une extension pour ce cours',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: isDark
-                                      ? Colors.grey[400]
-                                      : Colors.grey[600],
+                                      ? Colors.white38
+                                      : Colors.black38,
                                 ),
                               ),
                             ],
@@ -1619,18 +473,16 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                         ),
                         IconButton(
                           icon: const Icon(Icons.close_rounded),
-                          onPressed: () => Navigator.pop(modalContext),
+                          onPressed: () => Navigator.pop(mCtx),
                         ),
                       ],
                     ),
                   ),
                   const Divider(height: 1),
-
-                  // Liste des extensions
                   Expanded(
-                    child: extensions.isEmpty
+                    child: exts.isEmpty
                         ? Center(
-                            child: service.isLoading
+                            child: svc.isLoading
                                 ? const CircularProgressIndicator()
                                 : Column(
                                     mainAxisSize: MainAxisSize.min,
@@ -1645,10 +497,10 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                                       const SizedBox(height: 8),
                                       TextButton(
                                         onPressed: () async {
-                                          await service.loadExtensions(
+                                          await svc.loadExtensions(
                                             forceRefresh: true,
                                           );
-                                          setModalState(() {});
+                                          setModal(() {});
                                         },
                                         child: const Text('Actualiser'),
                                       ),
@@ -1657,24 +509,18 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                           )
                         : ListView.separated(
                             padding: const EdgeInsets.all(16),
-                            itemCount: extensions.length,
+                            itemCount: exts.length,
                             separatorBuilder: (_, __) =>
                                 const SizedBox(height: 10),
-                            itemBuilder: (context, index) {
-                              final ext = extensions[index];
-                              final isInstalled = service.isInstalled(ext.id);
-                              final isSelected = tempSelectedId == ext.id;
-                              final isDownloading = pendingDownloads.contains(
-                                ext.id,
-                              );
-
-                              return InkWell(
-                                onTap: () {
-                                  setModalState(() {
-                                    tempSelectedId = ext.id;
-                                  });
-                                },
-                                borderRadius: BorderRadius.circular(16),
+                            itemBuilder: (_, i) {
+                              final ext = exts[i];
+                              final installed = svc.isInstalled(ext.id);
+                              final isSelected = tempId == ext.id;
+                              final isDown = pending.contains(ext.id);
+                              return GestureDetector(
+                                onTap: installed
+                                    ? () => setModal(() => tempId = ext.id)
+                                    : null,
                                 child: Container(
                                   padding: const EdgeInsets.all(14),
                                   decoration: BoxDecoration(
@@ -1696,8 +542,6 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                                     ),
                                   ),
                                   child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
                                     children: [
                                       Container(
                                         padding: const EdgeInsets.all(10),
@@ -1710,7 +554,7 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                                         child: Icon(
                                           ext.icon,
                                           color: ext.color,
-                                          size: 24,
+                                          size: 22,
                                         ),
                                       ),
                                       const SizedBox(width: 12),
@@ -1719,49 +563,14 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            Row(
-                                              children: [
-                                                Expanded(
-                                                  child: Text(
-                                                    ext.nom,
-                                                    style: const TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      fontSize: 15,
-                                                    ),
-                                                  ),
-                                                ),
-                                                if (isInstalled)
-                                                  Container(
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 7,
-                                                          vertical: 2,
-                                                        ),
-                                                    decoration: BoxDecoration(
-                                                      color: const Color(
-                                                        0xFF2ECC71,
-                                                      ).withValues(alpha: 0.15),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            6,
-                                                          ),
-                                                    ),
-                                                    child: const Text(
-                                                      'Installée',
-                                                      style: TextStyle(
-                                                        fontSize: 10,
-                                                        color: Color(
-                                                          0xFF2ECC71,
-                                                        ),
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                      ),
-                                                    ),
-                                                  ),
-                                              ],
+                                            Text(
+                                              ext.nom,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 14,
+                                              ),
                                             ),
-                                            const SizedBox(height: 4),
+                                            const SizedBox(height: 3),
                                             Text(
                                               ext.description,
                                               maxLines: 2,
@@ -1769,101 +578,60 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 color: isDark
-                                                    ? Colors.grey[400]
-                                                    : Colors.grey[600],
+                                                    ? Colors.white38
+                                                    : Colors.black38,
                                               ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Row(
-                                              children: [
-                                                Text(
-                                                  '${ext.categorie} · ${ext.taille}',
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    color: isDark
-                                                        ? Colors.grey[500]
-                                                        : Colors.grey[500],
-                                                  ),
-                                                ),
-                                                const Spacer(),
-                                                if (!isInstalled)
-                                                  FilledButton.tonalIcon(
-                                                    style: FilledButton.styleFrom(
-                                                      padding:
-                                                          const EdgeInsets.symmetric(
-                                                            horizontal: 10,
-                                                            vertical: 0,
-                                                          ),
-                                                      visualDensity:
-                                                          VisualDensity.compact,
-                                                    ),
-                                                    icon: isDownloading
-                                                        ? const SizedBox(
-                                                            width: 14,
-                                                            height: 14,
-                                                            child:
-                                                                CircularProgressIndicator(
-                                                                  strokeWidth:
-                                                                      2,
-                                                                ),
-                                                          )
-                                                        : const Icon(
-                                                            Icons
-                                                                .download_rounded,
-                                                            size: 16,
-                                                          ),
-                                                    label: Text(
-                                                      isDownloading
-                                                          ? 'Téléchargement...'
-                                                          : 'Télécharger',
-                                                    ),
-                                                    onPressed: isDownloading
-                                                        ? null
-                                                        : () async {
-                                                            setModalState(
-                                                              () =>
-                                                                  pendingDownloads
-                                                                      .add(
-                                                                        ext.id,
-                                                                      ),
-                                                            );
-                                                            final success =
-                                                                await service
-                                                                    .installExtension(
-                                                                      ext,
-                                                                    );
-                                                            if (modalContext
-                                                                .mounted) {
-                                                              setModalState(() {
-                                                                pendingDownloads
-                                                                    .remove(
-                                                                      ext.id,
-                                                                    );
-                                                                if (success) {
-                                                                  tempSelectedId =
-                                                                      ext.id;
-                                                                }
-                                                              });
-                                                            }
-                                                          },
-                                                  )
-                                                else
-                                                  Radio<String>(
-                                                    value: ext.id,
-                                                    groupValue: tempSelectedId,
-                                                    activeColor: ext.color,
-                                                    onChanged: (val) {
-                                                      setModalState(
-                                                        () => tempSelectedId =
-                                                            val,
-                                                      );
-                                                    },
-                                                  ),
-                                              ],
                                             ),
                                           ],
                                         ),
                                       ),
+                                      const SizedBox(width: 8),
+                                      if (!installed)
+                                        FilledButton.tonal(
+                                          style: FilledButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                            ),
+                                            visualDensity:
+                                                VisualDensity.compact,
+                                          ),
+                                          onPressed: isDown
+                                              ? null
+                                              : () async {
+                                                  setModal(
+                                                    () => pending.add(ext.id),
+                                                  );
+                                                  final ok = await svc
+                                                      .installExtension(ext);
+                                                  if (mCtx.mounted) {
+                                                    setModal(() {
+                                                      pending.remove(ext.id);
+                                                      if (ok) tempId = ext.id;
+                                                    });
+                                                  }
+                                                },
+                                          child: isDown
+                                              ? const SizedBox(
+                                                  width: 14,
+                                                  height: 14,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                      ),
+                                                )
+                                              : const Icon(
+                                                  Icons.download_rounded,
+                                                  size: 16,
+                                                ),
+                                        )
+                                      else
+                                        Radio<String>(
+                                          value: ext.id,
+                                          groupValue: tempId,
+                                          activeColor: ext.color,
+                                          onChanged: (v) =>
+                                              setModal(() => tempId = v),
+                                        ),
                                     ],
                                   ),
                                 ),
@@ -1871,8 +639,6 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                             },
                           ),
                   ),
-
-                  // Barre d'actions
                   SafeArea(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
@@ -1880,7 +646,7 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                         children: [
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: () => Navigator.pop(modalContext),
+                              onPressed: () => Navigator.pop(mCtx),
                               child: const Text('Annuler'),
                             ),
                           ),
@@ -1892,18 +658,15 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                                 backgroundColor: const Color(0xFFE67E22),
                               ),
                               onPressed: () {
-                                if (tempSelectedId != null) {
-                                  final chosen = extensions.firstWhere(
-                                    (e) => e.id == tempSelectedId,
+                                if (tempId != null) {
+                                  final chosen = exts.firstWhere(
+                                    (e) => e.id == tempId,
                                   );
-                                  setState(() {
-                                    _selectedExtension = chosen;
-                                    _addExtension = true;
-                                  });
+                                  setState(() => _selectedExtension = chosen);
                                 }
-                                Navigator.pop(modalContext);
+                                Navigator.pop(mCtx);
                               },
-                              child: const Text('Continuer'),
+                              child: const Text('Confirmer'),
                             ),
                           ),
                         ],
@@ -1919,168 +682,34 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
     );
   }
 
-  Widget _buildModelSelectorTile(bool isDark) {
-    final isPro = _selectedModel == DeepSeekModel.pro;
-    return Container(
-      decoration: BoxDecoration(
-        color: isPro
-            ? const Color(0xFF6C3FE8).withValues(alpha: 0.07)
-            : (isDark ? const Color(0xFF1E1E1E) : Colors.grey[50]),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isPro
-              ? const Color(0xFF6C3FE8).withValues(alpha: 0.35)
-              : (isDark ? Colors.grey[800]! : Colors.grey[200]!),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.psychology_rounded,
-                  color: isPro ? const Color(0xFF6C3FE8) : Colors.grey,
-                  size: 20,
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  'Modèle d\'IA',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: isDark ? Colors.white : Colors.black87,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Row(
-            children: [
-              _modelChip(
-                DeepSeekModel.flash,
-                Icons.bolt_rounded,
-                const Color(0xFF3498DB),
-                isDark,
-              ),
-              _modelChip(
-                DeepSeekModel.pro,
-                Icons.auto_awesome,
-                const Color(0xFF6C3FE8),
-                isDark,
-              ),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
-            child: Text(
-              _selectedModel.description,
-              style: TextStyle(
-                fontSize: 12,
-                color: isDark ? Colors.grey[400] : Colors.grey[600],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _modelChip(
-    DeepSeekModel model,
-    IconData icon,
-    Color color,
-    bool isDark,
-  ) {
-    final selected = _selectedModel == model;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _selectedModel = model),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: selected
-                ? color.withValues(alpha: 0.15)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selected
-                  ? color.withValues(alpha: 0.6)
-                  : (isDark ? Colors.grey[700]! : Colors.grey[300]!),
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 15, color: selected ? color : Colors.grey),
-              const SizedBox(width: 6),
-              Text(
-                model.label,
-                style: TextStyle(
-                  fontSize: 13,
-
-                  fontWeight: FontWeight.w700,
-                  color: selected
-                      ? color
-                      : (isDark ? Colors.grey[400] : Colors.grey[600]),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  // ── Génération ───────────────────────────────────────────────────────────────
 
   void _generateWithDeepSeek() async {
-    if (_generatedPrompt == null) {
-      _buildPrompt();
-    }
+    if (_generatedPrompt == null) _buildPrompt();
     if (_generatedPrompt == null) return;
-
     setState(() => _isGenerating = true);
-
     try {
       final result = await DeepSeekService.generateCourse(
         _generatedPrompt!,
         model: _selectedModel,
       );
 
-      // Afficher le message de fallback Pro → Flash si applicable
       if (result.fallbackMessage != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result.fallbackMessage!),
-            duration: const Duration(seconds: 4),
-            backgroundColor: const Color(0xFF3498DB),
-          ),
-        );
+        _snack(result.fallbackMessage!);
       }
 
-      // Clean potential JSON markdown blocks if any
-      String cleanJson = result.content.trim();
-      if (cleanJson.startsWith("```")) {
-        final firstLineEnd = cleanJson.indexOf('\n');
-        if (firstLineEnd != -1) {
-          cleanJson = cleanJson.substring(firstLineEnd).trim();
-        }
-        if (cleanJson.endsWith("```")) {
-          cleanJson = cleanJson.substring(0, cleanJson.length - 3).trim();
-        }
+      String clean = result.content.trim();
+      if (clean.startsWith('```')) {
+        final i = clean.indexOf('\n');
+        if (i != -1) clean = clean.substring(i).trim();
+        if (clean.endsWith('```'))
+          clean = clean.substring(0, clean.length - 3).trim();
       }
 
-      final validation = CourseImportValidator.validate(cleanJson);
-      if (!validation.isValid) {
-        throw Exception(
-          "Le cours généré n'est pas valide :\n${validation.errors.join("\n")}",
-        );
-      }
+      final v = CourseImportValidator.validate(clean);
+      if (!v.isValid) throw Exception(v.errors.join('\n'));
 
-      var pkg = validation.package!;
+      var pkg = v.package!;
       var meta = pkg.meta;
       if (_selectedExtension != null) {
         meta = meta.copyWith(requiredExtension: _selectedExtension!.id);
@@ -2097,24 +726,21 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
         lecons: pkg.lecons,
         exercices: pkg.exercices,
       );
-      final customProvider = context.read<CustomCoursesProvider>();
-      final err = await customProvider.importCourse(pkg);
-      if (err != null) {
-        throw Exception(err);
-      }
+
+      final err = await context.read<CustomCoursesProvider>().importCourse(pkg);
+      if (err != null) throw Exception(err);
 
       await context.read<ProgressionProvider>().loadProgression(pkg.matiere.id);
 
-      // Si un projetId est fourni, rattacher le cours au projet
       if (widget.projetId != null && mounted) {
         await context.read<ProjetsProvider>().addMatiereToProjet(
           widget.projetId!,
           pkg.matiere.id,
         );
       }
-      // Si le créateur est un enseignant, publier également dans le catalogue public
-      final userRole = await AuthService.getUserRole();
-      if (userRole == 'teacher') {
+
+      final role = await AuthService.getUserRole();
+      if (role == 'teacher') {
         try {
           await TeacherCoursesService.publishCourse(
             package: pkg,
@@ -2126,23 +752,21 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
             isPublished: true,
           );
         } catch (e) {
-          debugPrint('Erreur publication catalogue enseignant : $e');
+          debugPrint('Erreur publication : $e');
         }
       }
 
       if (mounted) {
-        // Afficher le dialog de choix : Studio ou Terminer
         final goStudio = await showDialog<bool>(
           context: context,
           barrierDismissible: false,
-          builder: (ctx) => _CourseCreatedDialog(
+          builder: (_) => _CourseCreatedDialog(
             courseName: pkg.matiere.nom,
-            isTeacher: userRole == 'teacher',
+            isTeacher: role == 'teacher',
           ),
         );
         if (!mounted) return;
         if (goStudio == true) {
-          // Ouvrir le Studio directement
           await Navigator.push(
             context,
             MaterialPageRoute(
@@ -2156,12 +780,17 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
         }
       }
     } on QuotaExceededException catch (e) {
-      // Quota Pro bloqué → dialog clair, aucun appel API n'a été fait
       if (mounted) {
         showDialog(
           context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Mode Pro indisponible'),
+          builder: (_) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Text(
+              'Mode Pro indisponible',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
             content: Text(e.message),
             actions: [
               TextButton(
@@ -2173,21 +802,23 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
         );
       }
     } catch (e, stack) {
-      debugPrint('Erreur génération cours : $e\n$stack');
+      debugPrint('Erreur génération : $e\n$stack');
       if (mounted) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
         showDialog(
           context: context,
-          builder: (context) => AlertDialog(
+          builder: (_) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
             title: const Row(
               children: [
-                Icon(
-                  Icons.warning_amber_rounded,
-                  color: Colors.orange,
-                  size: 24,
-                ),
+                Icon(Icons.warning_amber_rounded, color: Colors.orange),
                 SizedBox(width: 8),
-                Text('Génération interrompue'),
+                Text(
+                  'Génération interrompue',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
               ],
             ),
             content: SingleChildScrollView(
@@ -2195,10 +826,7 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    formatUserError(e),
-                    style: const TextStyle(fontSize: 14, height: 1.4),
-                  ),
+                  Text(formatUserError(e)),
                   const SizedBox(height: 12),
                   Theme(
                     data: Theme.of(
@@ -2206,7 +834,7 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                     ).copyWith(dividerColor: Colors.transparent),
                     child: ExpansionTile(
                       title: const Text(
-                        'Détails techniques',
+                        'Détails',
                         style: TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                       tilePadding: EdgeInsets.zero,
@@ -2239,7 +867,7 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
                 onPressed: () => Navigator.pop(context),
                 child: const Text('Fermer'),
               ),
-              ElevatedButton.icon(
+              FilledButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
                   _generateWithDeepSeek();
@@ -2252,163 +880,260 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isGenerating = false);
-      }
+      if (mounted) setState(() => _isGenerating = false);
     }
   }
+}
 
-  Widget _stepPrompt(bool isDark) {
-    if (_isGenerating) {
-      return const Center(
-        child: Padding(padding: EdgeInsets.all(24), child: PremiumLoader()),
-      );
-    }
+// ── Header avec stepper ───────────────────────────────────────────────────────
 
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        Text(
-          'Prêt pour la génération',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'L\'intelligence artificielle va structurer votre cours, rédiger les leçons et concevoir les exercices d\'entraînement adaptés.',
-          style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
-        ),
-        const SizedBox(height: 20),
-        Card(
-          elevation: 0,
-          color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[100],
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Récapitulatif de la configuration :',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: isDark ? Colors.white : Colors.black87,
+class _WizardHeader extends StatelessWidget {
+  final int step, totalSteps;
+  final List<String> labels;
+  final Color primary;
+  final bool isDark;
+  final VoidCallback onBack;
+
+  const _WizardHeader({
+    required this.step,
+    required this.totalSteps,
+    required this.labels,
+    required this.primary,
+    required this.isDark,
+    required this.onBack,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              GestureDetector(
+                onTap: onBack,
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.07)
+                        : Colors.black.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    size: 16,
+                    color: isDark ? Colors.white70 : Colors.black54,
                   ),
                 ),
-                const SizedBox(height: 12),
-                _summaryRow(Icons.title, 'Nom :', _nomCtrl.text),
-                _summaryRow(
-                  Icons.flag_outlined,
-                  'Objectif :',
-                  _objectif == 'revision'
-                      ? 'Révision'
-                      : (_objectif == 'culture'
-                            ? 'Culture'
-                            : 'Compréhension terrain'),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  step < labels.length ? labels[step] : 'Créer un cours',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+                  ),
                 ),
-                _summaryRow(
-                  Icons.language,
-                  'Langue :',
-                  _langue == 'fr' ? 'Français' : 'Anglais',
+              ),
+              Text(
+                '${step + 1}/$totalSteps',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white38 : Colors.black38,
                 ),
-                _summaryRow(
-                  Icons.format_list_bulleted,
-                  'Structure :',
-                  _chapitres.isEmpty
-                      ? 'Chapitres auto-générés'
-                      : '${_chapitres.length} chapitre(s)',
-                ),
-                _summaryRow(
-                  Icons.trending_up,
-                  'Cycle & Classe :',
-                  '${_schoolLevel.toUpperCase()} — ${_classeCtrl.text.trim().isNotEmpty ? _classeCtrl.text.trim() : "Non précisée"}',
-                ),
-                _summaryRow(
-                  Icons.image_outlined,
-                  'Couverture :',
-                  _coverImageUrl != null
-                      ? 'Personnalisée'
-                      : 'Standard / Par défaut',
-                ),
-                _summaryRow(
-                  Icons.terminal,
-                  'Terminal :',
-                  _enableTerminal
-                      ? 'Activé (exercices d\'algorithmique)'
-                      : 'Désactivé (QCM uniquement)',
-                ),
-                _summaryRow(
-                  _selectedModel == DeepSeekModel.pro
-                      ? Icons.auto_awesome
-                      : Icons.bolt_rounded,
-                  'Modèle IA :',
-                  'Ngenou ${_selectedModel.label} — ${_selectedModel.description}',
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: 24),
-        Card(
-          elevation: 0,
-          color: Theme.of(context).primaryColor.withValues(alpha: 0.05),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-              color: Theme.of(context).primaryColor.withValues(alpha: 0.2),
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.auto_awesome,
-                  color: Theme.of(context).primaryColor,
-                  size: 24,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Cliquez sur le bouton ci-dessous pour lancer la création par l\'IA.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: isDark ? Colors.white70 : Colors.black87,
+          const SizedBox(height: 14),
+          // Stepper
+          Row(
+            children: List.generate(totalSteps * 2 - 1, (i) {
+              if (i.isOdd) {
+                final done = i ~/ 2 < step;
+                return Expanded(
+                  child: Container(
+                    height: 2,
+                    decoration: BoxDecoration(
+                      color: done
+                          ? primary
+                          : (isDark
+                                ? Colors.white.withValues(alpha: 0.1)
+                                : Colors.black.withValues(alpha: 0.08)),
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                ),
-              ],
-            ),
+                );
+              }
+              final idx = i ~/ 2;
+              final active = idx == step;
+              final done = idx < step;
+              return _StepDot(
+                index: idx,
+                active: active,
+                done: done,
+                primary: primary,
+                isDark: isDark,
+                label: labels[idx],
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StepDot extends StatelessWidget {
+  final int index;
+  final bool active, done;
+  final Color primary;
+  final bool isDark;
+  final String label;
+
+  const _StepDot({
+    required this.index,
+    required this.active,
+    required this.done,
+    required this.primary,
+    required this.isDark,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          width: active ? 30 : 26,
+          height: active ? 30 : 26,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: done || active
+                ? primary
+                : (isDark
+                      ? Colors.white.withValues(alpha: 0.08)
+                      : Colors.black.withValues(alpha: 0.06)),
+            boxShadow: active
+                ? [
+                    BoxShadow(
+                      color: primary.withValues(alpha: 0.35),
+                      blurRadius: 8,
+                    ),
+                  ]
+                : [],
+          ),
+          child: Center(
+            child: done
+                ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
+                : Text(
+                    '${index + 1}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: active || done
+                          ? Colors.white
+                          : (isDark ? Colors.white38 : Colors.black38),
+                    ),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 9,
+            fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+            color: active
+                ? primary
+                : (isDark ? Colors.white38 : Colors.black38),
           ),
         ),
       ],
     );
   }
+}
 
-  Widget _summaryRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+// ── Footer ────────────────────────────────────────────────────────────────────
+
+class _WizardFooter extends StatelessWidget {
+  final int step, totalSteps;
+  final Color primary;
+  final bool isDark;
+  final VoidCallback onBack, onNext;
+
+  const _WizardFooter({
+    required this.step,
+    required this.totalSteps,
+    required this.primary,
+    required this.isDark,
+    required this.onBack,
+    required this.onNext,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isLast = step == totalSteps - 1;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: Colors.grey),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
-          ),
-          const SizedBox(width: 6),
+          if (step > 0) ...[
+            Expanded(
+              flex: 2,
+              child: OutlinedButton(
+                onPressed: onBack,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  side: BorderSide(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.15)
+                        : Colors.black.withValues(alpha: 0.12),
+                  ),
+                  foregroundColor: isDark ? Colors.white70 : Colors.black54,
+                ),
+                child: const Text(
+                  'Retour',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+          ],
           Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(color: Colors.grey, fontSize: 13),
+            flex: 3,
+            child: FilledButton.icon(
+              onPressed: onNext,
+              style: FilledButton.styleFrom(
+                backgroundColor: primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              icon: Icon(
+                isLast
+                    ? Icons.auto_awesome_rounded
+                    : Icons.arrow_forward_rounded,
+                size: 18,
+              ),
+              label: Text(
+                isLast ? 'Générer le cours' : 'Suivant',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
             ),
           ),
         ],
@@ -2417,9 +1142,1810 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Dialog affiché juste après la génération du cours
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Widgets utilitaires partagés ──────────────────────────────────────────────
+
+class _SectionCard extends StatelessWidget {
+  final Widget child;
+  final bool isDark;
+  const _SectionCard({required this.child, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: isDark ? _kSurface : Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.06)
+            : Colors.black.withValues(alpha: 0.05),
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+          blurRadius: 10,
+          offset: const Offset(0, 3),
+        ),
+      ],
+    ),
+    child: child,
+  );
+}
+
+class _SectionLabel extends StatelessWidget {
+  final String label;
+  final bool isDark;
+  const _SectionLabel({required this.label, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) => Text(
+    label.toUpperCase(),
+    style: TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.8,
+      color: isDark ? Colors.white38 : Colors.black38,
+    ),
+  );
+}
+
+// ── Étape 1 : Informations ────────────────────────────────────────────────────
+
+class _StepInfos extends StatelessWidget {
+  final TextEditingController nomCtrl, descCtrl, classeCtrl;
+  final String schoolLevel;
+  final String? userRole, coverImageUrl;
+  final bool isDark;
+  final Color primary;
+  final double hPad;
+  final void Function(String) onSchoolLevelChanged;
+  final VoidCallback onClasseChanged;
+  final List<String> suggestedClasses;
+  final Future<void> Function(ImageSource) onCoverPick;
+  final VoidCallback onCoverDelete;
+  final VoidCallback onImport;
+
+  const _StepInfos({
+    required this.nomCtrl,
+    required this.descCtrl,
+    required this.classeCtrl,
+    required this.schoolLevel,
+    required this.userRole,
+    required this.coverImageUrl,
+    required this.isDark,
+    required this.primary,
+    required this.hPad,
+    required this.onSchoolLevelChanged,
+    required this.onClasseChanged,
+    required this.suggestedClasses,
+    required this.onCoverPick,
+    required this.onCoverDelete,
+    required this.onImport,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final inputBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.1)
+            : Colors.black.withValues(alpha: 0.1),
+      ),
+    );
+    final focusBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(color: primary, width: 1.8),
+    );
+    final fillColor = isDark
+        ? Colors.white.withValues(alpha: 0.05)
+        : Colors.black.withValues(alpha: 0.03);
+
+    return ListView(
+      padding: EdgeInsets.fromLTRB(hPad, 4, hPad, 24),
+      children: [
+        // Importer un cours existant
+        _SectionCard(
+          isDark: isDark,
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.upload_file_rounded,
+                  color: primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Importer un cours existant',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+                  ),
+                ),
+              ),
+              FilledButton.tonal(
+                onPressed: onImport,
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: const Text(
+                  'Importer',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Séparateur
+        Row(
+          children: [
+            Expanded(
+              child: Divider(color: isDark ? Colors.white12 : Colors.black12),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                'ou créer avec l\'IA',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white38 : Colors.black38,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Divider(color: isDark ? Colors.white12 : Colors.black12),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Badge enseignant
+        if (userRole == 'teacher') ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF6C63FF).withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: const Color(0xFF6C63FF).withValues(alpha: 0.3),
+              ),
+            ),
+            child: const Row(
+              children: [
+                Icon(
+                  Icons.verified_user_rounded,
+                  color: Color(0xFF6C63FF),
+                  size: 18,
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Compte Enseignant — Ce cours sera publié dans les cours publics.',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF6C63FF),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        _SectionLabel(label: 'Nom du cours', isDark: isDark),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: nomCtrl,
+          style: TextStyle(
+            color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+          decoration: InputDecoration(
+            hintText: 'Ex : Mathématiques 3ème',
+            hintStyle: TextStyle(
+              color: isDark ? Colors.white30 : Colors.black26,
+              fontWeight: FontWeight.w400,
+            ),
+            prefixIcon: Icon(Icons.title_rounded, color: primary, size: 20),
+            filled: true,
+            fillColor: fillColor,
+            border: inputBorder,
+            enabledBorder: inputBorder,
+            focusedBorder: focusBorder,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        _SectionLabel(label: 'Description courte (optionnel)', isDark: isDark),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: descCtrl,
+          maxLines: 3,
+          style: TextStyle(
+            color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+            fontSize: 15,
+          ),
+          decoration: InputDecoration(
+            hintText: 'Décrivez brièvement ce cours…',
+            hintStyle: TextStyle(
+              color: isDark ? Colors.white30 : Colors.black26,
+            ),
+            filled: true,
+            fillColor: fillColor,
+            border: inputBorder,
+            enabledBorder: inputBorder,
+            focusedBorder: focusBorder,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+
+        // Photo de couverture
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _SectionLabel(label: 'Photo de couverture', isDark: isDark),
+            if (coverImageUrl != null)
+              GestureDetector(
+                onTap: onCoverDelete,
+                child: Text(
+                  'Supprimer',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.red.shade400,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        _CoverPicker(
+          coverImageUrl: coverImageUrl,
+          isDark: isDark,
+          primary: primary,
+          onPick: onCoverPick,
+        ),
+        const SizedBox(height: 18),
+
+        // Niveau scolaire
+        _SectionLabel(label: "Niveau d'enseignement", isDark: isDark),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            _LevelChip(
+              level: 'primaire',
+              label: 'Primaire',
+              icon: Icons.child_care_rounded,
+              current: schoolLevel,
+              primary: primary,
+              isDark: isDark,
+              onTap: onSchoolLevelChanged,
+            ),
+            const SizedBox(width: 8),
+            _LevelChip(
+              level: 'secondaire',
+              label: 'Secondaire',
+              icon: Icons.school_rounded,
+              current: schoolLevel,
+              primary: primary,
+              isDark: isDark,
+              onTap: onSchoolLevelChanged,
+            ),
+            const SizedBox(width: 8),
+            _LevelChip(
+              level: 'superieur',
+              label: 'Supérieur',
+              icon: Icons.psychology_rounded,
+              current: schoolLevel,
+              primary: primary,
+              isDark: isDark,
+              onTap: onSchoolLevelChanged,
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Classe
+        _SectionLabel(label: 'Classe ciblée', isDark: isDark),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: classeCtrl,
+          onChanged: (_) => onClasseChanged(),
+          style: TextStyle(
+            color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+          decoration: InputDecoration(
+            hintText: 'Ex : 3ème, CM2, Terminale…',
+            hintStyle: TextStyle(
+              color: isDark ? Colors.white30 : Colors.black26,
+            ),
+            prefixIcon: Icon(Icons.class_rounded, color: primary, size: 20),
+            filled: true,
+            fillColor: fillColor,
+            border: inputBorder,
+            enabledBorder: inputBorder,
+            focusedBorder: focusBorder,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: suggestedClasses.map((c) {
+            final sel = classeCtrl.text.trim().toLowerCase() == c.toLowerCase();
+            return GestureDetector(
+              onTap: () {
+                classeCtrl.text = c;
+                onClasseChanged();
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: sel
+                      ? primary
+                      : (isDark
+                            ? Colors.white.withValues(alpha: 0.06)
+                            : Colors.black.withValues(alpha: 0.04)),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: sel
+                        ? primary
+                        : (isDark ? Colors.white12 : Colors.black12),
+                  ),
+                ),
+                child: Text(
+                  c,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
+                    color: sel
+                        ? Colors.white
+                        : (isDark ? Colors.white70 : Colors.black87),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+}
+
+class _LevelChip extends StatelessWidget {
+  final String level, label;
+  final IconData icon;
+  final String current;
+  final Color primary;
+  final bool isDark;
+  final void Function(String) onTap;
+
+  const _LevelChip({
+    required this.level,
+    required this.label,
+    required this.icon,
+    required this.current,
+    required this.primary,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final sel = current == level;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => onTap(level),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: sel
+                ? primary.withValues(alpha: isDark ? 0.2 : 0.1)
+                : (isDark ? _kSurface : Colors.white),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: sel ? primary : (isDark ? Colors.white12 : Colors.black12),
+              width: sel ? 1.5 : 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: sel
+                    ? primary
+                    : (isDark ? Colors.white38 : Colors.black38),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
+                  color: sel
+                      ? (isDark ? Colors.white : primary)
+                      : (isDark ? Colors.white54 : Colors.black54),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CoverPicker extends StatelessWidget {
+  final String? coverImageUrl;
+  final bool isDark;
+  final Color primary;
+  final Future<void> Function(ImageSource) onPick;
+
+  const _CoverPicker({
+    required this.coverImageUrl,
+    required this.isDark,
+    required this.primary,
+    required this.onPick,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (coverImageUrl != null && coverImageUrl!.isNotEmpty) {
+      return Container(
+        height: 140,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            _coverWidget(coverImageUrl!),
+            Positioned(
+              bottom: 8,
+              right: 8,
+              child: GestureDetector(
+                onTap: () => _showPicker(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black87,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Changer',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return GestureDetector(
+      onTap: () => _showPicker(context),
+      child: Container(
+        height: 110,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: isDark ? _kSurface : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: primary.withValues(alpha: 0.35),
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: primary.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.add_photo_alternate_rounded,
+                color: primary,
+                size: 24,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Ajouter une couverture',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: isDark ? Colors.white70 : Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Galerie ou appareil photo',
+              style: TextStyle(
+                fontSize: 11.5,
+                color: isDark ? Colors.white38 : Colors.black38,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showPicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: BoxDecoration(
+          color: isDark ? _kSurface : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.2)
+                    : Colors.black.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Photo de couverture',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 14),
+            ListTile(
+              leading: const Icon(
+                Icons.photo_library_rounded,
+                color: Color(0xFF3498DB),
+              ),
+              title: const Text('Galerie'),
+              onTap: () {
+                Navigator.pop(context);
+                onPick(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.camera_alt_rounded,
+                color: Color(0xFF2ECC71),
+              ),
+              title: const Text('Appareil photo'),
+              onTap: () {
+                Navigator.pop(context);
+                onPick(ImageSource.camera);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _coverWidget(String url) {
+    if (url.startsWith('data:image')) {
+      try {
+        final ci = url.indexOf(',');
+        return Image.memory(
+          base64Decode(ci != -1 ? url.substring(ci + 1) : url),
+          fit: BoxFit.cover,
+        );
+      } catch (_) {
+        return const Icon(Icons.broken_image);
+      }
+    }
+    if (url.startsWith('http'))
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+      );
+    if (url.startsWith('assets/')) return Image.asset(url, fit: BoxFit.cover);
+    return Image.file(
+      File(url),
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+    );
+  }
+}
+
+// ── Étape 2 : Objectif ────────────────────────────────────────────────────────
+
+class _StepObjectif extends StatelessWidget {
+  final String objectif;
+  final bool isDark;
+  final Color primary;
+  final double hPad;
+  final void Function(String) onChanged;
+
+  const _StepObjectif({
+    required this.objectif,
+    required this.isDark,
+    required this.primary,
+    required this.hPad,
+    required this.onChanged,
+  });
+
+  static const _opts = [
+    (
+      'revision',
+      Icons.schedule_rounded,
+      'Révision',
+      'Fiches, rappels, QCM — préparer un contrôle rapidement.',
+    ),
+    (
+      'comprehension',
+      Icons.school_rounded,
+      'Comprendre de A à Z',
+      'Progression terrain, exemples concrets, notions claires.',
+    ),
+    (
+      'culture',
+      Icons.auto_stories_rounded,
+      'Culture & curiosité',
+      'Enrichissement, liens, ton narratif et stimulant.',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: EdgeInsets.fromLTRB(hPad, 4, hPad, 24),
+      children: [
+        Text(
+          'Quel est votre objectif ?',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          "L'IA adaptera le style pédagogique en conséquence.",
+          style: TextStyle(
+            fontSize: 13,
+            color: isDark ? Colors.white38 : Colors.black38,
+          ),
+        ),
+        const SizedBox(height: 20),
+        ..._opts.map((o) {
+          final sel = objectif == o.$1;
+          return GestureDetector(
+            onTap: () => onChanged(o.$1),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: sel
+                    ? primary.withValues(alpha: isDark ? 0.18 : 0.08)
+                    : (isDark ? _kSurface : Colors.white),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: sel
+                      ? primary.withValues(alpha: 0.6)
+                      : (isDark
+                            ? Colors.white.withValues(alpha: 0.06)
+                            : Colors.black.withValues(alpha: 0.06)),
+                  width: sel ? 1.5 : 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: sel
+                          ? primary.withValues(alpha: 0.15)
+                          : (isDark
+                                ? Colors.white.withValues(alpha: 0.06)
+                                : Colors.black.withValues(alpha: 0.04)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      o.$2,
+                      size: 20,
+                      color: sel
+                          ? primary
+                          : (isDark ? Colors.white38 : Colors.black38),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          o.$3,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF1A1A2E),
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          o.$4,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: isDark ? Colors.white54 : Colors.black45,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    width: 22,
+                    height: 22,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: sel ? primary : Colors.transparent,
+                      border: Border.all(
+                        color: sel
+                            ? primary
+                            : (isDark ? Colors.white24 : Colors.black26),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: sel
+                        ? const Icon(
+                            Icons.check_rounded,
+                            size: 13,
+                            color: Colors.white,
+                          )
+                        : null,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+}
+
+// ── Étape 3 : Langue ──────────────────────────────────────────────────────────
+
+class _StepLangue extends StatelessWidget {
+  final String langue;
+  final bool isDark;
+  final Color primary;
+  final double hPad;
+  final void Function(String) onChanged;
+
+  const _StepLangue({
+    required this.langue,
+    required this.isDark,
+    required this.primary,
+    required this.hPad,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: EdgeInsets.fromLTRB(hPad, 4, hPad, 24),
+      children: [
+        Text(
+          'Langue du contenu',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          "Dans quelle langue voulez-vous que l'IA génère les leçons ?",
+          style: TextStyle(
+            fontSize: 13,
+            color: isDark ? Colors.white38 : Colors.black38,
+          ),
+        ),
+        const SizedBox(height: 20),
+        _LangTile(
+          value: 'fr',
+          label: 'Français',
+          flag: '🇫🇷',
+          current: langue,
+          primary: primary,
+          isDark: isDark,
+          onTap: onChanged,
+        ),
+        const SizedBox(height: 12),
+        _LangTile(
+          value: 'en',
+          label: 'English',
+          flag: '🇬🇧',
+          current: langue,
+          primary: primary,
+          isDark: isDark,
+          onTap: onChanged,
+        ),
+      ],
+    );
+  }
+}
+
+class _LangTile extends StatelessWidget {
+  final String value, label, flag, current;
+  final Color primary;
+  final bool isDark;
+  final void Function(String) onTap;
+
+  const _LangTile({
+    required this.value,
+    required this.label,
+    required this.flag,
+    required this.current,
+    required this.primary,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final sel = current == value;
+    return GestureDetector(
+      onTap: () => onTap(value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        decoration: BoxDecoration(
+          color: sel
+              ? primary.withValues(alpha: isDark ? 0.18 : 0.08)
+              : (isDark ? _kSurface : Colors.white),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: sel
+                ? primary.withValues(alpha: 0.6)
+                : (isDark
+                      ? Colors.white.withValues(alpha: 0.06)
+                      : Colors.black.withValues(alpha: 0.06)),
+            width: sel ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Text(flag, style: const TextStyle(fontSize: 28)),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+                ),
+              ),
+            ),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: sel ? primary : Colors.transparent,
+                border: Border.all(
+                  color: sel
+                      ? primary
+                      : (isDark ? Colors.white24 : Colors.black26),
+                  width: 1.5,
+                ),
+              ),
+              child: sel
+                  ? const Icon(
+                      Icons.check_rounded,
+                      size: 13,
+                      color: Colors.white,
+                    )
+                  : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Étape 4 : Documents ───────────────────────────────────────────────────────
+
+class _StepDocuments extends StatelessWidget {
+  final TextEditingController docsCtrl;
+  final bool isOcrProcessing, isDark;
+  final Color primary;
+  final double hPad;
+  final VoidCallback onPickCamera, onPickGallery, onPickPdf;
+  final void Function(String) onTextChanged;
+
+  const _StepDocuments({
+    required this.docsCtrl,
+    required this.isOcrProcessing,
+    required this.isDark,
+    required this.primary,
+    required this.hPad,
+    required this.onPickCamera,
+    required this.onPickGallery,
+    required this.onPickPdf,
+    required this.onTextChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: EdgeInsets.fromLTRB(hPad, 4, hPad, 24),
+      children: [
+        Text(
+          'Documents & Images',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Optionnel — basez le cours sur vos propres supports.',
+          style: TextStyle(
+            fontSize: 13,
+            color: isDark ? Colors.white38 : Colors.black38,
+          ),
+        ),
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            Expanded(
+              child: _DocButton(
+                icon: Icons.camera_alt_rounded,
+                label: 'Photo',
+                isDark: isDark,
+                primary: primary,
+                onTap: isOcrProcessing ? null : onPickCamera,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _DocButton(
+                icon: Icons.photo_library_rounded,
+                label: 'Galerie',
+                isDark: isDark,
+                primary: primary,
+                onTap: isOcrProcessing ? null : onPickGallery,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _DocButton(
+                icon: Icons.picture_as_pdf_rounded,
+                label: 'PDF',
+                isDark: isDark,
+                primary: primary,
+                onTap: isOcrProcessing ? null : onPickPdf,
+              ),
+            ),
+          ],
+        ),
+        if (isOcrProcessing) ...[
+          const SizedBox(height: 16),
+          const Center(child: CircularProgressIndicator()),
+          const SizedBox(height: 8),
+          Center(
+            child: Text(
+              'Extraction en cours…',
+              style: TextStyle(color: isDark ? Colors.white54 : Colors.black45),
+            ),
+          ),
+        ],
+        const SizedBox(height: 16),
+        _SectionLabel(label: 'Texte extrait ou saisi', isDark: isDark),
+        const SizedBox(height: 8),
+        TextField(
+          controller: docsCtrl,
+          maxLines: 14,
+          onChanged: onTextChanged,
+          style: TextStyle(
+            color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+            fontSize: 14,
+          ),
+          decoration: InputDecoration(
+            hintText:
+                'Le texte extrait apparaîtra ici. Vous pouvez aussi saisir directement…',
+            hintStyle: TextStyle(
+              color: isDark ? Colors.white30 : Colors.black26,
+              fontSize: 13,
+            ),
+            filled: true,
+            fillColor: isDark
+                ? Colors.white.withValues(alpha: 0.04)
+                : Colors.black.withValues(alpha: 0.03),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.1)
+                    : Colors.black.withValues(alpha: 0.1),
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.1)
+                    : Colors.black.withValues(alpha: 0.1),
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: primary, width: 1.8),
+            ),
+            contentPadding: const EdgeInsets.all(16),
+            alignLabelWithHint: true,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DocButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isDark;
+  final Color primary;
+  final VoidCallback? onTap;
+
+  const _DocButton({
+    required this.icon,
+    required this.label,
+    required this.isDark,
+    required this.primary,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: isDark ? _kSurface : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.06)
+                : Colors.black.withValues(alpha: 0.06),
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 22, color: onTap == null ? Colors.grey : primary),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: onTap == null
+                    ? Colors.grey
+                    : (isDark ? Colors.white70 : Colors.black87),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Étape 5 : Structure + Options ─────────────────────────────────────────────
+
+class _StepStructure extends StatelessWidget {
+  final List<String> chapitres;
+  final TextEditingController chapitreCtrl;
+  final String niveau;
+  final bool enableTerminal, isDark;
+  final DeepSeekModel selectedModel;
+  final NgenouExtension? selectedExtension;
+  final Color primary;
+  final double hPad;
+  final VoidCallback onAddChapitre;
+  final void Function(String) onRemoveChapitre;
+  final void Function(String) onNiveauChanged;
+  final void Function(bool) onTerminalChanged;
+  final void Function(DeepSeekModel) onModelChanged;
+  final VoidCallback onOpenExtensionPicker, onRemoveExtension;
+
+  const _StepStructure({
+    required this.chapitres,
+    required this.chapitreCtrl,
+    required this.niveau,
+    required this.enableTerminal,
+    required this.isDark,
+    required this.selectedModel,
+    required this.selectedExtension,
+    required this.primary,
+    required this.hPad,
+    required this.onAddChapitre,
+    required this.onRemoveChapitre,
+    required this.onNiveauChanged,
+    required this.onTerminalChanged,
+    required this.onModelChanged,
+    required this.onOpenExtensionPicker,
+    required this.onRemoveExtension,
+  });
+
+  static const _niveaux = [
+    ('', 'Auto'),
+    ('debutant', 'Débutant'),
+    ('intermediaire', 'Intermédiaire'),
+    ('avance', 'Avancé'),
+  ];
+
+  static const _models = [
+    (DeepSeekModel.flash, Icons.bolt_rounded, Color(0xFF3498DB), 'Flash'),
+    (DeepSeekModel.pro, Icons.auto_awesome, Color(0xFF6C3FE8), 'Pro'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final inputBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.1)
+            : Colors.black.withValues(alpha: 0.1),
+      ),
+    );
+
+    return ListView(
+      padding: EdgeInsets.fromLTRB(hPad, 4, hPad, 24),
+      children: [
+        Text(
+          'Structure & Options',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Tout est facultatif — l\'IA génère automatiquement si non précisé.',
+          style: TextStyle(
+            fontSize: 13,
+            color: isDark ? Colors.white38 : Colors.black38,
+          ),
+        ),
+        const SizedBox(height: 18),
+
+        // Chapitres
+        _SectionLabel(label: 'Chapitres (facultatif)', isDark: isDark),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: chapitreCtrl,
+                style: TextStyle(
+                  color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+                  fontSize: 14,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Ex : Les fonctions',
+                  hintStyle: TextStyle(
+                    color: isDark ? Colors.white30 : Colors.black26,
+                  ),
+                  filled: true,
+                  fillColor: isDark
+                      ? Colors.white.withValues(alpha: 0.04)
+                      : Colors.black.withValues(alpha: 0.03),
+                  border: inputBorder,
+                  enabledBorder: inputBorder,
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: primary, width: 1.8),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 14,
+                  ),
+                ),
+                onSubmitted: (_) => onAddChapitre(),
+              ),
+            ),
+            const SizedBox(width: 10),
+            FilledButton(
+              onPressed: onAddChapitre,
+              style: FilledButton.styleFrom(
+                backgroundColor: primary,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: const Icon(Icons.add_rounded, color: Colors.white),
+            ),
+          ],
+        ),
+        if (chapitres.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          ...chapitres.map(
+            (c) => Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: isDark ? _kSurface : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.06)
+                      : Colors.black.withValues(alpha: 0.05),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.drag_indicator_rounded,
+                    size: 16,
+                    color: isDark ? Colors.white24 : Colors.black26,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      c,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => onRemoveChapitre(c),
+                    child: Icon(
+                      Icons.close_rounded,
+                      size: 16,
+                      color: isDark ? Colors.white38 : Colors.black38,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: 18),
+
+        // Niveau
+        _SectionLabel(label: 'Niveau (facultatif)', isDark: isDark),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _niveaux.map((n) {
+            final sel = niveau == n.$1;
+            return GestureDetector(
+              onTap: () => onNiveauChanged(n.$1),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: sel ? primary : (isDark ? _kSurface : Colors.white),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: sel
+                        ? primary
+                        : (isDark ? Colors.white12 : Colors.black12),
+                  ),
+                ),
+                child: Text(
+                  n.$2,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
+                    color: sel
+                        ? Colors.white
+                        : (isDark ? Colors.white70 : Colors.black87),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 18),
+
+        // Modèle IA
+        _SectionLabel(label: "Modèle d'IA", isDark: isDark),
+        const SizedBox(height: 8),
+        Row(
+          children: _models.map((m) {
+            final sel = selectedModel == m.$1;
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => onModelChanged(m.$1),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: EdgeInsets.only(
+                    right: m.$1 == DeepSeekModel.flash ? 8 : 0,
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: sel
+                        ? m.$3.withValues(alpha: isDark ? 0.15 : 0.08)
+                        : (isDark ? _kSurface : Colors.white),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: sel
+                          ? m.$3
+                          : (isDark ? Colors.white12 : Colors.black12),
+                      width: sel ? 1.5 : 1,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        m.$2,
+                        size: 20,
+                        color: sel
+                            ? m.$3
+                            : (isDark ? Colors.white38 : Colors.black38),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        m.$4,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
+                          color: sel
+                              ? m.$3
+                              : (isDark ? Colors.white54 : Colors.black54),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 18),
+
+        // Terminal algorithmique
+        _SectionCard(
+          isDark: isDark,
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.terminal_rounded,
+                  color: Colors.orange,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Terminal algorithmique',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+                      ),
+                    ),
+                    Text(
+                      'Exercices avec pseudo-code exécutable',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? Colors.white38 : Colors.black38,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch.adaptive(
+                value: enableTerminal,
+                onChanged: onTerminalChanged,
+                activeColor: primary,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // Extension
+        _SectionCard(
+          isDark: isDark,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE67E22).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.extension_rounded,
+                      color: Color(0xFFE67E22),
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Extension pédagogique',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF1A1A2E),
+                          ),
+                        ),
+                        Text(
+                          selectedExtension != null
+                              ? 'Active : ${selectedExtension!.nom}'
+                              : 'Associez un outil interactif (optionnel)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? Colors.white38 : Colors.black38,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (selectedExtension != null)
+                    GestureDetector(
+                      onTap: onRemoveExtension,
+                      child: Icon(
+                        Icons.close_rounded,
+                        size: 18,
+                        color: isDark ? Colors.white38 : Colors.black38,
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: onOpenExtensionPicker,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFE67E22),
+                    side: const BorderSide(color: Color(0xFFE67E22)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                  ),
+                  icon: const Icon(Icons.add_rounded, size: 16),
+                  label: Text(
+                    selectedExtension != null
+                        ? 'Changer l\'extension'
+                        : 'Choisir une extension',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Étape 6 : Génération ──────────────────────────────────────────────────────
+
+class _StepGeneration extends StatelessWidget {
+  final bool isGenerating, isDark;
+  final TextEditingController nomCtrl, classeCtrl;
+  final String objectif, langue, schoolLevel;
+  final List<String> chapitres;
+  final String? coverImageUrl;
+  final bool enableTerminal;
+  final DeepSeekModel selectedModel;
+  final Color primary;
+  final double hPad;
+
+  const _StepGeneration({
+    required this.isGenerating,
+    required this.isDark,
+    required this.nomCtrl,
+    required this.classeCtrl,
+    required this.objectif,
+    required this.langue,
+    required this.schoolLevel,
+    required this.chapitres,
+    required this.coverImageUrl,
+    required this.enableTerminal,
+    required this.selectedModel,
+    required this.primary,
+    required this.hPad,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (isGenerating) {
+      return const Center(
+        child: Padding(padding: EdgeInsets.all(24), child: PremiumLoader()),
+      );
+    }
+
+    String _objLabel() => switch (objectif) {
+      'revision' => 'Révision',
+      'culture' => 'Culture',
+      _ => 'Compréhension',
+    };
+
+    return ListView(
+      padding: EdgeInsets.fromLTRB(hPad, 4, hPad, 24),
+      children: [
+        Text(
+          'Prêt à générer !',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          "L'IA va créer les leçons, structurer les notions et concevoir les exercices.",
+          style: TextStyle(
+            fontSize: 13,
+            color: isDark ? Colors.white38 : Colors.black38,
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Récapitulatif
+        _SectionCard(
+          isDark: isDark,
+          child: Column(
+            children: [
+              _RecapRow(
+                icon: Icons.title_rounded,
+                label: 'Nom',
+                value: nomCtrl.text,
+                primary: primary,
+                isDark: isDark,
+              ),
+              _Divider(isDark: isDark),
+              _RecapRow(
+                icon: Icons.flag_outlined,
+                label: 'Objectif',
+                value: _objLabel(),
+                primary: primary,
+                isDark: isDark,
+              ),
+              _Divider(isDark: isDark),
+              _RecapRow(
+                icon: Icons.language_rounded,
+                label: 'Langue',
+                value: langue == 'fr' ? 'Français' : 'English',
+                primary: primary,
+                isDark: isDark,
+              ),
+              _Divider(isDark: isDark),
+              _RecapRow(
+                icon: Icons.school_rounded,
+                label: 'Cycle & Classe',
+                value:
+                    '${schoolLevel.toUpperCase()} — ${classeCtrl.text.trim().isNotEmpty ? classeCtrl.text.trim() : "Non précisée"}',
+                primary: primary,
+                isDark: isDark,
+              ),
+              _Divider(isDark: isDark),
+              _RecapRow(
+                icon: Icons.format_list_bulleted_rounded,
+                label: 'Structure',
+                value: chapitres.isEmpty
+                    ? 'Auto-générée'
+                    : '${chapitres.length} chapitre(s)',
+                primary: primary,
+                isDark: isDark,
+              ),
+              _Divider(isDark: isDark),
+              _RecapRow(
+                icon: Icons.image_outlined,
+                label: 'Couverture',
+                value: coverImageUrl != null ? 'Personnalisée' : 'Par défaut',
+                primary: primary,
+                isDark: isDark,
+              ),
+              _Divider(isDark: isDark),
+              _RecapRow(
+                icon: selectedModel == DeepSeekModel.pro
+                    ? Icons.auto_awesome
+                    : Icons.bolt_rounded,
+                label: 'Modèle IA',
+                value: 'Ngenou ${selectedModel.label}',
+                primary: primary,
+                isDark: isDark,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Info banner
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: primary.withValues(alpha: 0.07),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: primary.withValues(alpha: 0.15)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.auto_awesome_rounded, size: 16, color: primary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Appuyez sur "Générer le cours" pour lancer la création. '
+                  'L\'opération prend 15 à 45 secondes selon le modèle choisi.',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.5,
+                    color: isDark ? Colors.white54 : Colors.black54,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RecapRow extends StatelessWidget {
+  final IconData icon;
+  final String label, value;
+  final Color primary;
+  final bool isDark;
+
+  const _RecapRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.primary,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 10),
+    child: Row(
+      children: [
+        Icon(icon, size: 15, color: primary),
+        const SizedBox(width: 10),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: isDark ? Colors.white54 : Colors.black45,
+          ),
+        ),
+        const Spacer(),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _Divider extends StatelessWidget {
+  final bool isDark;
+  const _Divider({required this.isDark});
+  @override
+  Widget build(BuildContext context) => Divider(
+    height: 1,
+    color: isDark
+        ? Colors.white.withValues(alpha: 0.06)
+        : Colors.black.withValues(alpha: 0.06),
+  );
+}
+
+// ── Dialog succès ─────────────────────────────────────────────────────────────
+
 class _CourseCreatedDialog extends StatelessWidget {
   final String courseName;
   final bool isTeacher;
@@ -2432,7 +2958,7 @@ class _CourseCreatedDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final accent = Theme.of(context).primaryColor;
+    final primary = Theme.of(context).primaryColor;
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -2443,125 +2969,118 @@ class _CourseCreatedDialog extends StatelessWidget {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: accent.withValues(alpha: 0.2),
+              color: primary.withValues(alpha: 0.2),
               blurRadius: 40,
               spreadRadius: 4,
             ),
           ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Success icon
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: [const Color(0xFF2ECC71), accent],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                child: const Icon(
-                  Icons.check_rounded,
-                  color: Colors.white,
-                  size: 38,
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [const Color(0xFF2ECC71), primary],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
               ),
-              const SizedBox(height: 20),
-              Text(
-                'Cours créé avec succès !',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
+              child: const Icon(
+                Icons.check_rounded,
+                color: Colors.white,
+                size: 38,
               ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Cours créé avec succès !',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '«\u00a0$courseName\u00a0»',
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: primary,
+              ),
+            ),
+            if (isTeacher) ...[
               const SizedBox(height: 8),
-              Text(
-                '«\u00a0$courseName\u00a0»',
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: accent,
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
                 ),
-              ),
-              if (isTeacher) ...[
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2ECC71).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    '✅ Publié sur le catalogue',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF2ECC71),
-                    ),
-                  ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2ECC71).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-              ],
-              const SizedBox(height: 28),
-              // Studio button (primary)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => Navigator.pop(context, true),
-                  icon: const Icon(Icons.edit_note_rounded, size: 20),
-                  label: const Text(
-                    'Ouvrir dans le Studio',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: accent,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    elevation: 0,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              // Finish button (secondary)
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: isDark ? Colors.white70 : Colors.black54,
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    side: BorderSide(
-                      color: isDark
-                          ? Colors.white.withValues(alpha: 0.15)
-                          : Colors.black.withValues(alpha: 0.12),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: const Text(
-                    'Terminer',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                child: const Text(
+                  '✅ Publié sur le catalogue',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF2ECC71),
                   ),
                 ),
               ),
             ],
-          ),
+            const SizedBox(height: 28),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => Navigator.pop(context, true),
+                style: FilledButton.styleFrom(
+                  backgroundColor: primary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                icon: const Icon(Icons.edit_note_rounded, size: 18),
+                label: const Text(
+                  'Ouvrir dans le Studio',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(context, false),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  side: BorderSide(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.15)
+                        : Colors.black.withValues(alpha: 0.12),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  foregroundColor: isDark ? Colors.white70 : Colors.black54,
+                ),
+                child: const Text(
+                  'Terminer',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -613,7 +613,7 @@ class _WeekScheduleTableState extends State<_WeekScheduleTable> {
 
   static const double _hourColWidth = 65.0;
   static const double _dayColWidth = 135.0;
-  static const double _hourRowHeight = 72.0;
+  static const double _hourRowHeight = 78.0;
 
   @override
   void initState() {
@@ -1179,10 +1179,15 @@ class _WeekScheduleTableState extends State<_WeekScheduleTable> {
     required Color borderColor,
     required void Function(StudyTask task) onTaskTap,
   }) {
+    final isMulti = tasks.length >= 2;
+
     return Container(
       width: width,
       height: height,
-      padding: const EdgeInsets.all(3),
+      padding: EdgeInsets.symmetric(
+        horizontal: 3,
+        vertical: isMulti ? 2 : 3,
+      ),
       decoration: BoxDecoration(
         color: Colors.transparent,
         border: Border.all(color: borderColor, width: 0.8),
@@ -1202,25 +1207,29 @@ class _WeekScheduleTableState extends State<_WeekScheduleTable> {
 
                   return InkWell(
                     onTap: () => onTaskTap(task),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(isMulti ? 5 : 6),
                     child: Container(
                       width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 2),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 5,
-                        vertical: 4,
+                      margin: EdgeInsets.only(bottom: isMulti ? 1.5 : 2),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isMulti ? 4 : 5,
+                        vertical: isMulti ? 2.5 : 4,
                       ),
                       decoration: BoxDecoration(
                         color: accent.withValues(
                           alpha: isDark ? 0.28 : 0.15,
                         ),
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(isMulti ? 5 : 6),
                         border: Border(
-                          left: BorderSide(color: accent, width: 3.5),
+                          left: BorderSide(
+                            color: accent,
+                            width: isMulti ? 3.0 : 3.5,
+                          ),
                         ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Row(
                             children: [
@@ -1228,8 +1237,9 @@ class _WeekScheduleTableState extends State<_WeekScheduleTable> {
                                 child: Text(
                                   task.displayTitle,
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: isMulti ? 10.0 : 11.0,
                                     fontWeight: FontWeight.w700,
+                                    height: 1.15,
                                     decoration: isDone
                                         ? TextDecoration.lineThrough
                                         : null,
@@ -1244,18 +1254,20 @@ class _WeekScheduleTableState extends State<_WeekScheduleTable> {
                                 ),
                               ),
                               if (isDone)
-                                const Icon(
+                                Icon(
                                   Icons.check_circle,
-                                  size: 11,
+                                  size: isMulti ? 10 : 11,
                                   color: Colors.green,
                                 ),
                             ],
                           ),
+                          const SizedBox(height: 1),
                           Text(
                             '${TaskFormat.time(task.scheduledAt)} (${task.durationMinutes}m)',
                             style: TextStyle(
-                              fontSize: 9.5,
+                              fontSize: isMulti ? 8.5 : 9.5,
                               fontWeight: FontWeight.w600,
+                              height: 1.15,
                               color: isDark
                                   ? Colors.grey[300]
                                   : const Color(0xFF475569),
@@ -1306,7 +1318,7 @@ class _FullscreenSchedulePage extends StatefulWidget {
 class _FullscreenSchedulePageState extends State<_FullscreenSchedulePage> {
   static const double _hourColWidth = 65.0;
   static const double _dayColWidth = 135.0;
-  static const double _hourRowHeight = 72.0;
+  static const double _hourRowHeight = 78.0;
   static const double _horizontalPadding = 16.0;
 
   double get _calculatedTableWidth =>
@@ -1562,10 +1574,15 @@ class _FullscreenSchedulePageState extends State<_FullscreenSchedulePage> {
                         final hourTasks = dayTasks
                             .where((t) => t.scheduledAt.hour == hour)
                             .toList();
+                        final isMulti = hourTasks.length >= 2;
+
                         return Container(
                           width: _dayColWidth,
                           height: _hourRowHeight,
-                          padding: const EdgeInsets.all(3),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 3,
+                            vertical: isMulti ? 2 : 3,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.transparent,
                             border: Border.all(color: borderColor, width: 0.8),
@@ -1586,31 +1603,33 @@ class _FullscreenSchedulePageState extends State<_FullscreenSchedulePage> {
 
                                       return InkWell(
                                         onTap: () => widget.onTaskTap(task),
-                                        borderRadius: BorderRadius.circular(6),
+                                        borderRadius: BorderRadius.circular(isMulti ? 5 : 6),
                                         child: Container(
                                           width: double.infinity,
-                                          margin:
-                                              const EdgeInsets.only(bottom: 2),
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 5,
-                                            vertical: 4,
+                                          margin: EdgeInsets.only(
+                                            bottom: isMulti ? 1.5 : 2,
+                                          ),
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: isMulti ? 4 : 5,
+                                            vertical: isMulti ? 2.5 : 4,
                                           ),
                                           decoration: BoxDecoration(
                                             color: accent.withValues(
                                               alpha: widget.isDark ? 0.28 : 0.15,
                                             ),
                                             borderRadius:
-                                                BorderRadius.circular(6),
+                                                BorderRadius.circular(isMulti ? 5 : 6),
                                             border: Border(
                                               left: BorderSide(
                                                 color: accent,
-                                                width: 3.5,
+                                                width: isMulti ? 3.0 : 3.5,
                                               ),
                                             ),
                                           ),
                                           child: Column(
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
+                                            mainAxisSize: MainAxisSize.min,
                                             children: [
                                               Row(
                                                 children: [
@@ -1618,9 +1637,10 @@ class _FullscreenSchedulePageState extends State<_FullscreenSchedulePage> {
                                                     child: Text(
                                                       task.displayTitle,
                                                       style: TextStyle(
-                                                        fontSize: 11,
+                                                        fontSize: isMulti ? 10.0 : 11.0,
                                                         fontWeight:
                                                             FontWeight.w700,
+                                                        height: 1.15,
                                                         decoration: isDone
                                                             ? TextDecoration
                                                                 .lineThrough
@@ -1638,18 +1658,20 @@ class _FullscreenSchedulePageState extends State<_FullscreenSchedulePage> {
                                                     ),
                                                   ),
                                                   if (isDone)
-                                                    const Icon(
+                                                    Icon(
                                                       Icons.check_circle,
-                                                      size: 11,
+                                                      size: isMulti ? 10 : 11,
                                                       color: Colors.green,
                                                     ),
                                                 ],
                                               ),
+                                              const SizedBox(height: 1),
                                               Text(
                                                 '${TaskFormat.time(task.scheduledAt)} (${task.durationMinutes}m)',
                                                 style: TextStyle(
-                                                  fontSize: 9.5,
+                                                  fontSize: isMulti ? 8.5 : 9.5,
                                                   fontWeight: FontWeight.w600,
+                                                  height: 1.15,
                                                   color: widget.isDark
                                                       ? Colors.grey[300]
                                                       : const Color(0xFF475569),
