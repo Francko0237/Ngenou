@@ -5,6 +5,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../../../core/database/database_helper.dart';
+import '../../../core/models/schedule_activity_type.dart';
 import '../../../core/models/study_schedule.dart';
 import '../../../core/models/study_task.dart';
 import '../../../core/providers/schedule_provider.dart';
@@ -387,6 +388,66 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
   }
 
   // Impression / Export PDF du tableau spatial complet
+  String _cleanPdfText(String text) {
+    return text
+        .replaceAll('’', "'")
+        .replaceAll('‘', "'")
+        .replaceAll('“', '"')
+        .replaceAll('”', '"')
+        .replaceAll('–', '-')
+        .replaceAll('—', '-');
+  }
+
+  PdfColor _pdfActivityColor(ScheduleActivityType type) {
+    return switch (type) {
+      ScheduleActivityType.study => PdfColor.fromHex('4F46E5'), // Indigo
+      ScheduleActivityType.sleep => PdfColor.fromHex('2563EB'), // Bleu
+      ScheduleActivityType.breakTime => PdfColor.fromHex('059669'), // Emeraude
+      ScheduleActivityType.distraction => PdfColor.fromHex('D97706'), // Ambre
+      ScheduleActivityType.meal => PdfColor.fromHex('DB2777'), // Rose
+      ScheduleActivityType.occupied => PdfColor.fromHex('475569'), // Ardoise
+      ScheduleActivityType.other => PdfColor.fromHex('64748B'), // Gris
+    };
+  }
+
+  PdfColor _pdfActivityBgColor(ScheduleActivityType type) {
+    return switch (type) {
+      ScheduleActivityType.study => PdfColor.fromHex('EEF2FF'),
+      ScheduleActivityType.sleep => PdfColor.fromHex('EFF6FF'),
+      ScheduleActivityType.breakTime => PdfColor.fromHex('ECFDF5'),
+      ScheduleActivityType.distraction => PdfColor.fromHex('FFFBEB'),
+      ScheduleActivityType.meal => PdfColor.fromHex('FDF2F8'),
+      ScheduleActivityType.occupied => PdfColor.fromHex('F1F5F9'),
+      ScheduleActivityType.other => PdfColor.fromHex('F8FAFC'),
+    };
+  }
+
+  pw.Widget _pdfLegendItem(String label, PdfColor color) {
+    return pw.Row(
+      mainAxisSize: pw.MainAxisSize.min,
+      children: [
+        pw.Container(
+          width: 7,
+          height: 7,
+          decoration: pw.BoxDecoration(
+            color: color,
+            shape: pw.BoxShape.circle,
+          ),
+        ),
+        pw.SizedBox(width: 4),
+        pw.Text(
+          label,
+          style: pw.TextStyle(
+            fontSize: 7,
+            color: PdfColor.fromHex('475569'),
+            fontWeight: pw.FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Impression / Export PDF du tableau spatial complet (Design haut de gamme & centré)
   Future<void> _exportPdf() async {
     final weeks = _weeksInPeriod;
     final pdf = pw.Document();
@@ -396,82 +457,330 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
       final startStr = TaskFormat.shortDate(weekDays.first);
       final endStr = TaskFormat.shortDate(weekDays.last);
 
+      // Calcul dynamique de la plage horaire de cette semaine
+      final allWeekTasks =
+          weekDays.expand((d) => _tasksForDay(d)).toList();
+      int minHour = 7;
+      int maxHour = 20;
+      for (final t in allWeekTasks) {
+        if (t.scheduledAt.hour < minHour) minHour = t.scheduledAt.hour;
+        final endH =
+            t.scheduledAt.add(Duration(minutes: t.durationMinutes)).hour;
+        if (endH > maxHour) maxHour = (endH <= 23 ? endH : 23);
+      }
+      final hourRowsCount = (maxHour - minHour) + 1;
+      // Hauteur de cellule calculée pour remplir l'espace A4 paysage
+      final rowCellHeight =
+          (435.0 / hourRowsCount).clamp(23.0, 35.0);
+
       pdf.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4.landscape,
-          margin: const pw.EdgeInsets.all(20),
+          margin: const pw.EdgeInsets.symmetric(horizontal: 22, vertical: 16),
           build: (pw.Context ctx) {
             return pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              crossAxisAlignment: pw.CrossAxisAlignment.stretch,
               children: [
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text(
-                      '${_schedule.titre} — Semaine ${wIdx + 1} ($startStr au $endStr)',
-                      style: pw.TextStyle(
-                        fontSize: 16,
-                        fontWeight: pw.FontWeight.bold,
+                // ─── Bandeau d'en-tête premium ─────────────────────────────
+                pw.Container(
+                  padding: const pw.EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColor.fromHex('1E1B4B'),
+                    borderRadius:
+                        const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  ),
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Row(
+                        children: [
+                          pw.Container(
+                            padding: const pw.EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3.5,
+                            ),
+                            decoration: pw.BoxDecoration(
+                              color: PdfColor.fromHex('4F46E5'),
+                              borderRadius: const pw.BorderRadius.all(
+                                pw.Radius.circular(4),
+                              ),
+                            ),
+                            child: pw.Text(
+                              'SEMAINE ${wIdx + 1}',
+                              style: pw.TextStyle(
+                                color: PdfColors.white,
+                                fontWeight: pw.FontWeight.bold,
+                                fontSize: 9.5,
+                              ),
+                            ),
+                          ),
+                          pw.SizedBox(width: 10),
+                          pw.Text(
+                            _cleanPdfText(_schedule.titre),
+                            style: pw.TextStyle(
+                              color: PdfColors.white,
+                              fontWeight: pw.FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                          pw.SizedBox(width: 8),
+                          pw.Text(
+                            '($startStr au $endStr)',
+                            style: pw.TextStyle(
+                              color: PdfColor.fromHex('CBD5E1'),
+                              fontSize: 9.5,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    pw.Text(
-                      'Ngenou • Planning d\'apprentissage',
-                      style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey),
-                    ),
-                  ],
+                      pw.Row(
+                        children: [
+                          pw.Text(
+                            'Ngenou',
+                            style: pw.TextStyle(
+                              color: PdfColors.white,
+                              fontWeight: pw.FontWeight.bold,
+                              fontSize: 11,
+                            ),
+                          ),
+                          pw.Text(
+                            ' • Planning d\'apprentissage',
+                            style: pw.TextStyle(
+                              color: PdfColor.fromHex('94A3B8'),
+                              fontSize: 9,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-                pw.SizedBox(height: 10),
+                pw.SizedBox(height: 8),
+
+                // ─── Grille Spatiale Parfaitement Centrée ──────────────────
                 pw.Expanded(
                   child: pw.Table(
-                    border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+                    border: pw.TableBorder.all(
+                      color: PdfColor.fromHex('CBD5E1'),
+                      width: 0.6,
+                    ),
+                    columnWidths: const {
+                      0: pw.FixedColumnWidth(44), // Colonne Heure
+                      1: pw.FlexColumnWidth(1),   // Lundi
+                      2: pw.FlexColumnWidth(1),   // Mardi
+                      3: pw.FlexColumnWidth(1),   // Mercredi
+                      4: pw.FlexColumnWidth(1),   // Jeudi
+                      5: pw.FlexColumnWidth(1),   // Vendredi
+                      6: pw.FlexColumnWidth(1),   // Samedi
+                      7: pw.FlexColumnWidth(1),   // Dimanche
+                    },
                     children: [
-                      // Header jours
+                      // Header des jours (Design moderne avec contraste)
                       pw.TableRow(
-                        decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                        decoration: pw.BoxDecoration(
+                          color: PdfColor.fromHex('312E81'),
+                        ),
                         children: [
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(4),
-                            child: pw.Text('Heure', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                          pw.Container(
+                            height: 28,
+                            alignment: pw.Alignment.center,
+                            child: pw.Text(
+                              'Heure',
+                              style: pw.TextStyle(
+                                fontWeight: pw.FontWeight.bold,
+                                fontSize: 8.5,
+                                color: PdfColors.white,
+                              ),
+                            ),
                           ),
                           ...weekDays.map((d) {
-                            return pw.Padding(
-                              padding: const pw.EdgeInsets.all(4),
-                              child: pw.Text(
-                                '${TaskFormat.weekdayShort(d)}\n${d.day}/${d.month}',
-                                textAlign: pw.TextAlign.center,
-                                style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
+                            final isToday =
+                                TaskFormat.isSameDay(d, DateTime.now());
+                            return pw.Container(
+                              height: 28,
+                              alignment: pw.Alignment.center,
+                              color: isToday
+                                  ? PdfColor.fromHex('4338CA')
+                                  : null,
+                              child: pw.Column(
+                                mainAxisAlignment:
+                                    pw.MainAxisAlignment.center,
+                                children: [
+                                  pw.Text(
+                                    _cleanPdfText(
+                                      TaskFormat.weekdayShort(d)
+                                          .split(' ')
+                                          .first
+                                          .toUpperCase(),
+                                    ),
+                                    style: pw.TextStyle(
+                                      fontWeight: pw.FontWeight.bold,
+                                      fontSize: 8,
+                                      color: PdfColors.white,
+                                    ),
+                                  ),
+                                  pw.SizedBox(height: 1),
+                                  pw.Text(
+                                    '${d.day} ${_cleanPdfText(TaskFormat.shortDate(d).split(' ').last)}',
+                                    style: pw.TextStyle(
+                                      fontSize: 7,
+                                      color: PdfColor.fromHex('C7D2FE'),
+                                      fontWeight: pw.FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
                               ),
                             );
                           }),
                         ],
                       ),
-                      // Lignes horaires de 07h à 21h
-                      ...List.generate(15, (hIdx) {
-                        final hour = 7 + hIdx;
+
+                      // Lignes horaires dynamiques
+                      ...List.generate(hourRowsCount, (hIdx) {
+                        final hour = minHour + hIdx;
+                        final isEvenRow = hIdx.isEven;
+                        final rowBaseColor = isEvenRow
+                            ? PdfColors.white
+                            : PdfColor.fromHex('F8FAFC');
+
                         return pw.TableRow(
                           children: [
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.all(3),
+                            // Cellule Heure
+                            pw.Container(
+                              height: rowCellHeight,
+                              alignment: pw.Alignment.center,
+                              color: isEvenRow
+                                  ? PdfColor.fromHex('F8FAFC')
+                                  : PdfColor.fromHex('F1F5F9'),
                               child: pw.Text(
                                 '${hour.toString().padLeft(2, '0')}:00',
-                                style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
+                                style: pw.TextStyle(
+                                  fontSize: 7.5,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColor.fromHex('475569'),
+                                ),
                               ),
                             ),
+
+                            // Cellules des jours
                             ...weekDays.map((d) {
                               final dayTasks = _tasksForDay(d);
-                              final hourTasks = dayTasks.where((t) => t.scheduledAt.hour == hour).toList();
+                              final hourTasks = dayTasks
+                                  .where((t) => t.scheduledAt.hour == hour)
+                                  .toList();
+
                               if (hourTasks.isEmpty) {
-                                return pw.Container(height: 24);
+                                return pw.Container(
+                                  height: rowCellHeight,
+                                  color: rowBaseColor,
+                                );
                               }
+
+                              final isMulti = hourTasks.length >= 2;
+
                               return pw.Container(
+                                height: rowCellHeight,
+                                color: rowBaseColor,
                                 padding: const pw.EdgeInsets.all(2),
                                 child: pw.Column(
-                                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                                  crossAxisAlignment:
+                                      pw.CrossAxisAlignment.stretch,
+                                  mainAxisAlignment:
+                                      pw.MainAxisAlignment.center,
                                   children: hourTasks.map((t) {
-                                    return pw.Text(
-                                      '• ${t.displayTitle} (${TaskFormat.time(t.scheduledAt)})',
-                                      style: const pw.TextStyle(fontSize: 7),
-                                      maxLines: 2,
+                                    final accent =
+                                        _pdfActivityColor(t.activityType);
+                                    final bg =
+                                        _pdfActivityBgColor(t.activityType);
+                                    final isDone =
+                                        t.status == TaskStatus.completed;
+
+                                    return pw.Container(
+                                      margin: pw.EdgeInsets.only(
+                                        bottom: isMulti ? 1.5 : 0,
+                                      ),
+                                      padding: pw.EdgeInsets.symmetric(
+                                        horizontal: 3.5,
+                                        vertical: isMulti ? 1.5 : 2.5,
+                                      ),
+                                      decoration: pw.BoxDecoration(
+                                        color: bg,
+                                        borderRadius: const pw.BorderRadius.all(
+                                          pw.Radius.circular(2.5),
+                                        ),
+                                        border: pw.Border(
+                                          left: pw.BorderSide(
+                                            color: accent,
+                                            width: isMulti ? 2.0 : 2.8,
+                                          ),
+                                          top: pw.BorderSide(
+                                            color: PdfColor.fromHex('E2E8F0'),
+                                            width: 0.3,
+                                          ),
+                                          right: pw.BorderSide(
+                                            color: PdfColor.fromHex('E2E8F0'),
+                                            width: 0.3,
+                                          ),
+                                          bottom: pw.BorderSide(
+                                            color: PdfColor.fromHex('E2E8F0'),
+                                            width: 0.3,
+                                          ),
+                                        ),
+                                      ),
+                                      child: pw.Column(
+                                        crossAxisAlignment:
+                                            pw.CrossAxisAlignment.start,
+                                        children: [
+                                          pw.Row(
+                                            children: [
+                                              pw.Expanded(
+                                                child: pw.Text(
+                                                  _cleanPdfText(t.displayTitle),
+                                                  style: pw.TextStyle(
+                                                    fontSize:
+                                                        isMulti ? 6.0 : 6.8,
+                                                    fontWeight:
+                                                        pw.FontWeight.bold,
+                                                    color: PdfColor.fromHex(
+                                                      '1E293B',
+                                                    ),
+                                                    decoration: isDone
+                                                        ? pw.TextDecoration
+                                                            .lineThrough
+                                                        : null,
+                                                  ),
+                                                  maxLines: 1,
+                                                ),
+                                              ),
+                                              if (isDone)
+                                                pw.Container(
+                                                  width: 4,
+                                                  height: 4,
+                                                  decoration:
+                                                      const pw.BoxDecoration(
+                                                    color: PdfColors.green,
+                                                    shape: pw.BoxShape.circle,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                          pw.SizedBox(height: 0.5),
+                                          pw.Text(
+                                            '${TaskFormat.time(t.scheduledAt)} • ${t.durationMinutes}m',
+                                            style: pw.TextStyle(
+                                              fontSize: isMulti ? 5.0 : 5.8,
+                                              color: PdfColor.fromHex(
+                                                '64748B',
+                                              ),
+                                              fontWeight: pw.FontWeight.bold,
+                                            ),
+                                            maxLines: 1,
+                                          ),
+                                        ],
+                                      ),
                                     );
                                   }).toList(),
                                 ),
@@ -480,6 +789,65 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
                           ],
                         );
                       }),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 6),
+
+                // ─── Pied de page avec légende stylée ─────────────────────
+                pw.Container(
+                  padding: const pw.EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColor.fromHex('F8FAFC'),
+                    borderRadius:
+                        const pw.BorderRadius.all(pw.Radius.circular(6)),
+                    border: pw.Border.all(
+                      color: PdfColor.fromHex('E2E8F0'),
+                      width: 0.6,
+                    ),
+                  ),
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Row(
+                        children: [
+                          _pdfLegendItem(
+                            'Cours/Travail',
+                            PdfColor.fromHex('4F46E5'),
+                          ),
+                          pw.SizedBox(width: 10),
+                          _pdfLegendItem(
+                            'Révision/Pause',
+                            PdfColor.fromHex('059669'),
+                          ),
+                          pw.SizedBox(width: 10),
+                          _pdfLegendItem(
+                            'Repas',
+                            PdfColor.fromHex('DB2777'),
+                          ),
+                          pw.SizedBox(width: 10),
+                          _pdfLegendItem(
+                            'Détente',
+                            PdfColor.fromHex('D97706'),
+                          ),
+                          pw.SizedBox(width: 10),
+                          _pdfLegendItem(
+                            'Sommeil',
+                            PdfColor.fromHex('2563EB'),
+                          ),
+                        ],
+                      ),
+                      pw.Text(
+                        'Ngenou • Semaine ${wIdx + 1}/${weeks.length}',
+                        style: pw.TextStyle(
+                          fontSize: 7.5,
+                          color: PdfColor.fromHex('64748B'),
+                          fontStyle: pw.FontStyle.italic,
+                        ),
+                      ),
                     ],
                   ),
                 ),
