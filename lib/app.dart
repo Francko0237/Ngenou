@@ -27,7 +27,6 @@ import 'features/progression/progression_page.dart';
 import 'features/parametres/parametres_page.dart';
 import 'features/defis/daily_defis_page.dart';
 import 'features/course_builder/course_builder_wizard_page.dart';
-import 'features/course_builder/course_import_page.dart';
 import 'features/planning/planning_page.dart';
 import 'features/planning/widgets/task_alarm_dialog.dart';
 import 'features/tasks/tasks_hub_page.dart';
@@ -175,10 +174,6 @@ final GoRouter _router = GoRouter(
     GoRoute(
       path: '/course-builder',
       builder: (context, state) => const CourseBuilderWizardPage(),
-    ),
-    GoRoute(
-      path: '/course-import',
-      builder: (context, state) => const CourseImportPage(),
     ),
     GoRoute(
       path: '/catalogue',

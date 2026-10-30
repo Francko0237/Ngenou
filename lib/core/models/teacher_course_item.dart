@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'custom_course_package.dart';
+import 'matiere.dart';
 
 class TeacherCourseItem {
   final String id;
@@ -41,13 +42,19 @@ class TeacherCourseItem {
   });
 
   factory TeacherCourseItem.fromJson(Map<String, dynamic> map) {
-    Map<String, dynamic> rawJson;
-    if (map['json_data'] is String) {
-      rawJson = jsonDecode(map['json_data'] as String);
-    } else if (map['json_data'] is Map<String, dynamic>) {
-      rawJson = map['json_data'] as Map<String, dynamic>;
-    } else {
-      rawJson = {};
+    Map<String, dynamic> rawJson = {};
+    final raw = map['json_data'];
+    if (raw is String) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map) {
+          rawJson = jsonDecode(jsonEncode(decoded)) as Map<String, dynamic>;
+        }
+      } catch (_) {}
+    } else if (raw is Map) {
+      try {
+        rawJson = jsonDecode(jsonEncode(raw)) as Map<String, dynamic>;
+      } catch (_) {}
     }
 
     return TeacherCourseItem(
@@ -74,7 +81,17 @@ class TeacherCourseItem {
   }
 
   CustomCoursePackage toPackage() {
-    final pkg = CustomCoursePackage.fromJson(jsonData);
+    CustomCoursePackage pkg;
+    try {
+      if (jsonData.isNotEmpty && jsonData['matiere'] != null) {
+        pkg = CustomCoursePackage.fromJson(jsonData);
+      } else {
+        pkg = _createFallbackPackage();
+      }
+    } catch (_) {
+      pkg = _createFallbackPackage();
+    }
+
     final finalCover = (coverImageUrl != null &&
             coverImageUrl!.isNotEmpty &&
             (pkg.matiere.coverImageUrl == null ||
@@ -93,6 +110,32 @@ class TeacherCourseItem {
       notions: pkg.notions,
       lecons: pkg.lecons,
       exercices: pkg.exercices,
+    );
+  }
+
+  CustomCoursePackage _createFallbackPackage() {
+    return CustomCoursePackage(
+      schemaVersionValue: CustomCoursePackage.schemaVersion,
+      meta: CourseMeta(
+        objectif: description.isNotEmpty ? description : 'Apprendre et réviser',
+        langue: 'Français',
+        isPublic: true,
+        authorName: teacherName.isNotEmpty ? teacherName : null,
+        teacherId: teacherId,
+      ),
+      matiere: Matiere(
+        id: matiereId.isNotEmpty ? matiereId : 'course_${DateTime.now().millisecondsSinceEpoch}',
+        nom: titre.isNotEmpty ? titre : (matiereNom.isNotEmpty ? matiereNom : 'Cours'),
+        description: description,
+        icone: CustomCoursePackage.iconFromKey(icone),
+        couleur: CustomCoursePackage.colorFromHex(couleur),
+        isAvailable: true,
+        durationMinutes: durationMinutes,
+        coverImageUrl: coverImageUrl,
+      ),
+      notions: const [],
+      lecons: const [],
+      exercices: const [],
     );
   }
 

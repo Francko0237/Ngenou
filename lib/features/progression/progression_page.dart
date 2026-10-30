@@ -47,39 +47,90 @@ class _ProgressionPageState extends State<ProgressionPage> {
       child: Scaffold(
         backgroundColor: isDark ? _kBg : _kBgLight,
         appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
           title: const Text(
             'Bilan & Progression',
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20),
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
-          bottom: TabBar(
-            labelColor: primary,
-            unselectedLabelColor: isDark ? Colors.white38 : Colors.black38,
-            indicatorColor: primary,
-            indicatorSize: TabBarIndicatorSize.tab,
-            labelStyle: const TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-            ),
-            unselectedLabelStyle: const TextStyle(
-              fontWeight: FontWeight.w500,
-              fontSize: 13,
-            ),
-            tabs: const [
-              Tab(
-                icon: Icon(Icons.analytics_rounded, size: 18),
-                text: 'Statistiques',
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.of(context).maybePop(),
+          ),
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+        ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              // ── TabBar pill style ───────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                child: Container(
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.06)
+                        : Colors.black.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: TabBar(
+                    indicator: BoxDecoration(
+                      color: primary,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: primary.withValues(alpha: 0.35),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    labelColor: Colors.white,
+                    unselectedLabelColor:
+                        isDark ? Colors.white54 : Colors.black54,
+                    dividerColor: Colors.transparent,
+                    labelStyle: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                    unselectedLabelStyle: const TextStyle(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 13,
+                    ),
+                    tabs: const [
+                      Tab(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.analytics_rounded, size: 16),
+                            SizedBox(width: 6),
+                            Text('Statistiques'),
+                          ],
+                        ),
+                      ),
+                      Tab(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.emoji_events_rounded, size: 16),
+                            SizedBox(width: 6),
+                            Text('Badges'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              Tab(
-                icon: Icon(Icons.emoji_events_rounded, size: 18),
-                text: 'Badges',
+
+              // ── Contenu ─────────────────────────────────────────────────
+              const Expanded(
+                child: TabBarView(
+                  children: [_CoursesProgressionView(), _BadgesTab()],
+                ),
               ),
             ],
           ),
-        ),
-        body: const TabBarView(
-          children: [_CoursesProgressionView(), _BadgesTab()],
         ),
       ),
     );

@@ -101,7 +101,7 @@ class StudyTask {
         matiereNom: map['matiere_nom'] as String,
         title: map['title'] as String?,
         projetId: map['projet_id'] as String?,
-        scheduledAt: DateTime.parse(map['scheduled_at'] as String),
+        scheduledAt: DateTime.parse(map['scheduled_at'] as String).toLocal(),
         durationMinutes: map['duration_minutes'] as int,
         status: TaskStatus.values.firstWhere(
           (s) => s.name == map['status'],
