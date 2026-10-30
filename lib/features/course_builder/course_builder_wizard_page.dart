@@ -281,10 +281,41 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage>
     }
 
     return PopScope(
-      canPop: true,
+      canPop: _step == 0 && !_isGenerating,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) _back();
+      },
       child: Scaffold(
         backgroundColor: bgColor,
+        appBar: AppBar(
+          title: Text(
+            _step < _stepLabels.length ? _stepLabels[_step] : 'Créer un cours',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: _back,
+          ),
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          actions: [
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Text(
+                  '${_step + 1}/$_totalSteps',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
         body: SafeArea(
+          top: false,
           child: LayoutBuilder(
             builder: (context, constraints) {
               final w = constraints.maxWidth;
@@ -303,7 +334,6 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage>
                     labels: _stepLabels,
                     primary: primary,
                     isDark: isDark,
-                    onBack: _back,
                   ),
 
                   // ── Pages ─────────────────────────────────────────────────
@@ -1018,7 +1048,6 @@ class _WizardHeader extends StatelessWidget {
   final List<String> labels;
   final Color primary;
   final bool isDark;
-  final VoidCallback onBack;
 
   const _WizardHeader({
     required this.step,
@@ -1026,85 +1055,42 @@ class _WizardHeader extends StatelessWidget {
     required this.labels,
     required this.primary,
     required this.isDark,
-    required this.onBack,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              GestureDetector(
-                onTap: onBack,
-                child: Container(
-                  width: 38,
-                  height: 38,
-
-                  child: Icon(
-                    Icons.arrow_back,
-                    size: 16,
-                    color: isDark ? Colors.white70 : Colors.black54,
-                  ),
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 14),
+      child: Row(
+        children: List.generate(totalSteps * 2 - 1, (i) {
+          if (i.isOdd) {
+            final done = i ~/ 2 < step;
+            return Expanded(
+              child: Container(
+                height: 2,
+                decoration: BoxDecoration(
+                  color: done
+                      ? primary
+                      : (isDark
+                            ? Colors.white.withValues(alpha: 0.1)
+                            : Colors.black.withValues(alpha: 0.08)),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  step < labels.length ? labels[step] : 'Créer un cours',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : const Color(0xFF1A1A2E),
-                  ),
-                ),
-              ),
-              Text(
-                '${step + 1}/$totalSteps',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? Colors.white38 : Colors.black38,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          // Stepper
-          Row(
-            children: List.generate(totalSteps * 2 - 1, (i) {
-              if (i.isOdd) {
-                final done = i ~/ 2 < step;
-                return Expanded(
-                  child: Container(
-                    height: 2,
-                    decoration: BoxDecoration(
-                      color: done
-                          ? primary
-                          : (isDark
-                                ? Colors.white.withValues(alpha: 0.1)
-                                : Colors.black.withValues(alpha: 0.08)),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                );
-              }
-              final idx = i ~/ 2;
-              final active = idx == step;
-              final done = idx < step;
-              return _StepDot(
-                index: idx,
-                active: active,
-                done: done,
-                primary: primary,
-                isDark: isDark,
-                label: labels[idx],
-              );
-            }),
-          ),
-        ],
+            );
+          }
+          final idx = i ~/ 2;
+          final active = idx == step;
+          final done = idx < step;
+          return _StepDot(
+            index: idx,
+            active: active,
+            done: done,
+            primary: primary,
+            isDark: isDark,
+            label: labels[idx],
+          );
+        }),
       ),
     );
   }
