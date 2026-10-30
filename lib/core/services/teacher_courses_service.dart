@@ -80,7 +80,11 @@ class TeacherCoursesService {
           .eq('is_published', true);
 
       if (schoolLevel != null && schoolLevel.isNotEmpty && schoolLevel != 'all') {
-        query = query.eq('school_level', schoolLevel);
+        if (schoolLevel.toLowerCase() == 'secondaire') {
+          query = query.inFilter('school_level', const ['college', 'lycee', 'secondaire']);
+        } else {
+          query = query.eq('school_level', schoolLevel.toLowerCase());
+        }
       }
 
       if (searchQuery != null && searchQuery.trim().isNotEmpty) {
@@ -91,9 +95,14 @@ class TeacherCoursesService {
           .order('created_at', ascending: false)
           .timeout(const Duration(seconds: 7));
 
-      final items = (response as List<dynamic>)
-          .map((item) => TeacherCourseItem.fromJson(item as Map<String, dynamic>))
-          .toList();
+      final List<TeacherCourseItem> items = [];
+      for (final item in response) {
+        try {
+          items.add(TeacherCourseItem.fromJson(Map<String, dynamic>.from(item as Map)));
+        } catch (err) {
+          debugPrint("Erreur décodage cours catalogue: $err");
+        }
+      }
 
       if (items.isNotEmpty) {
         _cachedCatalog = items;
@@ -126,9 +135,15 @@ class TeacherCoursesService {
           .eq('teacher_id', user.id)
           .order('created_at', ascending: false);
 
-      return (response as List<dynamic>)
-          .map((item) => TeacherCourseItem.fromJson(item as Map<String, dynamic>))
-          .toList();
+      final List<TeacherCourseItem> items = [];
+      for (final item in response) {
+        try {
+          items.add(TeacherCourseItem.fromJson(Map<String, dynamic>.from(item as Map)));
+        } catch (err) {
+          debugPrint("Erreur décodage mes cours: $err");
+        }
+      }
+      return items;
     } catch (e) {
       debugPrint("Erreur récupération mes cours enseignant : $e");
       return [];

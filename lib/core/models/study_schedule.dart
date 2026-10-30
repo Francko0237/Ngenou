@@ -81,10 +81,10 @@ class StudySchedule {
     final weeks = map['period_weeks'] as int? ?? 2;
 
     final start = startRaw != null
-        ? DateTime.parse(startRaw)
+        ? DateTime.parse(startRaw).toLocal()
         : dateOnly(now);
     final end = endRaw != null
-        ? DateTime.parse(endRaw)
+        ? DateTime.parse(endRaw).toLocal()
         : dateOnly(now).add(Duration(days: weeks * 7 - 1));
 
     return StudySchedule(

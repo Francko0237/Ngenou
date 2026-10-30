@@ -120,36 +120,42 @@ class _ExtensionsManagerPageState extends State<ExtensionsManagerPage> {
           : const Color(0xFFF6F7FB),
       appBar: AppBar(
         title: const Text(
-          'Ngenou Assets',
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20),
+          'Boîte à outils',
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        centerTitle: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
         actions: [
-          // Point de connexion + bouton actualiser
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const ConnectionStatusIndicator(),
-              IconButton(
-                tooltip: 'Actualiser depuis GitHub',
-                icon: service.isLoading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.refresh_rounded),
-                onPressed: service.isLoading
-                    ? null
-                    : () => service.loadExtensions(forceRefresh: true),
-              ),
-            ],
+          const ConnectionStatusIndicator(),
+          const SizedBox(width: 4),
+          IconButton(
+            onPressed: service.isLoading
+                ? null
+                : () => service.loadExtensions(forceRefresh: true),
+            icon: service.isLoading
+                ? SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: primary,
+                    ),
+                  )
+                : const Icon(Icons.refresh_rounded),
+            tooltip: 'Actualiser',
           ),
+          const SizedBox(width: 4),
         ],
       ),
-      body: Column(
-        children: [
-          // Barre de recherche
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ── Contenu existant (search + filtres + liste) ─────────────
+
           Container(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
             decoration: BoxDecoration(
@@ -285,6 +291,7 @@ class _ExtensionsManagerPageState extends State<ExtensionsManagerPage> {
                   ),
           ),
         ],
+        ),
       ),
     );
   }

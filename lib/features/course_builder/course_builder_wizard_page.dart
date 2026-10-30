@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import '../../core/widgets/premium_loader.dart';
+import 'widgets/course_generation_waiting_view.dart';
 import '../../core/models/custom_course_package.dart';
 import '../../core/models/deep_seek_model.dart';
 import '../../core/services/course_prompt_builder.dart';
@@ -16,7 +16,6 @@ import '../../core/utils/error_formatter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../core/services/ocr_service.dart';
-import 'course_import_page.dart';
 import '../../core/services/teacher_courses_service.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/utils/image_compression_helper.dart';
@@ -56,16 +55,15 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage>
   String? _coverImageUrl;
   String? _userRole;
   bool _hasDocuments = false;
-  bool _enableTerminal = false;
   final List<String> _chapitres = [];
   DeepSeekModel _selectedModel = DeepSeekModel.flash;
   NgenouExtension? _selectedExtension;
 
   String? _generatedPrompt;
   bool _isGenerating = false;
+  int _activeGenerationId = 0;
   bool _isOcrProcessing = false;
-  late final String _matiereId =
-      'custom_${DateTime.now().millisecondsSinceEpoch}';
+  String _matiereId = 'custom_${DateTime.now().millisecondsSinceEpoch}';
 
   // Étapes : 0 Infos · 1 Objectif · 2 Langue · 3 Documents · 4 Structure · 5 Génération
   static const _stepLabels = [
@@ -145,6 +143,10 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage>
   }
 
   void _back() {
+    if (_isGenerating) {
+      _confirmCancelGeneration();
+      return;
+    }
     if (_step == 0) {
       Navigator.pop(context);
       return;
@@ -173,6 +175,7 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage>
   );
 
   void _buildPrompt() {
+    _matiereId = 'custom_${DateTime.now().millisecondsSinceEpoch}';
     final input = CourseWizardInput(
       nom: _nomCtrl.text.trim(),
       description: _descCtrl.text.trim(),
@@ -187,7 +190,7 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage>
           : null,
       coverImageUrl: _coverImageUrl,
       chapitres: List.from(_chapitres),
-      enableTerminal: _enableTerminal,
+      enableTerminal: false,
       matiereId: _matiereId,
       selectedExtensionId: _selectedExtension?.id,
       selectedExtensionName: _selectedExtension?.nom,
@@ -254,148 +257,165 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage>
     final primary = Theme.of(context).primaryColor;
     final bgColor = isDark ? _kBg : _kBgLight;
 
-    return Scaffold(
-      backgroundColor: bgColor,
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final w = constraints.maxWidth;
-            final hPad = w > 1200
-                ? w * 0.12
-                : w > 800
-                ? w * 0.07
-                : 16.0;
+    if (_isGenerating) {
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) _confirmCancelGeneration();
+        },
+        child: Scaffold(
+          backgroundColor: bgColor,
+          body: SafeArea(
+            child: CourseGenerationWaitingView(
+              isDark: isDark,
+              primary: primary,
+              model: _selectedModel,
+              courseName: _nomCtrl.text.trim().isNotEmpty
+                  ? _nomCtrl.text.trim()
+                  : 'Nouveau cours',
+              onCancel: _confirmCancelGeneration,
+            ),
+          ),
+        ),
+      );
+    }
 
-            return Column(
-              children: [
-                // ── Header + stepper ──────────────────────────────────────
-                _WizardHeader(
-                  step: _step,
-                  totalSteps: _totalSteps,
-                  labels: _stepLabels,
-                  primary: primary,
-                  isDark: isDark,
-                  onBack: _back,
-                ),
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        backgroundColor: bgColor,
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final w = constraints.maxWidth;
+              final hPad = w > 1200
+                  ? w * 0.12
+                  : w > 800
+                  ? w * 0.07
+                  : 16.0;
 
-                // ── Pages ─────────────────────────────────────────────────
-                Expanded(
-                  child: PageView(
-                    controller: _pageController,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: [
-                      _StepInfos(
-                        nomCtrl: _nomCtrl,
-                        descCtrl: _descCtrl,
-                        classeCtrl: _classeCtrl,
-                        schoolLevel: _schoolLevel,
-                        userRole: _userRole,
-                        coverImageUrl: _coverImageUrl,
-                        isDark: isDark,
-                        primary: primary,
-                        hPad: hPad,
-                        onSchoolLevelChanged: (v) {
-                          setState(() {
-                            _schoolLevel = v;
-                            _classeCtrl.text = _suggestedClasses(v).last;
-                          });
-                        },
-                        onClasseChanged: () => setState(() {}),
-                        suggestedClasses: _suggestedClasses(_schoolLevel),
-                        onCoverPick: _pickCoverImage,
-                        onCoverDelete: () =>
-                            setState(() => _coverImageUrl = null),
-                        onImport: () => Navigator.push<void>(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const CourseImportPage(),
-                          ),
-                        ),
-                      ),
-                      _StepObjectif(
-                        objectif: _objectif,
-                        isDark: isDark,
-                        primary: primary,
-                        hPad: hPad,
-                        onChanged: (v) => setState(() => _objectif = v),
-                      ),
-                      _StepLangue(
-                        langue: _langue,
-                        isDark: isDark,
-                        primary: primary,
-                        hPad: hPad,
-                        onChanged: (v) => setState(() => _langue = v),
-                      ),
-                      _StepDocuments(
-                        docsCtrl: _docsCtrl,
-                        isOcrProcessing: _isOcrProcessing,
-                        isDark: isDark,
-                        primary: primary,
-                        hPad: hPad,
-                        onPickCamera: () => _pickImage(ImageSource.camera),
-                        onPickGallery: () => _pickImage(ImageSource.gallery),
-                        onPickPdf: _pickPdf,
-                        onTextChanged: (v) {
-                          final has = v.trim().isNotEmpty;
-                          if (has != _hasDocuments)
-                            setState(() => _hasDocuments = has);
-                        },
-                      ),
-                      _StepStructure(
-                        chapitres: _chapitres,
-                        chapitreCtrl: _chapitreCtrl,
-                        niveau: _niveau,
-                        enableTerminal: _enableTerminal,
-                        selectedModel: _selectedModel,
-                        selectedExtension: _selectedExtension,
-                        isDark: isDark,
-                        primary: primary,
-                        hPad: hPad,
-                        onAddChapitre: _addChapitre,
-                        onRemoveChapitre: (c) =>
-                            setState(() => _chapitres.remove(c)),
-                        onNiveauChanged: (v) => setState(() => _niveau = v),
-                        onTerminalChanged: (v) =>
-                            setState(() => _enableTerminal = v),
-                        onModelChanged: (v) =>
-                            setState(() => _selectedModel = v),
-                        onOpenExtensionPicker: () =>
-                            _openExtensionPicker(isDark),
-                        onRemoveExtension: () =>
-                            setState(() => _selectedExtension = null),
-                      ),
-                      _StepGeneration(
-                        isGenerating: _isGenerating,
-                        nomCtrl: _nomCtrl,
-                        classeCtrl: _classeCtrl,
-                        objectif: _objectif,
-                        langue: _langue,
-                        chapitres: _chapitres,
-                        schoolLevel: _schoolLevel,
-                        coverImageUrl: _coverImageUrl,
-                        enableTerminal: _enableTerminal,
-                        selectedModel: _selectedModel,
-                        isDark: isDark,
-                        primary: primary,
-                        hPad: hPad,
-                      ),
-                    ],
-                  ),
-                ),
-
-                // ── Footer navigation ─────────────────────────────────────
-                if (!_isGenerating)
-                  _WizardFooter(
+              return Column(
+                children: [
+                  // ── Header + stepper ──────────────────────────────────────
+                  _WizardHeader(
                     step: _step,
                     totalSteps: _totalSteps,
+                    labels: _stepLabels,
                     primary: primary,
                     isDark: isDark,
                     onBack: _back,
-                    onNext: _next,
                   ),
-              ],
-            );
-          },
+
+                  // ── Pages ─────────────────────────────────────────────────
+                  Expanded(
+                    child: PageView(
+                      controller: _pageController,
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: [
+                        _StepInfos(
+                          nomCtrl: _nomCtrl,
+                          descCtrl: _descCtrl,
+                          classeCtrl: _classeCtrl,
+                          schoolLevel: _schoolLevel,
+                          userRole: _userRole,
+                          coverImageUrl: _coverImageUrl,
+                          isDark: isDark,
+                          primary: primary,
+                          hPad: hPad,
+                          onSchoolLevelChanged: (v) {
+                            setState(() {
+                              _schoolLevel = v;
+                              _classeCtrl.text = _suggestedClasses(v).last;
+                            });
+                          },
+                          onClasseChanged: () => setState(() {}),
+                          suggestedClasses: _suggestedClasses(_schoolLevel),
+                          onCoverPick: _pickCoverImage,
+                          onCoverDelete: () =>
+                              setState(() => _coverImageUrl = null),
+                        ),
+                        _StepObjectif(
+                          objectif: _objectif,
+                          isDark: isDark,
+                          primary: primary,
+                          hPad: hPad,
+                          onChanged: (v) => setState(() => _objectif = v),
+                        ),
+                        _StepLangue(
+                          langue: _langue,
+                          isDark: isDark,
+                          primary: primary,
+                          hPad: hPad,
+                          onChanged: (v) => setState(() => _langue = v),
+                        ),
+                        _StepDocuments(
+                          docsCtrl: _docsCtrl,
+                          isOcrProcessing: _isOcrProcessing,
+                          isDark: isDark,
+                          primary: primary,
+                          hPad: hPad,
+                          onPickCamera: () => _pickImage(ImageSource.camera),
+                          onPickGallery: () => _pickImage(ImageSource.gallery),
+                          onPickPdf: _pickPdf,
+                          onTextChanged: (v) {
+                            final has = v.trim().isNotEmpty;
+                            if (has != _hasDocuments)
+                              setState(() => _hasDocuments = has);
+                          },
+                        ),
+                        _StepStructure(
+                          chapitres: _chapitres,
+                          chapitreCtrl: _chapitreCtrl,
+                          niveau: _niveau,
+                          selectedModel: _selectedModel,
+                          selectedExtension: _selectedExtension,
+                          isDark: isDark,
+                          primary: primary,
+                          hPad: hPad,
+                          onAddChapitre: _addChapitre,
+                          onRemoveChapitre: (c) =>
+                              setState(() => _chapitres.remove(c)),
+                          onNiveauChanged: (v) => setState(() => _niveau = v),
+                          onModelChanged: (v) =>
+                              setState(() => _selectedModel = v),
+                          onOpenExtensionPicker: () =>
+                              _openExtensionPicker(isDark),
+                          onRemoveExtension: () =>
+                              setState(() => _selectedExtension = null),
+                        ),
+                        _StepGeneration(
+                          isGenerating: _isGenerating,
+                          nomCtrl: _nomCtrl,
+                          classeCtrl: _classeCtrl,
+                          objectif: _objectif,
+                          langue: _langue,
+                          chapitres: _chapitres,
+                          schoolLevel: _schoolLevel,
+                          coverImageUrl: _coverImageUrl,
+                          selectedModel: _selectedModel,
+                          isDark: isDark,
+                          primary: primary,
+                          hPad: hPad,
+                          onCancel: _confirmCancelGeneration,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // ── Footer navigation ─────────────────────────────────────
+                  if (!_isGenerating)
+                    _WizardFooter(
+                      step: _step,
+                      totalSteps: _totalSteps,
+                      primary: primary,
+                      isDark: isDark,
+                      onBack: _back,
+                      onNext: _next,
+                    ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -682,17 +702,104 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage>
     );
   }
 
+  // ── Annulation de génération ───────────────────────────────────────────────
+
+  Future<void> _confirmCancelGeneration() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(
+              Icons.pause_circle_outline_rounded,
+              color: Colors.orange,
+              size: 26,
+            ),
+            SizedBox(width: 10),
+            Text(
+              'Annuler la génération ?',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Voulez-vous interrompre la génération de ce cours ?\n\n'
+          'Vos informations, chapitres et paramètres actuels seront conservés pour que vous puissiez les modifier.',
+          style: TextStyle(fontSize: 14, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Poursuivre'),
+          ),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.close_rounded, size: 18),
+            label: const Text('Oui, annuler'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && mounted) {
+      _cancelGeneration();
+    }
+  }
+
+  void _cancelGeneration() {
+    if (!_isGenerating) return;
+    _activeGenerationId++;
+    // Revenir à l'étape de vérification (Structure = étape avant Générer)
+    final targetStep = _totalSteps - 2;
+    setState(() {
+      _isGenerating = false;
+      _step = targetStep;
+    });
+    _pageController.jumpToPage(targetStep);
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Row(
+          children: [
+            Icon(Icons.cancel_outlined, color: Colors.white, size: 20),
+            SizedBox(width: 10),
+            Text(
+              'Génération du cours annulée',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color.fromARGB(255, 197, 32, 32),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
   // ── Génération ───────────────────────────────────────────────────────────────
 
   void _generateWithDeepSeek() async {
+    final currentGenId = ++_activeGenerationId;
     if (_generatedPrompt == null) _buildPrompt();
     if (_generatedPrompt == null) return;
-    setState(() => _isGenerating = true);
+    setState(() {
+      _isGenerating = true;
+    });
     try {
       final result = await DeepSeekService.generateCourse(
         _generatedPrompt!,
         model: _selectedModel,
       );
+
+      if (currentGenId != _activeGenerationId || !mounted) return;
 
       if (result.fallbackMessage != null && mounted) {
         _snack(result.fallbackMessage!);
@@ -702,12 +809,17 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage>
       if (clean.startsWith('```')) {
         final i = clean.indexOf('\n');
         if (i != -1) clean = clean.substring(i).trim();
-        if (clean.endsWith('```'))
+        if (clean.endsWith('```')) {
           clean = clean.substring(0, clean.length - 3).trim();
+        }
       }
+
+      if (currentGenId != _activeGenerationId || !mounted) return;
 
       final v = CourseImportValidator.validate(clean);
       if (!v.isValid) throw Exception(v.errors.join('\n'));
+
+      if (currentGenId != _activeGenerationId || !mounted) return;
 
       var pkg = v.package!;
       var meta = pkg.meta;
@@ -727,10 +839,16 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage>
         exercices: pkg.exercices,
       );
 
+      if (currentGenId != _activeGenerationId || !mounted) return;
+
       final err = await context.read<CustomCoursesProvider>().importCourse(pkg);
       if (err != null) throw Exception(err);
 
+      if (currentGenId != _activeGenerationId || !mounted) return;
+
       await context.read<ProgressionProvider>().loadProgression(pkg.matiere.id);
+
+      if (currentGenId != _activeGenerationId || !mounted) return;
 
       if (widget.projetId != null && mounted) {
         await context.read<ProjetsProvider>().addMatiereToProjet(
@@ -740,6 +858,8 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage>
       }
 
       final role = await AuthService.getUserRole();
+      if (currentGenId != _activeGenerationId || !mounted) return;
+
       if (role == 'teacher') {
         try {
           await TeacherCoursesService.publishCourse(
@@ -756,6 +876,8 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage>
         }
       }
 
+      if (currentGenId != _activeGenerationId || !mounted) return;
+
       if (mounted) {
         final goStudio = await showDialog<bool>(
           context: context,
@@ -765,7 +887,7 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage>
             isTeacher: role == 'teacher',
           ),
         );
-        if (!mounted) return;
+        if (!mounted || currentGenId != _activeGenerationId) return;
         if (goStudio == true) {
           await Navigator.push(
             context,
@@ -780,6 +902,7 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage>
         }
       }
     } on QuotaExceededException catch (e) {
+      if (currentGenId != _activeGenerationId) return;
       if (mounted) {
         showDialog(
           context: context,
@@ -802,6 +925,7 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage>
         );
       }
     } catch (e, stack) {
+      if (currentGenId != _activeGenerationId) return;
       debugPrint('Erreur génération : $e\n$stack');
       if (mounted) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -880,7 +1004,9 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage>
         );
       }
     } finally {
-      if (mounted) setState(() => _isGenerating = false);
+      if (currentGenId == _activeGenerationId && mounted) {
+        setState(() => _isGenerating = false);
+      }
     }
   }
 }
@@ -916,14 +1042,9 @@ class _WizardHeader extends StatelessWidget {
                 child: Container(
                   width: 38,
                   height: 38,
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.07)
-                        : Colors.black.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+
                   child: Icon(
-                    Icons.arrow_back_ios_new_rounded,
+                    Icons.arrow_back,
                     size: 16,
                     color: isDark ? Colors.white70 : Colors.black54,
                   ),
@@ -1203,7 +1324,6 @@ class _StepInfos extends StatelessWidget {
   final List<String> suggestedClasses;
   final Future<void> Function(ImageSource) onCoverPick;
   final VoidCallback onCoverDelete;
-  final VoidCallback onImport;
 
   const _StepInfos({
     required this.nomCtrl,
@@ -1220,7 +1340,6 @@ class _StepInfos extends StatelessWidget {
     required this.suggestedClasses,
     required this.onCoverPick,
     required this.onCoverDelete,
-    required this.onImport,
   });
 
   @override
@@ -1244,79 +1363,6 @@ class _StepInfos extends StatelessWidget {
     return ListView(
       padding: EdgeInsets.fromLTRB(hPad, 4, hPad, 24),
       children: [
-        // Importer un cours existant
-        _SectionCard(
-          isDark: isDark,
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.upload_file_rounded,
-                  color: primary,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Importer un cours existant',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    color: isDark ? Colors.white : const Color(0xFF1A1A2E),
-                  ),
-                ),
-              ),
-              FilledButton.tonal(
-                onPressed: onImport,
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                child: const Text(
-                  'Importer',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Séparateur
-        Row(
-          children: [
-            Expanded(
-              child: Divider(color: isDark ? Colors.white12 : Colors.black12),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Text(
-                'ou créer avec l\'IA',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? Colors.white38 : Colors.black38,
-                ),
-              ),
-            ),
-            Expanded(
-              child: Divider(color: isDark ? Colors.white12 : Colors.black12),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-
         // Badge enseignant
         if (userRole == 'teacher') ...[
           Container(
@@ -2307,15 +2353,14 @@ class _StepStructure extends StatelessWidget {
   final List<String> chapitres;
   final TextEditingController chapitreCtrl;
   final String niveau;
-  final bool enableTerminal, isDark;
   final DeepSeekModel selectedModel;
   final NgenouExtension? selectedExtension;
   final Color primary;
   final double hPad;
+  final bool isDark;
   final VoidCallback onAddChapitre;
   final void Function(String) onRemoveChapitre;
   final void Function(String) onNiveauChanged;
-  final void Function(bool) onTerminalChanged;
   final void Function(DeepSeekModel) onModelChanged;
   final VoidCallback onOpenExtensionPicker, onRemoveExtension;
 
@@ -2323,7 +2368,6 @@ class _StepStructure extends StatelessWidget {
     required this.chapitres,
     required this.chapitreCtrl,
     required this.niveau,
-    required this.enableTerminal,
     required this.isDark,
     required this.selectedModel,
     required this.selectedExtension,
@@ -2332,7 +2376,6 @@ class _StepStructure extends StatelessWidget {
     required this.onAddChapitre,
     required this.onRemoveChapitre,
     required this.onNiveauChanged,
-    required this.onTerminalChanged,
     required this.onModelChanged,
     required this.onOpenExtensionPicker,
     required this.onRemoveExtension,
@@ -2579,56 +2622,6 @@ class _StepStructure extends StatelessWidget {
         ),
         const SizedBox(height: 18),
 
-        // Terminal algorithmique
-        _SectionCard(
-          isDark: isDark,
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.terminal_rounded,
-                  color: Colors.orange,
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Terminal algorithmique',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                        color: isDark ? Colors.white : const Color(0xFF1A1A2E),
-                      ),
-                    ),
-                    Text(
-                      'Exercices avec pseudo-code exécutable',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark ? Colors.white38 : Colors.black38,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Switch.adaptive(
-                value: enableTerminal,
-                onChanged: onTerminalChanged,
-                activeColor: primary,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
-
         // Extension
         _SectionCard(
           isDark: isDark,
@@ -2728,10 +2721,10 @@ class _StepGeneration extends StatelessWidget {
   final String objectif, langue, schoolLevel;
   final List<String> chapitres;
   final String? coverImageUrl;
-  final bool enableTerminal;
   final DeepSeekModel selectedModel;
   final Color primary;
   final double hPad;
+  final VoidCallback onCancel;
 
   const _StepGeneration({
     required this.isGenerating,
@@ -2743,17 +2736,23 @@ class _StepGeneration extends StatelessWidget {
     required this.schoolLevel,
     required this.chapitres,
     required this.coverImageUrl,
-    required this.enableTerminal,
     required this.selectedModel,
     required this.primary,
     required this.hPad,
+    required this.onCancel,
   });
 
   @override
   Widget build(BuildContext context) {
     if (isGenerating) {
-      return const Center(
-        child: Padding(padding: EdgeInsets.all(24), child: PremiumLoader()),
+      return CourseGenerationWaitingView(
+        isDark: isDark,
+        primary: primary,
+        model: selectedModel,
+        courseName: nomCtrl.text.trim().isNotEmpty
+            ? nomCtrl.text.trim()
+            : 'Nouveau cours',
+        onCancel: onCancel,
       );
     }
 

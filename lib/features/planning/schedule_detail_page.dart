@@ -93,47 +93,59 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
     }
   }
 
-  // Getter mémoïsé : liste de tous les jours de la période
+  // Clé normalisée YYYY-MM-DD insensible aux heures et fuseaux
+  static String _dateKey(DateTime d) {
+    final local = d.toLocal();
+    return '${local.year}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')}';
+  }
+
+  // Getter mémoïsé : liste de tous les jours de la période (englobant toutes les tâches)
   List<DateTime> get _daysInPeriod {
     if (!identical(_scheduleForCache, _schedule) || _daysCache == null) {
       _scheduleForCache = _schedule;
       final days = <DateTime>[];
-      var d = StudySchedule.dateOnly(_schedule.periodStart);
-      final end = StudySchedule.dateOnly(_schedule.periodEnd);
-      while (!d.isAfter(end)) {
-        days.add(d);
-        d = d.add(const Duration(days: 1));
+      var start = StudySchedule.dateOnly(_schedule.periodStart.toLocal());
+      var end = StudySchedule.dateOnly(_schedule.periodEnd.toLocal());
+
+      // S'assurer d'englober toute tâche qui aurait été planifiée avant ou après
+      for (final t in _tasks) {
+        final tDate = StudySchedule.dateOnly(t.scheduledAt.toLocal());
+        if (tDate.isBefore(start)) start = tDate;
+        if (tDate.isAfter(end)) end = tDate;
+      }
+
+      var current = start;
+      while (!current.isAfter(end)) {
+        days.add(current);
+        current = DateTime(current.year, current.month, current.day + 1);
       }
       _daysCache = days;
     }
     return _daysCache!;
   }
 
-  // Découpage en semaines ISO (Lundi → Dimanche)
+  // Découpage en semaines ISO (Lundi → Dimanche) sans dérive d'heure d'été
   List<List<DateTime>> get _weeksInPeriod {
     final days = _daysInPeriod;
     if (days.isEmpty) return [];
 
-    // Trouver le Lundi de la semaine du premier jour
     final firstDay = days.first;
-    // weekday: 1=Lun … 7=Dim
     final mondayOffset = (firstDay.weekday - 1);
-    var monday = firstDay.subtract(Duration(days: mondayOffset));
+    final monday = DateTime(firstDay.year, firstDay.month, firstDay.day - mondayOffset);
 
-    // Trouver le Dimanche de la semaine du dernier jour
     final lastDay = days.last;
     final sundayOffset = (7 - lastDay.weekday) % 7;
-    final sunday = lastDay.add(Duration(days: sundayOffset));
+    final sunday = DateTime(lastDay.year, lastDay.month, lastDay.day + sundayOffset);
 
     final weeks = <List<DateTime>>[];
     var cursor = monday;
     while (!cursor.isAfter(sunday)) {
       final week = <DateTime>[];
       for (var i = 0; i < 7; i++) {
-        week.add(cursor.add(Duration(days: i)));
+        week.add(DateTime(cursor.year, cursor.month, cursor.day + i));
       }
       weeks.add(week);
-      cursor = cursor.add(const Duration(days: 7));
+      cursor = DateTime(cursor.year, cursor.month, cursor.day + 7);
     }
     return weeks;
   }
@@ -144,7 +156,7 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
       _tasksForCache = _tasks;
       final m = <String, List<StudyTask>>{};
       for (final t in _tasks) {
-        final key = TaskFormat.dateOnly(t.scheduledAt).toIso8601String();
+        final key = _dateKey(t.scheduledAt);
         m.putIfAbsent(key, () => []).add(t);
       }
       for (final list in m.values) {
@@ -156,7 +168,7 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
   }
 
   List<StudyTask> _tasksForDay(DateTime day) {
-    final key = TaskFormat.dateOnly(day).toIso8601String();
+    final key = _dateKey(day);
     return _tasksByDayMap[key] ?? const [];
   }
 
@@ -387,7 +399,7 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
     );
   }
 
-  // Impression / Export PDF du tableau spatial complet
+  // Impression / Export PDF du tableau spatial complet (Design haut de gamme & centré)
   String _cleanPdfText(String text) {
     return text
         .replaceAll('’', "'")
@@ -395,7 +407,19 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
         .replaceAll('“', '"')
         .replaceAll('”', '"')
         .replaceAll('–', '-')
-        .replaceAll('—', '-');
+        .replaceAll('—', '-')
+        .replaceAll('•', '-')
+        .replaceAll('…', '...')
+        .replaceAll('«', '"')
+        .replaceAll('»', '"')
+        .replaceAll(
+          RegExp(
+            r'[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]',
+            unicode: true,
+          ),
+          '',
+        )
+        .trim();
   }
 
   PdfColor _pdfActivityColor(ScheduleActivityType type) {
@@ -447,7 +471,6 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
     );
   }
 
-  // Impression / Export PDF du tableau spatial complet (Design haut de gamme & centré)
   Future<void> _exportPdf() async {
     final weeks = _weeksInPeriod;
     final pdf = pw.Document();
@@ -463,34 +486,45 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
       int minHour = 7;
       int maxHour = 20;
       for (final t in allWeekTasks) {
-        if (t.scheduledAt.hour < minHour) minHour = t.scheduledAt.hour;
-        final endH =
-            t.scheduledAt.add(Duration(minutes: t.durationMinutes)).hour;
-        if (endH > maxHour) maxHour = (endH <= 23 ? endH : 23);
+        final startLocal = t.scheduledAt.toLocal();
+        final startH = startLocal.hour;
+        if (startH < minHour) minHour = startH;
+        if (startH > maxHour) maxHour = startH;
+
+        final endLocal =
+            startLocal.add(Duration(minutes: t.durationMinutes));
+        if (TaskFormat.isSameDay(startLocal, endLocal)) {
+          final endH = endLocal.minute > 0
+              ? endLocal.hour
+              : (endLocal.hour > 0 ? endLocal.hour - 1 : 0);
+          if (endH > maxHour) maxHour = (endH <= 23 ? endH : 23);
+        } else {
+          maxHour = 23;
+        }
       }
       final hourRowsCount = (maxHour - minHour) + 1;
-      // Hauteur de cellule calculée pour remplir l'espace A4 paysage
+      // Hauteur de cellule calculée pour remplir harmonieusement l'espace A4 paysage
       final rowCellHeight =
-          (435.0 / hourRowsCount).clamp(23.0, 35.0);
+          (420.0 / hourRowsCount).clamp(21.0, 32.0);
 
       pdf.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4.landscape,
-          margin: const pw.EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+          margin: const pw.EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           build: (pw.Context ctx) {
             return pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.stretch,
               children: [
-                // ─── Bandeau d'en-tête premium ─────────────────────────────
+                // ─── Bandeau d'en-tête haut de gamme ────────────────────────
                 pw.Container(
                   padding: const pw.EdgeInsets.symmetric(
                     horizontal: 14,
-                    vertical: 8,
+                    vertical: 7.5,
                   ),
                   decoration: pw.BoxDecoration(
                     color: PdfColor.fromHex('1E1B4B'),
                     borderRadius:
-                        const pw.BorderRadius.all(pw.Radius.circular(8)),
+                        const pw.BorderRadius.all(pw.Radius.circular(6)),
                   ),
                   child: pw.Row(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -523,7 +557,7 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
                             style: pw.TextStyle(
                               color: PdfColors.white,
                               fontWeight: pw.FontWeight.bold,
-                              fontSize: 13,
+                              fontSize: 12.5,
                             ),
                           ),
                           pw.SizedBox(width: 8),
@@ -531,7 +565,7 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
                             '($startStr au $endStr)',
                             style: pw.TextStyle(
                               color: PdfColor.fromHex('CBD5E1'),
-                              fontSize: 9.5,
+                              fontSize: 9,
                             ),
                           ),
                         ],
@@ -539,18 +573,18 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
                       pw.Row(
                         children: [
                           pw.Text(
-                            'Ngenou',
+                            'NGENOU',
                             style: pw.TextStyle(
                               color: PdfColors.white,
                               fontWeight: pw.FontWeight.bold,
-                              fontSize: 11,
+                              fontSize: 10.5,
                             ),
                           ),
                           pw.Text(
-                            ' • Planning d\'apprentissage',
+                            ' | Planning d\'apprentissage',
                             style: pw.TextStyle(
                               color: PdfColor.fromHex('94A3B8'),
-                              fontSize: 9,
+                              fontSize: 8.5,
                             ),
                           ),
                         ],
@@ -558,241 +592,227 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
                     ],
                   ),
                 ),
-                pw.SizedBox(height: 8),
+                pw.Spacer(),
 
                 // ─── Grille Spatiale Parfaitement Centrée ──────────────────
-                pw.Expanded(
-                  child: pw.Table(
-                    border: pw.TableBorder.all(
-                      color: PdfColor.fromHex('CBD5E1'),
-                      width: 0.6,
-                    ),
-                    columnWidths: const {
-                      0: pw.FixedColumnWidth(44), // Colonne Heure
-                      1: pw.FlexColumnWidth(1),   // Lundi
-                      2: pw.FlexColumnWidth(1),   // Mardi
-                      3: pw.FlexColumnWidth(1),   // Mercredi
-                      4: pw.FlexColumnWidth(1),   // Jeudi
-                      5: pw.FlexColumnWidth(1),   // Vendredi
-                      6: pw.FlexColumnWidth(1),   // Samedi
-                      7: pw.FlexColumnWidth(1),   // Dimanche
-                    },
-                    children: [
-                      // Header des jours (Design moderne avec contraste)
-                      pw.TableRow(
-                        decoration: pw.BoxDecoration(
-                          color: PdfColor.fromHex('312E81'),
+                pw.Table(
+                  border: pw.TableBorder.all(
+                    color: PdfColor.fromHex('CBD5E1'),
+                    width: 0.5,
+                  ),
+                  columnWidths: const {
+                    0: pw.FixedColumnWidth(44), // Colonne Heure
+                    1: pw.FlexColumnWidth(1),   // Lundi
+                    2: pw.FlexColumnWidth(1),   // Mardi
+                    3: pw.FlexColumnWidth(1),   // Mercredi
+                    4: pw.FlexColumnWidth(1),   // Jeudi
+                    5: pw.FlexColumnWidth(1),   // Vendredi
+                    6: pw.FlexColumnWidth(1),   // Samedi
+                    7: pw.FlexColumnWidth(1),   // Dimanche
+                  },
+                  children: [
+                    // Header des jours
+                    pw.TableRow(
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('282566'),
+                      ),
+                      children: [
+                        pw.Container(
+                          height: 27,
+                          alignment: pw.Alignment.center,
+                          child: pw.Text(
+                            'HEURE',
+                            style: pw.TextStyle(
+                              fontWeight: pw.FontWeight.bold,
+                              fontSize: 8,
+                              color: PdfColors.white,
+                            ),
+                          ),
                         ),
-                        children: [
-                          pw.Container(
-                            height: 28,
+                        ...weekDays.map((d) {
+                          final isToday =
+                              TaskFormat.isSameDay(d, DateTime.now());
+                          return pw.Container(
+                            height: 27,
                             alignment: pw.Alignment.center,
+                            color: isToday
+                                ? PdfColor.fromHex('3730A3')
+                                : null,
+                            child: pw.Column(
+                              mainAxisAlignment:
+                                  pw.MainAxisAlignment.center,
+                              children: [
+                                pw.Text(
+                                  _cleanPdfText(
+                                    TaskFormat.weekdayShort(d)
+                                        .split(' ')
+                                        .first
+                                        .toUpperCase(),
+                                  ),
+                                  style: pw.TextStyle(
+                                    fontWeight: pw.FontWeight.bold,
+                                    fontSize: 8,
+                                    color: PdfColors.white,
+                                  ),
+                                ),
+                                pw.SizedBox(height: 1),
+                                pw.Text(
+                                  '${d.day} ${_cleanPdfText(TaskFormat.shortDate(d).split(' ').last)}',
+                                  style: pw.TextStyle(
+                                    fontSize: 7,
+                                    color: PdfColor.fromHex('C7D2FE'),
+                                    fontWeight: pw.FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+
+                    // Lignes horaires
+                    ...List.generate(hourRowsCount, (hIdx) {
+                      final hour = minHour + hIdx;
+                      final isEvenRow = hIdx.isEven;
+                      final rowBaseColor = isEvenRow
+                          ? PdfColors.white
+                          : PdfColor.fromHex('F8FAFC');
+
+                      return pw.TableRow(
+                        children: [
+                          // Cellule Heure
+                          pw.Container(
+                            constraints:
+                                pw.BoxConstraints(minHeight: rowCellHeight),
+                            alignment: pw.Alignment.center,
+                            color: isEvenRow
+                                ? PdfColor.fromHex('F8FAFC')
+                                : PdfColor.fromHex('F1F5F9'),
                             child: pw.Text(
-                              'Heure',
+                              '${hour.toString().padLeft(2, '0')}:00',
                               style: pw.TextStyle(
+                                fontSize: 7.5,
                                 fontWeight: pw.FontWeight.bold,
-                                fontSize: 8.5,
-                                color: PdfColors.white,
+                                color: PdfColor.fromHex('334155'),
                               ),
                             ),
                           ),
+
+                          // Cellules des jours
                           ...weekDays.map((d) {
-                            final isToday =
-                                TaskFormat.isSameDay(d, DateTime.now());
+                            final dayTasks = _tasksForDay(d);
+                            final hourTasks = dayTasks
+                                .where((t) => t.scheduledAt.toLocal().hour == hour)
+                                .toList();
+
+                            if (hourTasks.isEmpty) {
+                              return pw.Container(
+                                constraints:
+                                    pw.BoxConstraints(minHeight: rowCellHeight),
+                                color: rowBaseColor,
+                              );
+                            }
+
+                            final isMulti = hourTasks.length >= 2;
+
                             return pw.Container(
-                              height: 28,
-                              alignment: pw.Alignment.center,
-                              color: isToday
-                                  ? PdfColor.fromHex('4338CA')
-                                  : null,
+                              constraints:
+                                  pw.BoxConstraints(minHeight: rowCellHeight),
+                              color: rowBaseColor,
+                              padding: const pw.EdgeInsets.all(2),
                               child: pw.Column(
+                                crossAxisAlignment:
+                                    pw.CrossAxisAlignment.stretch,
                                 mainAxisAlignment:
                                     pw.MainAxisAlignment.center,
-                                children: [
-                                  pw.Text(
-                                    _cleanPdfText(
-                                      TaskFormat.weekdayShort(d)
-                                          .split(' ')
-                                          .first
-                                          .toUpperCase(),
+                                children: hourTasks.map((t) {
+                                  final accent =
+                                      _pdfActivityColor(t.activityType);
+                                  final bg =
+                                      _pdfActivityBgColor(t.activityType);
+                                  final isDone =
+                                      t.status == TaskStatus.completed;
+
+                                  return pw.Container(
+                                    margin: pw.EdgeInsets.only(
+                                      bottom: isMulti ? 1.5 : 0,
                                     ),
-                                    style: pw.TextStyle(
-                                      fontWeight: pw.FontWeight.bold,
-                                      fontSize: 8,
-                                      color: PdfColors.white,
+                                    padding: pw.EdgeInsets.symmetric(
+                                      horizontal: 3.5,
+                                      vertical: isMulti ? 1.5 : 2.5,
                                     ),
-                                  ),
-                                  pw.SizedBox(height: 1),
-                                  pw.Text(
-                                    '${d.day} ${_cleanPdfText(TaskFormat.shortDate(d).split(' ').last)}',
-                                    style: pw.TextStyle(
-                                      fontSize: 7,
-                                      color: PdfColor.fromHex('C7D2FE'),
-                                      fontWeight: pw.FontWeight.bold,
+                                    decoration: pw.BoxDecoration(
+                                      color: bg,
+                                      border: pw.Border(
+                                        left: pw.BorderSide(
+                                          color: accent,
+                                          width: isMulti ? 2.0 : 2.8,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                    child: pw.Column(
+                                      crossAxisAlignment:
+                                          pw.CrossAxisAlignment.start,
+                                      children: [
+                                        pw.Row(
+                                          children: [
+                                            pw.Expanded(
+                                              child: pw.Text(
+                                                _cleanPdfText(t.displayTitle),
+                                                style: pw.TextStyle(
+                                                  fontSize:
+                                                      isMulti ? 6.0 : 6.8,
+                                                  fontWeight:
+                                                      pw.FontWeight.bold,
+                                                  color: PdfColor.fromHex(
+                                                    '0F172A',
+                                                  ),
+                                                  decoration: isDone
+                                                      ? pw.TextDecoration
+                                                          .lineThrough
+                                                      : null,
+                                                ),
+                                                maxLines: 1,
+                                              ),
+                                            ),
+                                            if (isDone)
+                                              pw.Container(
+                                                width: 4,
+                                                height: 4,
+                                                decoration:
+                                                    const pw.BoxDecoration(
+                                                  color: PdfColors.green,
+                                                  shape: pw.BoxShape.circle,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        pw.SizedBox(height: 0.5),
+                                        pw.Text(
+                                          '${TaskFormat.time(t.scheduledAt.toLocal())} - ${t.durationMinutes}m',
+                                          style: pw.TextStyle(
+                                            fontSize: isMulti ? 5.0 : 5.8,
+                                            color: PdfColor.fromHex(
+                                              '64748B',
+                                            ),
+                                            fontWeight: pw.FontWeight.bold,
+                                          ),
+                                          maxLines: 1,
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
                               ),
                             );
                           }),
                         ],
-                      ),
-
-                      // Lignes horaires dynamiques
-                      ...List.generate(hourRowsCount, (hIdx) {
-                        final hour = minHour + hIdx;
-                        final isEvenRow = hIdx.isEven;
-                        final rowBaseColor = isEvenRow
-                            ? PdfColors.white
-                            : PdfColor.fromHex('F8FAFC');
-
-                        return pw.TableRow(
-                          children: [
-                            // Cellule Heure
-                            pw.Container(
-                              height: rowCellHeight,
-                              alignment: pw.Alignment.center,
-                              color: isEvenRow
-                                  ? PdfColor.fromHex('F8FAFC')
-                                  : PdfColor.fromHex('F1F5F9'),
-                              child: pw.Text(
-                                '${hour.toString().padLeft(2, '0')}:00',
-                                style: pw.TextStyle(
-                                  fontSize: 7.5,
-                                  fontWeight: pw.FontWeight.bold,
-                                  color: PdfColor.fromHex('475569'),
-                                ),
-                              ),
-                            ),
-
-                            // Cellules des jours
-                            ...weekDays.map((d) {
-                              final dayTasks = _tasksForDay(d);
-                              final hourTasks = dayTasks
-                                  .where((t) => t.scheduledAt.hour == hour)
-                                  .toList();
-
-                              if (hourTasks.isEmpty) {
-                                return pw.Container(
-                                  height: rowCellHeight,
-                                  color: rowBaseColor,
-                                );
-                              }
-
-                              final isMulti = hourTasks.length >= 2;
-
-                              return pw.Container(
-                                height: rowCellHeight,
-                                color: rowBaseColor,
-                                padding: const pw.EdgeInsets.all(2),
-                                child: pw.Column(
-                                  crossAxisAlignment:
-                                      pw.CrossAxisAlignment.stretch,
-                                  mainAxisAlignment:
-                                      pw.MainAxisAlignment.center,
-                                  children: hourTasks.map((t) {
-                                    final accent =
-                                        _pdfActivityColor(t.activityType);
-                                    final bg =
-                                        _pdfActivityBgColor(t.activityType);
-                                    final isDone =
-                                        t.status == TaskStatus.completed;
-
-                                    return pw.Container(
-                                      margin: pw.EdgeInsets.only(
-                                        bottom: isMulti ? 1.5 : 0,
-                                      ),
-                                      padding: pw.EdgeInsets.symmetric(
-                                        horizontal: 3.5,
-                                        vertical: isMulti ? 1.5 : 2.5,
-                                      ),
-                                      decoration: pw.BoxDecoration(
-                                        color: bg,
-                                        borderRadius: const pw.BorderRadius.all(
-                                          pw.Radius.circular(2.5),
-                                        ),
-                                        border: pw.Border(
-                                          left: pw.BorderSide(
-                                            color: accent,
-                                            width: isMulti ? 2.0 : 2.8,
-                                          ),
-                                          top: pw.BorderSide(
-                                            color: PdfColor.fromHex('E2E8F0'),
-                                            width: 0.3,
-                                          ),
-                                          right: pw.BorderSide(
-                                            color: PdfColor.fromHex('E2E8F0'),
-                                            width: 0.3,
-                                          ),
-                                          bottom: pw.BorderSide(
-                                            color: PdfColor.fromHex('E2E8F0'),
-                                            width: 0.3,
-                                          ),
-                                        ),
-                                      ),
-                                      child: pw.Column(
-                                        crossAxisAlignment:
-                                            pw.CrossAxisAlignment.start,
-                                        children: [
-                                          pw.Row(
-                                            children: [
-                                              pw.Expanded(
-                                                child: pw.Text(
-                                                  _cleanPdfText(t.displayTitle),
-                                                  style: pw.TextStyle(
-                                                    fontSize:
-                                                        isMulti ? 6.0 : 6.8,
-                                                    fontWeight:
-                                                        pw.FontWeight.bold,
-                                                    color: PdfColor.fromHex(
-                                                      '1E293B',
-                                                    ),
-                                                    decoration: isDone
-                                                        ? pw.TextDecoration
-                                                            .lineThrough
-                                                        : null,
-                                                  ),
-                                                  maxLines: 1,
-                                                ),
-                                              ),
-                                              if (isDone)
-                                                pw.Container(
-                                                  width: 4,
-                                                  height: 4,
-                                                  decoration:
-                                                      const pw.BoxDecoration(
-                                                    color: PdfColors.green,
-                                                    shape: pw.BoxShape.circle,
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
-                                          pw.SizedBox(height: 0.5),
-                                          pw.Text(
-                                            '${TaskFormat.time(t.scheduledAt)} • ${t.durationMinutes}m',
-                                            style: pw.TextStyle(
-                                              fontSize: isMulti ? 5.0 : 5.8,
-                                              color: PdfColor.fromHex(
-                                                '64748B',
-                                              ),
-                                              fontWeight: pw.FontWeight.bold,
-                                            ),
-                                            maxLines: 1,
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  }).toList(),
-                                ),
-                              );
-                            }),
-                          ],
-                        );
-                      }),
-                    ],
-                  ),
+                      );
+                    }),
+                  ],
                 ),
-                pw.SizedBox(height: 6),
+                pw.Spacer(),
 
                 // ─── Pied de page avec légende stylée ─────────────────────
                 pw.Container(
@@ -803,10 +823,10 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
                   decoration: pw.BoxDecoration(
                     color: PdfColor.fromHex('F8FAFC'),
                     borderRadius:
-                        const pw.BorderRadius.all(pw.Radius.circular(6)),
+                        const pw.BorderRadius.all(pw.Radius.circular(5)),
                     border: pw.Border.all(
                       color: PdfColor.fromHex('E2E8F0'),
-                      width: 0.6,
+                      width: 0.5,
                     ),
                   ),
                   child: pw.Row(
@@ -841,7 +861,7 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
                         ],
                       ),
                       pw.Text(
-                        'Ngenou • Semaine ${wIdx + 1}/${weeks.length}',
+                        'Semaine ${wIdx + 1}/${weeks.length} - Ngenou',
                         style: pw.TextStyle(
                           fontSize: 7.5,
                           color: PdfColor.fromHex('64748B'),
@@ -1086,11 +1106,22 @@ class _WeekScheduleTableState extends State<_WeekScheduleTable> {
 
     // Déterminer la plage horaire dynamique (entre minHour et maxHour)
     int minHour = 7;
-    int maxHour = 21;
+    int maxHour = 20;
     for (final t in allWeekTasks) {
-      if (t.scheduledAt.hour < minHour) minHour = t.scheduledAt.hour;
-      final endH = t.scheduledAt.add(Duration(minutes: t.durationMinutes)).hour;
-      if (endH > maxHour) maxHour = (endH <= 23 ? endH : 23);
+      final startLocal = t.scheduledAt.toLocal();
+      final startH = startLocal.hour;
+      if (startH < minHour) minHour = startH;
+      if (startH > maxHour) maxHour = startH;
+
+      final endLocal = startLocal.add(Duration(minutes: t.durationMinutes));
+      if (TaskFormat.isSameDay(startLocal, endLocal)) {
+        final endH = endLocal.minute > 0
+            ? endLocal.hour
+            : (endLocal.hour > 0 ? endLocal.hour - 1 : 0);
+        if (endH > maxHour) maxHour = (endH <= 23 ? endH : 23);
+      } else {
+        maxHour = 23;
+      }
     }
     final hourRowsCount = (maxHour - minHour) + 1;
     final tableWidth = _hourColWidth + (widget.weekDays.length * _dayColWidth) + 24.0;
@@ -1392,7 +1423,7 @@ class _WeekScheduleTableState extends State<_WeekScheduleTable> {
                                     ...widget.weekDays.map((d) {
                                       final dayTasks = widget.tasksForDay(d);
                                       final hourTasks = dayTasks
-                                          .where((t) => t.scheduledAt.hour == hour)
+                                          .where((t) => t.scheduledAt.toLocal().hour == hour)
                                           .toList();
                                       return _dayHourCell(
                                         context: context,
@@ -1631,7 +1662,7 @@ class _WeekScheduleTableState extends State<_WeekScheduleTable> {
                           ),
                           const SizedBox(height: 1),
                           Text(
-                            '${TaskFormat.time(task.scheduledAt)} (${task.durationMinutes}m)',
+                            '${TaskFormat.time(task.scheduledAt.toLocal())} (${task.durationMinutes}m)',
                             style: TextStyle(
                               fontSize: isMulti ? 8.5 : 9.5,
                               fontWeight: FontWeight.w600,
@@ -1940,7 +1971,7 @@ class _FullscreenSchedulePageState extends State<_FullscreenSchedulePage> {
                       ...widget.weekDays.map((d) {
                         final dayTasks = widget.tasksForDay(d);
                         final hourTasks = dayTasks
-                            .where((t) => t.scheduledAt.hour == hour)
+                            .where((t) => t.scheduledAt.toLocal().hour == hour)
                             .toList();
                         final isMulti = hourTasks.length >= 2;
 
@@ -2035,7 +2066,7 @@ class _FullscreenSchedulePageState extends State<_FullscreenSchedulePage> {
                                               ),
                                               const SizedBox(height: 1),
                                               Text(
-                                                '${TaskFormat.time(task.scheduledAt)} (${task.durationMinutes}m)',
+                                                '${TaskFormat.time(task.scheduledAt.toLocal())} (${task.durationMinutes}m)',
                                                 style: TextStyle(
                                                   fontSize: isMulti ? 8.5 : 9.5,
                                                   fontWeight: FontWeight.w600,
