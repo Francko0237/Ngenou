@@ -265,7 +265,95 @@ class ExtensionsService extends ChangeNotifier {
     return null;
   }
 
-  // Fallback vide si aucun cache ni réseau n'est disponible au 1er lancement
-  static const String _bundledFallbackManifest =
-      '{"version": "1.0.0", "extensions": []}';
+  // Fallback embarqué pour garantir la disponibilité immédiate hors-ligne
+  static const String _bundledFallbackManifest = '''
+{
+  "version": "1.4.0",
+  "updated_at": "2026-10-17T08:00:00Z",
+  "extensions": [
+    {
+      "id": "algo_interpreter",
+      "nom": "Interpréteur Algorithmique & Console",
+      "description": "Moteur d'exécution de pseudo-code complet avec analyse syntaxique, débogueur pas-à-pas et console interactive.",
+      "version": "1.2.0",
+      "taille": "48 Ko",
+      "auteur": "Yamga Daniel",
+      "icone": "code",
+      "couleur": "#2ECC71",
+      "categorie": "Informatique & Algorithmique",
+      "niveaux": ["secondaire", "superieur"],
+      "type": "script_engine",
+      "entrypoint": "bundle.json",
+      "download_url": "https://raw.githubusercontent.com/Francko0237/Assets-Ngenou/main/extensions/algo_interpreter/README.md",
+      "files": [
+        "bundle.json",
+        "lexer.dart",
+        "parser.dart",
+        "interpreter.dart",
+        "debugger.dart",
+        "syntax_highlighter.dart"
+      ]
+    },
+    {
+      "id": "math_fractions_visualizer",
+      "nom": "Atelier Visuel des Fractions",
+      "description": "Manipulation visuelle des fractions en disques et réglettes : fractions équivalentes, simplification et pourcentages.",
+      "version": "1.0.0",
+      "taille": "35 Ko",
+      "auteur": "Yamga Daniel",
+      "icone": "calculator",
+      "couleur": "#E67E22",
+      "categorie": "Mathématiques",
+      "niveaux": ["primaire", "secondaire"],
+      "type": "math_tool",
+      "entrypoint": "bundle.json",
+      "download_url": "https://raw.githubusercontent.com/Francko0237/Assets-Ngenou/main/extensions/math_fractions/README.md",
+      "files": [
+        "bundle.json",
+        "fractions_calculator.dart",
+        "fractions_painter.dart"
+      ]
+    },
+    {
+      "id": "math_nombres_relatifs",
+      "nom": "Droite Graduée & Nombres Relatifs",
+      "description": "Visualisation interactive des nombres relatifs sur axe et thermomètre : comparaison, repérage et calculs guidés pas-à-pas.",
+      "version": "1.0.0",
+      "taille": "38 Ko",
+      "auteur": "Yamga Daniel",
+      "icone": "scale",
+      "couleur": "#3498DB",
+      "categorie": "Mathématiques",
+      "niveaux": ["secondaire"],
+      "type": "math_tool",
+      "entrypoint": "bundle.json",
+      "download_url": "https://raw.githubusercontent.com/Francko0237/Assets-Ngenou/main/extensions/math_nombres_relatifs/README.md",
+      "files": [
+        "bundle.json",
+        "relatifs_calculator.dart",
+        "droite_graduee_painter.dart"
+      ]
+    },
+    {
+      "id": "math_conversion_unites",
+      "nom": "Tableau de Conversion & Décimaux",
+      "description": "Tableau dynamique interactif de conversion d'unités (longueurs, masses, capacités, aires) avec décomposition décimale en puissances de 10.",
+      "version": "1.0.0",
+      "taille": "42 Ko",
+      "auteur": "Yamga Daniel",
+      "icone": "table_chart",
+      "couleur": "#00B894",
+      "categorie": "Mathématiques",
+      "niveaux": ["primaire", "secondaire"],
+      "type": "math_tool",
+      "entrypoint": "bundle.json",
+      "download_url": "https://raw.githubusercontent.com/Francko0237/Assets-Ngenou/main/extensions/math_conversion_unites/README.md",
+      "files": [
+        "bundle.json",
+        "conversion_calculator.dart"
+      ]
+    }
+  ]
+}
+''';
 }
