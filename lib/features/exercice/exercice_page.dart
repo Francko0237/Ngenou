@@ -102,7 +102,7 @@ class _ExercicePageState extends State<ExercicePage> {
                 ctx,
                 categories: {
                   'learning',
-                  'excellence',
+                'excellence',
                   'algo',
                   'streak',
                   'activity',

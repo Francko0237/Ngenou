@@ -6,11 +6,16 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// Lecture du fichier key.properties
+// Lecture du fichier key.properties avec fallback sur variables d'environnement (CI/CD)
 val keyPropertiesFile = rootProject.file("key.properties")
 val keyProperties = Properties()
 if (keyPropertiesFile.exists()) {
     keyProperties.load(keyPropertiesFile.inputStream())
+}
+
+fun signingProp(key: String): String {
+    // Priorité : variable d'environnement CI > key.properties local
+    return System.getenv(key) ?: (keyProperties[key] as? String ?: "")
 }
 
 android {
@@ -30,10 +35,11 @@ android {
 
     signingConfigs {
         create("release") {
-            keyAlias = keyProperties["keyAlias"] as String
-            keyPassword = keyProperties["keyPassword"] as String
-            storeFile = keyProperties["storeFile"]?.let { file(it) }
-            storePassword = keyProperties["storePassword"] as String
+            keyAlias     = signingProp("keyAlias")
+            keyPassword  = signingProp("keyPassword")
+            storePassword = signingProp("storePassword")
+            val sf = signingProp("storeFile")
+            if (sf.isNotEmpty()) storeFile = file(sf)
         }
     }
 

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseCredentials {
@@ -14,17 +15,18 @@ class SupabaseCredentials {
 
   static Future<void> init() async {
     if (!isValid) {
-      print("Supabase non configuré ou identifiants invalides.");
+      debugPrint('⚠️ Supabase non configuré ou identifiants invalides.');
       return;
     }
     try {
       await Supabase.initialize(
         url: url,
+        // ignore: deprecated_member_use
         anonKey: anonKey,
       );
-      print("Supabase initialisé avec succès.");
+      debugPrint('✅ Supabase initialisé avec succès.');
     } catch (e) {
-      print("Erreur lors de l'initialisation de Supabase: $e");
+      debugPrint('❌ Erreur lors de l\'initialisation de Supabase: $e');
     }
   }
 }

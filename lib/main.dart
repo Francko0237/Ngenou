@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:ui';
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -24,6 +26,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ── Gestionnaire global d'erreurs Flutter ─────────────────────────────────
+  // Capture les erreurs non gérées du framework (widgets, rendu, etc.)
+  FlutterError.onError = (FlutterErrorDetails details) {
+    debugPrint('🚨 [FlutterError] ${details.exceptionAsString()}');
+    debugPrint(details.stack.toString());
+    // TODO: Envoyer à Crashlytics/Sentry en production si besoin
+  };
+
+  // Capture les erreurs asynchrones non gérées (Dart isolate principal)
+  PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+    debugPrint('🚨 [PlatformDispatcher] $error');
+    debugPrint(stack.toString());
+    // TODO: Envoyer à Crashlytics/Sentry en production si besoin
+    return true; // true = erreur considérée comme gérée
+  };
+
   await SupabaseCredentials.init();
 
   // ── Réinitialisation unique des badges (migration silencieuse supprimée) ──

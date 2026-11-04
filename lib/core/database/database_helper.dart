@@ -159,7 +159,7 @@ class DatabaseHelper {
               'ALTER TABLE $table ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0',
             );
           } catch (e) {
-            print("Erreur migration table $table: $e");
+            debugPrint('Erreur migration table $table: $e');
           }
         }
 
@@ -1331,7 +1331,7 @@ class DatabaseHelper {
           }
         }
       } catch (e) {
-        print("Error parsing challenges json: $e");
+        debugPrint('Error parsing challenges json: $e');
       }
     }
     return count;

@@ -387,42 +387,42 @@ class AuthService {
   /// Connexion avec Google via le sélecteur de compte natif (sans navigateur)
   static Future<bool> signInWithGoogle() async {
     try {
-      print("=== GOOGLE SIGN-IN START ===");
+      debugPrint('=== GOOGLE SIGN-IN START ===');
 
       // Initialiser une seule fois
       if (!_googleSignInInitialized) {
-        print(
-          "=== Initializing GoogleSignIn with serverClientId: $_googleServerClientId ===",
+        debugPrint(
+          '=== Initializing GoogleSignIn with serverClientId: $_googleServerClientId ===',
         );
         await GoogleSignIn.instance.initialize(
           serverClientId: _googleServerClientId,
         );
         _googleSignInInitialized = true;
-        print("=== GoogleSignIn initialized OK ===");
+        debugPrint('=== GoogleSignIn initialized OK ===');
       }
 
       // Déconnecter l'éventuel compte précédent pour forcer le sélecteur
-      print("=== Signing out previous session... ===");
+      debugPrint('=== Signing out previous session... ===');
       await GoogleSignIn.instance.signOut();
-      print("=== SignOut OK, calling authenticate... ===");
+      debugPrint('=== SignOut OK, calling authenticate... ===');
 
       // Déclencher l'authentification interactive
       final googleUser = await GoogleSignIn.instance.authenticate();
-      print("=== Authenticated as: ${googleUser.email} ===");
+      debugPrint('=== Authenticated as: ${googleUser.email} ===');
 
       final idToken = googleUser.authentication.idToken;
-      print("=== idToken is ${idToken == null ? 'NULL ❌' : 'present ✓'} ===");
+      debugPrint("=== idToken is ${idToken == null ? 'NULL ❌' : 'present ✓'} ===");
 
       if (idToken == null) {
         throw Exception('Google ID token introuvable.');
       }
 
-      print("=== Calling Supabase signInWithIdToken... ===");
+      debugPrint('=== Calling Supabase signInWithIdToken... ===');
       await _client.auth.signInWithIdToken(
         provider: OAuthProvider.google,
         idToken: idToken,
       );
-      print("=== Supabase signInWithIdToken OK ===");
+      debugPrint('=== Supabase signInWithIdToken OK ===');
 
       // Résoudre le nom à afficher après connexion Google.
       // Priorité stricte :
@@ -460,16 +460,16 @@ class AuthService {
 
       return true;
     } on GoogleSignInException catch (e) {
-      print(
-        "=== GoogleSignInException: code=${e.code} description=${e.description} ===",
+      debugPrint(
+        '=== GoogleSignInException: code=${e.code} description=${e.description} ===',
       );
       if (e.code == GoogleSignInExceptionCode.canceled) {
         return false; // L'utilisateur a vraiment annulé
       }
       throw Exception("Google Sign-In échoué (${e.code}): ${e.description}");
     } catch (e, stack) {
-      print("=== Google Sign-In CATCH: $e ===");
-      print("=== StackTrace: $stack ===");
+      debugPrint('=== Google Sign-In CATCH: $e ===');
+      debugPrint('=== StackTrace: $stack ===');
       rethrow;
     }
   }
