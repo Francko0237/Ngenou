@@ -370,6 +370,26 @@ class AuthService {
     return response;
   }
 
+  /// Envoie un e-mail avec un lien sécurisé pour réinitialiser le mot de passe
+  static Future<void> resetPassword(String email) async {
+    await _client.auth.resetPasswordForEmail(email.trim());
+  }
+
+  /// Met à jour le mot de passe de l'utilisateur (après réinitialisation ou dans les paramètres)
+  static Future<void> updatePassword(String newPassword) async {
+    await _client.auth.updateUser(
+      UserAttributes(password: newPassword),
+    );
+  }
+
+  /// Renvoie un e-mail de confirmation d'inscription
+  static Future<void> resendVerificationEmail(String email) async {
+    await _client.auth.resend(
+      type: OtpType.signup,
+      email: email.trim(),
+    );
+  }
+
   // ─── GOOGLE ──────────────────────────────────────────────────────────────
   // Utilise le flux natif `google_sign_in` v7 + `signInWithIdToken` pour éviter
   // le redirect vers le navigateur. Le sélecteur de compte Google s'affiche
