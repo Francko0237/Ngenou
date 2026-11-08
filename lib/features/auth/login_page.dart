@@ -1097,7 +1097,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ],
                 ),
-                if ((_errorMessage!.contains('e-mail') || _errorMessage!.contains('email')) &&
+                if (_errorMessage!.contains('Confirmez votre adresse') &&
                     !_isPhoneMode &&
                     _emailController.text.trim().isNotEmpty) ...[
                   const SizedBox(height: 6),

@@ -1,9 +1,13 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../database/database_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'email_service.dart';
+import 'supabase_credentials.dart';
 
 class AuthService {
   static final SupabaseClient _client = Supabase.instance.client;
@@ -333,6 +337,14 @@ class AuthService {
       await prefs.setString(_localLevelKey, schoolLevel);
     }
 
+    // Envoi de l'e-mail de bienvenue personnalisé (asynchrone, non bloquant)
+    unawaited(
+      EmailService.sendWelcomeEmail(
+        toEmail: email,
+        username: username,
+      ),
+    );
+
     return response;
   }
 
@@ -404,12 +416,19 @@ class AuthService {
 
   static bool _googleSignInInitialized = false;
 
-  /// Connexion avec Google via le sélecteur de compte natif (sans navigateur)
+  /// Connexion avec Google (supporte Mobile via sélecteur natif et Desktop Linux/Windows via navigateur)
   static Future<bool> signInWithGoogle() async {
     try {
       debugPrint('=== GOOGLE SIGN-IN START ===');
 
-      // Initialiser une seule fois
+      // Sur Linux / Windows Desktop, le plugin natif google_sign_in n'existe pas.
+      // On utilise le flux OAuth standard Supabase avec le navigateur par défaut.
+      if (!kIsWeb && (Platform.isLinux || Platform.isWindows)) {
+        debugPrint('=== Exécution du flux OAuth Google Desktop (Linux/Windows) ===');
+        return await _signInWithGoogleDesktop();
+      }
+
+      // Initialiser une seule fois (Android, iOS, macOS, Web)
       if (!_googleSignInInitialized) {
         debugPrint(
           '=== Initializing GoogleSignIn with serverClientId: $_googleServerClientId ===',
@@ -444,39 +463,7 @@ class AuthService {
       );
       debugPrint('=== Supabase signInWithIdToken OK ===');
 
-      // Résoudre le nom à afficher après connexion Google.
-      // Priorité stricte :
-      //   1. username personnalisé stocké dans les métadonnées Supabase (via updateUsername)
-      //   2. nom déjà enregistré localement (nom changé dans les paramètres)
-      //   3. prénom Google (fallback uniquement si rien n'est défini)
-      final prefs = await SharedPreferences.getInstance();
-      final meta = _client.auth.currentUser?.userMetadata;
-      if (meta != null) {
-        // 1. Priorité : username personnalisé dans les métadonnées Supabase
-        final customUsername = meta['username'] as String?;
-        if (customUsername != null && customUsername.trim().isNotEmpty) {
-          await prefs.setString(_localUsernameKey, customUsername.trim());
-        } else {
-          // 2. Ne pas écraser si un nom local existe déjà
-          final existingLocal = prefs.getString(_localUsernameKey);
-          if (existingLocal == null || existingLocal.trim().isEmpty) {
-            // 3. Fallback : prénom Google uniquement si rien n'est défini
-            final fullName = (meta['full_name'] ?? meta['name']) as String?;
-            if (fullName != null && fullName.trim().isNotEmpty) {
-              final firstName = fullName.trim().split(' ').first;
-              await prefs.setString(_localUsernameKey, firstName);
-            }
-          }
-        }
-        final customRole = meta['role'] as String?;
-        if (customRole != null && customRole.isNotEmpty) {
-          await prefs.setString(_localRoleKey, customRole);
-        }
-        final customLevel = meta['school_level'] as String?;
-        if (customLevel != null && customLevel.isNotEmpty) {
-          await prefs.setString(_localLevelKey, customLevel);
-        }
-      }
+      await _resolvePostSignInMetadata();
 
       return true;
     } on GoogleSignInException catch (e) {
@@ -491,6 +478,120 @@ class AuthService {
       debugPrint('=== Google Sign-In CATCH: $e ===');
       debugPrint('=== StackTrace: $stack ===');
       rethrow;
+    }
+  }
+
+  /// Connexion avec Google sous Linux / Windows (Desktop) via navigateur et serveur loopback local
+  static Future<bool> _signInWithGoogleDesktop() async {
+    HttpServer? server;
+    try {
+      try {
+        server = await HttpServer.bind(InternetAddress.loopbackIPv4, 3000);
+      } catch (_) {
+        server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      }
+      final port = server.port;
+      final redirectUrl = 'http://localhost:$port';
+
+      final authUri = Uri.parse(
+        '${SupabaseCredentials.url}/auth/v1/authorize?provider=google&redirect_to=$redirectUrl',
+      );
+
+      final launched = await launchUrl(authUri, mode: LaunchMode.externalApplication);
+      if (!launched) {
+        throw Exception('Impossible d\'ouvrir le navigateur web pour l\'authentification Google.');
+      }
+
+      final completer = Completer<bool>();
+
+      final subscription = server.listen((HttpRequest request) async {
+        final uri = request.uri;
+
+        request.response
+          ..statusCode = HttpStatus.ok
+          ..headers.contentType = ContentType.html
+          ..write('''<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Connexion Ngenou</title>
+</head>
+<body style="background:#0B0F19;color:#CBD5E1;font-family:sans-serif;text-align:center;padding:60px 20px;">
+  <h2 style="color:#38BDF8;">Connexion à Ngenou réussie ! 🎉</h2>
+  <p>Votre compte est connecté. Vous pouvez retourner sur l'application.</p>
+  <script>
+    if (window.location.hash && window.location.hash.length > 1) {
+      window.location.href = '/callback?' + window.location.hash.substring(1);
+    } else {
+      setTimeout(function(){ window.close(); }, 2500);
+    }
+  </script>
+</body>
+</html>''');
+        await request.response.close();
+
+        final code = uri.queryParameters['code'];
+        final accessToken = uri.queryParameters['access_token'];
+
+        if (code != null && code.isNotEmpty) {
+          try {
+            await _client.auth.exchangeCodeForSession(code);
+            await _resolvePostSignInMetadata();
+            if (!completer.isCompleted) completer.complete(true);
+          } catch (e) {
+            if (!completer.isCompleted) completer.completeError(e);
+          }
+        } else if (accessToken != null && accessToken.isNotEmpty) {
+          try {
+            await _client.auth.setSession(accessToken);
+            await _resolvePostSignInMetadata();
+            if (!completer.isCompleted) completer.complete(true);
+          } catch (e) {
+            if (!completer.isCompleted) completer.completeError(e);
+          }
+        }
+      });
+
+      final result = await completer.future.timeout(
+        const Duration(minutes: 2),
+        onTimeout: () {
+          subscription.cancel();
+          return false;
+        },
+      );
+      await subscription.cancel();
+      return result;
+    } finally {
+      await server?.close(force: true);
+    }
+  }
+
+  /// Résout et enregistre les métadonnées (nom, rôle, niveau) après connexion
+  static Future<void> _resolvePostSignInMetadata() async {
+    final prefs = await SharedPreferences.getInstance();
+    final meta = _client.auth.currentUser?.userMetadata;
+    if (meta != null) {
+      final customUsername = meta['username'] as String?;
+      if (customUsername != null && customUsername.trim().isNotEmpty) {
+        await prefs.setString(_localUsernameKey, customUsername.trim());
+      } else {
+        final existingLocal = prefs.getString(_localUsernameKey);
+        if (existingLocal == null || existingLocal.trim().isEmpty) {
+          final fullName = (meta['full_name'] ?? meta['name']) as String?;
+          if (fullName != null && fullName.trim().isNotEmpty) {
+            final firstName = fullName.trim().split(' ').first;
+            await prefs.setString(_localUsernameKey, firstName);
+          }
+        }
+      }
+      final customRole = meta['role'] as String?;
+      if (customRole != null && customRole.isNotEmpty) {
+        await prefs.setString(_localRoleKey, customRole);
+      }
+      final customLevel = meta['school_level'] as String?;
+      if (customLevel != null && customLevel.isNotEmpty) {
+        await prefs.setString(_localLevelKey, customLevel);
+      }
     }
   }
 
