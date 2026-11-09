@@ -1589,20 +1589,17 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
     });
 
     try {
-      // 1. Vérifier si l'adresse e-mail existe dans la base de données
-      final exists = await AuthService.checkEmailExists(email);
-      if (!exists) {
+      final success = await AuthService.requestPasswordReset(email);
+      if (!success) {
         if (mounted) {
           setState(() {
             _isLoading = false;
-            _errorMessage = "Aucun compte n'est associé à cette adresse e-mail.";
+            _errorMessage =
+                "Aucun compte n'est associé à cette adresse e-mail.";
           });
         }
         return;
       }
-
-      // 2. Envoyer le code de réinitialisation via Supabase
-      await AuthService.resetPassword(email);
 
       if (mounted) {
         setState(() {
@@ -1632,20 +1629,32 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
     });
 
     try {
-      await AuthService.verifyRecoveryOtp(email: email, token: code);
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _currentStep = 2;
-          _errorMessage = null;
-        });
+      final isValid = await AuthService.verifyPasswordResetCode(
+        email: email,
+        code: code,
+      );
+      if (isValid) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _currentStep = 2;
+            _errorMessage = null;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage =
+                "Code incorrect ou expiré. Vérifiez votre boîte de réception.";
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage =
-              "Code incorrect ou expiré. Vérifiez votre boîte de réception.";
+          _errorMessage = "Erreur de vérification : ${e.toString()}";
         });
       }
     }
@@ -1653,6 +1662,8 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
 
   Future<void> _handleUpdatePassword() async {
     if (!_formKeyPassword.currentState!.validate()) return;
+    final email = _emailController.text.trim();
+    final code = _codeController.text.trim();
     final newPassword = _passwordController.text;
 
     setState(() {
@@ -1661,14 +1672,24 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
     });
 
     try {
-      await AuthService.updatePassword(newPassword);
+      final success = await AuthService.completePasswordReset(
+        email: email,
+        code: code,
+        newPassword: newPassword,
+      );
 
-      if (mounted) {
+      if (success && mounted) {
         Navigator.of(context).pop();
         await widget.onPasswordResetSuccess(
           context,
           "Mot de passe réinitialisé avec succès !",
         );
+      } else if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage =
+              "Erreur lors de la réinitialisation du mot de passe.";
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -1698,7 +1719,7 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
       _errorMessage = null;
     });
     try {
-      await AuthService.resetPassword(email);
+      await AuthService.requestPasswordReset(email);
       if (mounted) {
         setState(() {
           _isLoading = false;

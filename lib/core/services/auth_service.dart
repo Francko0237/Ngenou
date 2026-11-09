@@ -422,28 +422,81 @@ class AuthService {
       return false;
     } catch (e) {
       debugPrint('[AuthService] Erreur checkEmailExists: $e');
-      // En cas d'erreur de connexion RPC, on autorise la tentative
       return true;
     }
   }
 
-  /// Envoie un e-mail avec le code de sécurité pour réinitialiser le mot de passe
-  static Future<void> resetPassword(String email) async {
-    await _client.auth.resetPasswordForEmail(email.trim());
+  /// Génère un code à 6 chiffres et l'envoie directement à l'utilisateur par e-mail
+  static Future<bool> requestPasswordReset(String email) async {
+    final cleanEmail = email.trim().toLowerCase();
+    if (cleanEmail.isEmpty || !cleanEmail.contains('@')) return false;
+
+    final res = await _client.rpc(
+      'request_password_reset_code',
+      params: {'target_email': cleanEmail},
+    );
+
+    if (res is Map && res['exists'] == true) {
+      final code = res['code'] as String?;
+      if (code != null && code.isNotEmpty) {
+        return await EmailService.sendPasswordResetOtp(
+          toEmail: cleanEmail,
+          code: code,
+        );
+      }
+    }
+    return false;
   }
 
-  /// Vérifie le code de récupération (OTP) envoyé par e-mail
-  static Future<AuthResponse> verifyRecoveryOtp({
+  /// Vérifie le code de sécurité à 6 chiffres entré dans l'appli
+  static Future<bool> verifyPasswordResetCode({
     required String email,
-    required String token,
+    required String code,
   }) async {
     final cleanEmail = email.trim().toLowerCase();
-    final cleanToken = token.trim();
-    return await _client.auth.verifyOTP(
-      email: cleanEmail,
-      token: cleanToken,
-      type: OtpType.recovery,
+    final cleanCode = code.trim();
+    try {
+      final res = await _client.rpc(
+        'verify_password_reset_code',
+        params: {'target_email': cleanEmail, 'code_to_check': cleanCode},
+      );
+      if (res is Map && res['valid'] == true) {
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('[AuthService] Erreur verifyPasswordResetCode: $e');
+      return false;
+    }
+  }
+
+  /// Met à jour le mot de passe via le code vérifié et connecte l'utilisateur
+  static Future<bool> completePasswordReset({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    final cleanEmail = email.trim().toLowerCase();
+    final cleanCode = code.trim();
+
+    final res = await _client.rpc(
+      'complete_password_reset',
+      params: {
+        'target_email': cleanEmail,
+        'code_to_check': cleanCode,
+        'new_password': newPassword,
+      },
     );
+
+    if (res is Map && res['success'] == true) {
+      try {
+        await signInWithEmail(email: cleanEmail, password: newPassword);
+      } catch (e) {
+        debugPrint('[AuthService] Auto-connexion post reset: $e');
+      }
+      return true;
+    }
+    return false;
   }
 
   /// Met à jour le mot de passe de l'utilisateur (après réinitialisation ou dans les paramètres)

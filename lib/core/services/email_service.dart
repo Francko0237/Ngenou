@@ -141,4 +141,117 @@ class EmailService {
 </body>
 </html>''';
   }
+
+  /// Envoie un e-mail avec le code de sécurité à 6 chiffres pour réinitialiser le mot de passe.
+  static Future<bool> sendPasswordResetOtp({
+    required String toEmail,
+    required String code,
+  }) async {
+    final cleanEmail = toEmail.trim();
+    if (cleanEmail.isEmpty || !cleanEmail.contains('@')) return false;
+
+    final subject = 'Votre code de réinitialisation Ngenou : $code 🔑';
+    final htmlBody = _buildResetCodeHtml(code: code);
+    final textBody =
+        'Bonjour,\n\nVous avez demandé la réinitialisation de votre mot de passe Ngenou.\n\nVotre code de sécurité est : $code\n\nSaisissez ce code dans l\'application pour choisir votre nouveau mot de passe. Ce code expire dans 15 minutes.\n\nL\'équipe Ngenou';
+
+    final message = Message()
+      ..from = const Address(_smtpUsername, _senderName)
+      ..recipients.add(cleanEmail)
+      ..subject = subject
+      ..text = textBody
+      ..html = htmlBody;
+
+    try {
+      debugPrint('[EmailService] Envoi du code de réinitialisation $code à $cleanEmail...');
+      final sendReport = await send(message, _smtpServer);
+      debugPrint('[EmailService] ✅ Code de réinitialisation envoyé via SMTP : $sendReport');
+      return true;
+    } catch (e) {
+      debugPrint('[EmailService] ⚠️ Erreur lors de l\'envoi du code de réinitialisation : $e');
+      return false;
+    }
+  }
+
+  static String _buildResetCodeHtml({required String code}) {
+    return '''<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Code de réinitialisation - Ngenou</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0B0F19; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #CBD5E1;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #0B0F19; padding: 40px 15px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width: 520px; background-color: #111827; border-radius: 16px; border: 1px solid #1F2937; overflow: hidden; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);">
+          
+          <!-- En-tête : Logo direct + Nom -->
+          <tr>
+            <td style="padding: 28px 32px 20px 32px; border-bottom: 1px solid #1F2937;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td valign="middle" style="padding-right: 12px;">
+                    <img src="https://cdn.jsdelivr.net/gh/Francko0237/Ngenou@main/assets/images/icon_email.png" alt="Ngenou" width="36" height="36" border="0" style="display: block; width: 36px; height: 36px; border: 0;" />
+                  </td>
+                  <td valign="middle">
+                    <span style="font-size: 19px; font-weight: 700; color: #CBD5E1; letter-spacing: -0.3px;">Ngenou</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Message & Code -->
+          <tr>
+            <td style="padding: 32px 32px 36px 32px;">
+              <h1 style="margin: 0 0 16px 0; color: #F1F5F9; font-size: 20px; font-weight: 700; letter-spacing: -0.3px;">
+                Réinitialisation de mot de passe 🔑
+              </h1>
+              <p style="margin: 0 0 16px 0; color: #94A3B8; font-size: 14.5px; line-height: 1.65;">
+                Bonjour,<br><br>
+                Vous avez demandé la réinitialisation de votre mot de passe pour votre compte <strong style="color: #E2E8F0;">Ngenou</strong>.
+              </p>
+              <p style="margin: 0 0 16px 0; color: #94A3B8; font-size: 14.5px; line-height: 1.65;">
+                Voici votre code de sécurité à saisir dans l'application :
+              </p>
+
+              <!-- Bloc Code OTP -->
+              <div style="background-color: #0F172A; border: 2px dashed #38BDF8; border-radius: 12px; padding: 20px 16px; text-align: center; margin: 24px 0;">
+                <span style="font-family: 'Courier New', Courier, monospace; font-size: 34px; font-weight: 700; letter-spacing: 10px; color: #38BDF8; display: inline-block;">
+                  $code
+                </span>
+              </div>
+
+              <p style="margin: 0 0 24px 0; color: #94A3B8; font-size: 13.5px; line-height: 1.6; text-align: center;">
+                Copiez ce code et collez-le dans l'application Ngenou pour choisir votre nouveau mot de passe.
+              </p>
+
+              <!-- Avertissement sécurité -->
+              <div style="background-color: #0F172A; border-left: 3px solid #38BDF8; padding: 12px 14px; border-radius: 6px; margin-top: 20px;">
+                <p style="margin: 0; color: #94A3B8; font-size: 12px; line-height: 1.6;">
+                  🔒 <strong>Sécurité :</strong> Ce code expire dans 15 minutes. Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet e-mail en toute tranquillité.
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer sobre -->
+          <tr>
+            <td style="padding: 20px 32px; background-color: #0B0F19; border-top: 1px solid #1F2937;">
+              <p style="margin: 0; color: #64748B; font-size: 11.5px; line-height: 1.5;">
+                © 2026 Ngenou. Tous droits réservés.<br>
+                Une question ? Écrivez-nous à <a href="mailto:ngenou.support@gmail.com" style="color: #64748B; text-decoration: underline;">ngenou.support@gmail.com</a>.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>''';
+  }
 }
