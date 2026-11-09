@@ -359,14 +359,17 @@ class AuthService {
       }
     }
 
-    // Envoi de l'e-mail de bienvenue personnalisé (asynchrone, non bloquant)
+    // Envoi de l'e-mail de bienvenue personnalisé (direct Gmail SMTP)
+    if (response.user != null) {
+      await prefs.setBool('welcome_email_sent_${response.user!.id}', true);
+    }
     EmailService.sendWelcomeEmail(
       toEmail: email,
       username: username,
     ).then((sent) {
-      debugPrint('[AuthService] E-mail de bienvenue envoyé : $sent');
+      debugPrint('[AuthService] ✅ E-mail de bienvenue envoyé : $sent');
     }).catchError((Object e) {
-      debugPrint('[AuthService] Erreur e-mail de bienvenue : $e');
+      debugPrint('[AuthService] ⚠️ Erreur e-mail de bienvenue : $e');
     });
 
     return response;
@@ -659,6 +662,28 @@ class AuthService {
       final customLevel = meta['school_level'] as String?;
       if (customLevel != null && customLevel.isNotEmpty) {
         await prefs.setString(_localLevelKey, customLevel);
+      }
+    }
+
+    // Envoi de l'e-mail de bienvenue lors de la première connexion (ex: Google / OAuth)
+    final user = _client.auth.currentUser;
+    if (user != null && user.email != null && user.email!.contains('@')) {
+      final email = user.email!.trim();
+      final welcomeKey = 'welcome_email_sent_${user.id}';
+      final alreadySent = prefs.getBool(welcomeKey) ?? false;
+      if (!alreadySent &&
+          !email.endsWith('@ngenou.internal') &&
+          !email.endsWith('@ngenou.app')) {
+        await prefs.setBool(welcomeKey, true);
+        final displayName = prefs.getString(_localUsernameKey) ?? 'Ami';
+        EmailService.sendWelcomeEmail(
+          toEmail: email,
+          username: displayName,
+        ).then((sent) {
+          debugPrint('[AuthService] ✅ E-mail de bienvenue (Google/OAuth) envoyé : $sent');
+        }).catchError((Object e) {
+          debugPrint('[AuthService] ⚠️ Erreur e-mail de bienvenue (Google/OAuth) : $e');
+        });
       }
     }
   }
