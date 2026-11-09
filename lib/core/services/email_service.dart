@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
+import 'supabase_credentials.dart';
 
 /// Service responsable de l'expédition des e-mails transactionnels Ngenou (Bienvenue, notifications).
 class EmailService {
@@ -18,7 +21,7 @@ class EmailService {
   );
 
   /// Envoie un e-mail de bienvenue chaleureux et personnalisé à un nouvel utilisateur.
-  /// L'e-mail ne contient aucun bouton de confirmation (application mobile active immédiatement).
+  /// Priorité : Edge Function Supabase (fiable sur mobile) → fallback SMTP local.
   static Future<bool> sendWelcomeEmail({
     required String toEmail,
     required String username,
@@ -32,14 +35,44 @@ class EmailService {
       return false;
     }
 
-    final displayName = username.trim().isNotEmpty ? username.trim() : 'et bienvenue parmi nous';
-    final isCustomName = username.trim().isNotEmpty;
-    final subject = isCustomName
-        ? 'Bienvenue sur Ngenou, ${username.trim()} ! 🎉'
+    // ── 1. Tentative via Edge Function Supabase (recommandée sur mobile) ──
+    try {
+      debugPrint('[EmailService] Tentative via Edge Function...');
+      final edgeFunctionUrl = Uri.parse(
+        '${SupabaseCredentials.url}/functions/v1/send-welcome-email',
+      );
+      final response = await http
+          .post(
+            edgeFunctionUrl,
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': SupabaseCredentials.anonKey,
+              'Authorization': 'Bearer ${SupabaseCredentials.anonKey}',
+            },
+            body: jsonEncode({'toEmail': cleanEmail, 'username': username.trim()}),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        if (body['sent'] == true) {
+          debugPrint('[EmailService] ✅ E-mail de bienvenue envoyé via Edge Function.');
+          return true;
+        }
+      }
+      debugPrint('[EmailService] Edge Function réponse inattendue (${response.statusCode}): ${response.body}');
+    } catch (e) {
+      debugPrint('[EmailService] Edge Function indisponible, fallback SMTP: $e');
+    }
+
+    // ── 2. Fallback : SMTP direct Gmail ──
+    final displayName = username.trim().isNotEmpty ? username.trim() : null;
+    final subject = displayName != null
+        ? 'Bienvenue sur Ngenou, $displayName ! 🎉'
         : 'Bienvenue sur Ngenou ! 🎉';
 
-    final htmlBody = _buildWelcomeHtml(displayName: isCustomName ? displayName : null);
-    final textBody = isCustomName
+    final htmlBody = _buildWelcomeHtml(displayName: displayName);
+    final textBody = displayName != null
         ? 'Bonjour $displayName,\n\nBienvenue dans l\'aventure Ngenou ! Votre compte est actif et votre espace d\'apprentissage est prêt sur l\'application Ngenou.\n\nBonne découverte et bon apprentissage !'
         : 'Bonjour et bienvenue parmi nous !\n\nVotre compte est actif et votre espace d\'apprentissage est prêt sur l\'application Ngenou.\n\nBonne découverte et bon apprentissage !';
 
@@ -51,9 +84,9 @@ class EmailService {
       ..html = htmlBody;
 
     try {
-      debugPrint('[EmailService] Envoi de l\'e-mail de bienvenue à $cleanEmail...');
+      debugPrint('[EmailService] Envoi de l\'e-mail de bienvenue via SMTP à $cleanEmail...');
       final sendReport = await send(message, _smtpServer);
-      debugPrint('[EmailService] ✅ E-mail envoyé avec succès : $sendReport');
+      debugPrint('[EmailService] ✅ E-mail envoyé avec succès via SMTP : $sendReport');
       return true;
     } catch (e) {
       debugPrint('[EmailService] ⚠️ Erreur lors de l\'envoi de l\'e-mail (non bloquant) : $e');
@@ -99,13 +132,13 @@ class EmailService {
           <tr>
             <td style="padding: 32px 32px 36px 32px;">
               <h1 style="margin: 0 0 16px 0; color: #F1F5F9; font-size: 20px; font-weight: 700; letter-spacing: -0.3px;">
-                Bienvenue dans l'aventure Ngenou ! 🎉
+                Bienvenue dans l\'aventure Ngenou ! 🎉
               </h1>
               <p style="margin: 0 0 16px 0; color: #F1F5F9; font-size: 15px; line-height: 1.65; font-weight: 600;">
                 $salutation
               </p>
               <p style="margin: 0 0 16px 0; color: #94A3B8; font-size: 14.5px; line-height: 1.65;">
-                Nous sommes ravis de vous compter parmi nous ! Votre compte est actif et votre espace d'apprentissage est prêt sur votre application Ngenou.
+                Nous sommes ravis de vous compter parmi nous ! Votre compte est actif et votre espace d\'apprentissage est prêt sur votre application Ngenou.
               </p>
               <p style="margin: 0 0 24px 0; color: #94A3B8; font-size: 14.5px; line-height: 1.65;">
                 Vous avez désormais accès à tous vos cours interactifs, à vos défis quotidiens et à votre tuteur intelligent pour vous accompagner à chaque étape de votre progression.
@@ -114,10 +147,10 @@ class EmailService {
               <!-- Bloc astuces -->
               <div style="background-color: #0F172A; border: 1px solid #1E293B; border-radius: 10px; padding: 16px 18px; margin-top: 20px;">
                 <p style="margin: 0 0 6px 0; color: #38BDF8; font-size: 13px; font-weight: 600;">
-                  💡 Pour bien démarrer dans l'app :
+                  💡 Pour bien démarrer dans l\'app :
                 </p>
                 <p style="margin: 0; color: #94A3B8; font-size: 12.5px; line-height: 1.7;">
-                  • Explorez vos leçons depuis l'onglet <strong>Cours</strong><br>
+                  • Explorez vos leçons depuis l\'onglet <strong>Cours</strong><br>
                   • Posez vos questions à tout moment à votre <strong>Tuteur IA</strong><br>
                   • Relevez votre premier <strong>Défi quotidien</strong> pour lancer votre série
                 </p>

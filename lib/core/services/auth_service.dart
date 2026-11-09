@@ -337,13 +337,37 @@ class AuthService {
       await prefs.setString(_localLevelKey, schoolLevel);
     }
 
+    // ── Auto-connexion immédiate ──────────────────────────────────────────────
+    // Si Supabase demande une confirmation d'email (session == null mais user != null),
+    // on connecte l'utilisateur directement sans bloquer sur la confirmation.
+    // C'est l'approche correcte pour une application mobile.
+    if (response.session == null && response.user != null) {
+      debugPrint('[AuthService] Pas de session après signup → tentative de connexion directe...');
+      try {
+        final signInResponse = await _client.auth.signInWithPassword(
+          email: email,
+          password: password,
+        );
+        if (signInResponse.session != null) {
+          debugPrint('[AuthService] ✅ Connexion directe réussie après inscription.');
+          response = signInResponse;
+        }
+      } on AuthException catch (signInErr) {
+        // Si email_not_confirmed, l'utilisateur devra confirmer — on retourne quand même
+        // la réponse signup originale pour que l'UI puisse afficher un message adapté.
+        debugPrint('[AuthService] Connexion directe échouée : ${signInErr.message}');
+      }
+    }
+
     // Envoi de l'e-mail de bienvenue personnalisé (asynchrone, non bloquant)
-    unawaited(
-      EmailService.sendWelcomeEmail(
-        toEmail: email,
-        username: username,
-      ),
-    );
+    EmailService.sendWelcomeEmail(
+      toEmail: email,
+      username: username,
+    ).then((sent) {
+      debugPrint('[AuthService] E-mail de bienvenue envoyé : $sent');
+    }).catchError((Object e) {
+      debugPrint('[AuthService] Erreur e-mail de bienvenue : $e');
+    });
 
     return response;
   }
@@ -491,10 +515,12 @@ class AuthService {
         server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       }
       final port = server.port;
-      final redirectUrl = 'http://localhost:$port';
+      // On pointe le redirect_to vers /callback afin que Supabase y envoie
+      // le code PKCE directement en query params (évite le fragment hash JS).
+      final redirectUrl = 'http://localhost:$port/callback';
 
       final authUri = Uri.parse(
-        '${SupabaseCredentials.url}/auth/v1/authorize?provider=google&redirect_to=$redirectUrl',
+        '${SupabaseCredentials.url}/auth/v1/authorize?provider=google&redirect_to=${Uri.encodeComponent(redirectUrl)}',
       );
 
       final launched = await launchUrl(authUri, mode: LaunchMode.externalApplication);
@@ -507,10 +533,16 @@ class AuthService {
       final subscription = server.listen((HttpRequest request) async {
         final uri = request.uri;
 
-        request.response
-          ..statusCode = HttpStatus.ok
-          ..headers.contentType = ContentType.html
-          ..write('''<!DOCTYPE html>
+        // Si c'est une requête pour /callback (redirection depuis le hash JS)
+        // on traite le code ici sans renvoyer de page HTML
+        final isCallback = uri.path == '/callback';
+
+        if (!isCallback) {
+          // Page initiale : extraire le fragment hash côté JS et rediriger vers /callback
+          request.response
+            ..statusCode = HttpStatus.ok
+            ..headers.contentType = ContentType.html
+            ..write('''<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="utf-8">
@@ -520,18 +552,43 @@ class AuthService {
   <h2 style="color:#38BDF8;">Connexion à Ngenou réussie ! 🎉</h2>
   <p>Votre compte est connecté. Vous pouvez retourner sur l'application.</p>
   <script>
-    if (window.location.hash && window.location.hash.length > 1) {
-      window.location.href = '/callback?' + window.location.hash.substring(1);
+    // Supabase peut renvoyer les tokens dans le fragment (#) ou en query params (?)
+    var hash = window.location.hash;
+    var search = window.location.search;
+    if (hash && hash.length > 1) {
+      // Rediriger vers /callback en convertissant le fragment en query params
+      window.location.replace('/callback' + '?' + hash.substring(1));
+    } else if (search && search.length > 1) {
+      // Déjà en query params, rediriger vers /callback
+      window.location.replace('/callback' + search);
     } else {
-      setTimeout(function(){ window.close(); }, 2500);
+      // Aucun token trouvé, fermer dans 3 secondes
+      setTimeout(function(){ window.close(); }, 3000);
     }
   </script>
+</body>
+</html>''');
+          await request.response.close();
+          return; // Ne pas traiter comme un callback
+        }
+
+        // Page /callback : répondre immédiatement et traiter les tokens
+        request.response
+          ..statusCode = HttpStatus.ok
+          ..headers.contentType = ContentType.html
+          ..write('''<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="utf-8"><title>Ngenou</title></head>
+<body style="background:#0B0F19;color:#CBD5E1;font-family:sans-serif;text-align:center;padding:60px 20px;">
+  <h2 style="color:#38BDF8;">✅ Authentification réussie</h2>
+  <p>Retournez sur l'application Ngenou.</p>
+  <script>setTimeout(function(){ window.close(); }, 2000);</script>
 </body>
 </html>''');
         await request.response.close();
 
         final code = uri.queryParameters['code'];
-        final accessToken = uri.queryParameters['access_token'];
+        final refreshToken = uri.queryParameters['refresh_token'];
 
         if (code != null && code.isNotEmpty) {
           try {
@@ -539,14 +596,25 @@ class AuthService {
             await _resolvePostSignInMetadata();
             if (!completer.isCompleted) completer.complete(true);
           } catch (e) {
+            debugPrint('[AuthService] Erreur exchangeCodeForSession: $e');
             if (!completer.isCompleted) completer.completeError(e);
           }
-        } else if (accessToken != null && accessToken.isNotEmpty) {
+        } else if (refreshToken != null && refreshToken.isNotEmpty) {
           try {
-            await _client.auth.setSession(accessToken);
+            await _client.auth.setSession(refreshToken);
             await _resolvePostSignInMetadata();
             if (!completer.isCompleted) completer.complete(true);
           } catch (e) {
+            debugPrint('[AuthService] Erreur setSession(refreshToken): $e');
+            if (!completer.isCompleted) completer.completeError(e);
+          }
+        } else if (uri.queryParameters.containsKey('access_token')) {
+          try {
+            await _client.auth.getSessionFromUrl(uri);
+            await _resolvePostSignInMetadata();
+            if (!completer.isCompleted) completer.complete(true);
+          } catch (e) {
+            debugPrint('[AuthService] Erreur getSessionFromUrl: $e');
             if (!completer.isCompleted) completer.completeError(e);
           }
         }

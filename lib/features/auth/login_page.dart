@@ -4,16 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/services/auth_service.dart';
-import '../../core/services/sync_service.dart';
 import '../../core/services/connectivity_service.dart';
-import '../../core/providers/custom_courses_provider.dart';
-import '../../core/providers/projets_provider.dart';
-import '../../core/providers/schedule_provider.dart';
-import '../../core/providers/progression_provider.dart';
-import '../../core/providers/defis_provider.dart';
 import '../../core/providers/theme_provider.dart';
 import '../../core/theme/app_colors.dart';
-import '../../app.dart' show rootNavigatorKey;
 
 /// Formatter qui limite le nombre de chiffres saisis (ignore les non-chiffres
 /// déjà présents comme le + ou les espaces du préfixe).
@@ -126,14 +119,17 @@ class _LoginPageState extends State<LoginPage> {
             role: _selectedRole,
             schoolLevel: _selectedRole == 'student' ? _selectedLevel : null,
           );
-          // Si Supabase requiert la confirmation d'adresse e-mail, aucune session n'est créée immédiatement
+          // Si la connexion directe après inscription a échoué (email_not_confirmed),
+          // on informe l'utilisateur de confirmer son email
           if (res.session == null) {
             if (mounted) {
               setState(() {
                 _isLoading = false;
                 _isSignUp = false;
+                _errorMessage =
+                    "Votre compte a été créé ! Confirmez votre adresse e-mail ($email) "
+                    "puis connectez-vous avec vos identifiants.";
               });
-              _showEmailConfirmationDialog(email);
             }
             return;
           }
@@ -636,7 +632,8 @@ class _LoginPageState extends State<LoginPage> {
     }
     if (msg.contains('email not confirmed') ||
         msg.contains('email_not_confirmed')) {
-      return "Confirmez votre adresse e-mail via le lien reçu.";
+      return "Votre adresse e-mail n'est pas encore confirmée. "
+          "Vérifiez votre boîte de réception et cliquez sur le lien de confirmation.";
     }
     if (msg.contains('password should be at least') ||
         msg.contains('weak_password')) {
@@ -686,26 +683,12 @@ class _LoginPageState extends State<LoginPage> {
     try {
       final success = await AuthService.signInWithGoogle();
       if (success) {
-        if (mounted) setState(() => _isLoading = false);
-        SyncService.instance
-            .syncAll()
-            .then((_) {
-              final ctx = rootNavigatorKey.currentContext;
-              if (ctx != null) {
-                ctx.read<CustomCoursesProvider>().loadCustomCourses();
-                ctx.read<ProjetsProvider>().loadProjets();
-                ctx.read<ScheduleProvider>().load();
-                ctx.read<ProgressionProvider>().loadAllProgressions();
-                ctx.read<DefisProvider>().loadTodaySession();
-              }
-            })
-            .catchError((Object e) {
-              debugPrint("Sync Google error: $e");
-              return null;
-            });
+        if (mounted) {
+          await _performSyncAndRedirect(context, "Connexion réussie !");
+        }
       } else {
         setState(
-          () => _errorMessage = "Connexion Google Echoué, veuillez Réessayer .",
+          () => _errorMessage = "Connexion Google Échouée, veuillez réessayer.",
         );
       }
     } catch (e) {
