@@ -254,4 +254,108 @@ class EmailService {
 </body>
 </html>''';
   }
+
+  /// Envoie un e-mail de confirmation après le succès de la réinitialisation du mot de passe.
+  static Future<bool> sendPasswordResetSuccessEmail({
+    required String toEmail,
+  }) async {
+    final cleanEmail = toEmail.trim();
+    if (cleanEmail.isEmpty || !cleanEmail.contains('@')) return false;
+
+    const subject = 'Confirmation : Votre mot de passe Ngenou a été modifié ✅';
+    final htmlBody = _buildResetSuccessHtml();
+    const textBody =
+        'Bonjour,\n\nVotre mot de passe Ngenou a été réinitialisé avec succès.\n\nVous pouvez désormais vous connecter à votre compte avec votre nouveau mot de passe.\n\nSi vous n\'êtes pas à l\'origine de cette action, veuillez contacter le support immédiatement à ngenou.support@gmail.com.\n\nL\'équipe Ngenou';
+
+    final message = Message()
+      ..from = const Address(_smtpUsername, _senderName)
+      ..recipients.add(cleanEmail)
+      ..subject = subject
+      ..text = textBody
+      ..html = htmlBody;
+
+    try {
+      debugPrint('[EmailService] Envoi de l\'e-mail de confirmation de réinitialisation à $cleanEmail...');
+      final sendReport = await send(message, _smtpServer);
+      debugPrint('[EmailService] ✅ E-mail de confirmation envoyé : $sendReport');
+      return true;
+    } catch (e) {
+      debugPrint('[EmailService] ⚠️ Erreur lors de l\'envoi de la confirmation : $e');
+      return false;
+    }
+  }
+
+  static String _buildResetSuccessHtml() {
+    return '''<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mot de passe modifié - Ngenou</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0B0F19; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #CBD5E1;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #0B0F19; padding: 40px 15px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width: 520px; background-color: #111827; border-radius: 16px; border: 1px solid #1F2937; overflow: hidden; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);">
+          
+          <!-- En-tête : Logo direct + Nom -->
+          <tr>
+            <td style="padding: 28px 32px 20px 32px; border-bottom: 1px solid #1F2937;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td valign="middle" style="padding-right: 12px;">
+                    <img src="https://cdn.jsdelivr.net/gh/Francko0237/Ngenou@main/assets/images/icon_email.png" alt="Ngenou" width="36" height="36" border="0" style="display: block; width: 36px; height: 36px; border: 0;" />
+                  </td>
+                  <td valign="middle">
+                    <span style="font-size: 19px; font-weight: 700; color: #CBD5E1; letter-spacing: -0.3px;">Ngenou</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Message de confirmation -->
+          <tr>
+            <td style="padding: 32px 32px 36px 32px;">
+              <h1 style="margin: 0 0 16px 0; color: #F1F5F9; font-size: 20px; font-weight: 700; letter-spacing: -0.3px;">
+                Mot de passe réinitialisé avec succès ✅
+              </h1>
+              <p style="margin: 0 0 16px 0; color: #94A3B8; font-size: 14.5px; line-height: 1.65;">
+                Bonjour,<br><br>
+                Nous vous confirmons que le mot de passe de votre compte <strong style="color: #E2E8F0;">Ngenou</strong> vient d'être modifié avec succès.
+              </p>
+              <p style="margin: 0 0 20px 0; color: #94A3B8; font-size: 14.5px; line-height: 1.65;">
+                Vous pouvez dès à présent vous connecter à l'application avec vos nouveaux identifiants.
+              </p>
+
+              <!-- Bloc Sécurité -->
+              <div style="background-color: #0F172A; border-left: 3px solid #10B981; padding: 14px 16px; border-radius: 8px; margin-top: 24px;">
+                <p style="margin: 0 0 6px 0; color: #34D399; font-size: 13px; font-weight: 600;">
+                  🔒 Vous n'êtes pas à l'origine de cette action ?
+                </p>
+                <p style="margin: 0; color: #94A3B8; font-size: 12px; line-height: 1.6;">
+                  Si vous n'avez pas demandé cette réinitialisation, veuillez sécuriser votre compte et nous contacter sans attendre à <a href="mailto:ngenou.support@gmail.com" style="color: #38BDF8; text-decoration: underline;">ngenou.support@gmail.com</a>.
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer sobre -->
+          <tr>
+            <td style="padding: 20px 32px; background-color: #0B0F19; border-top: 1px solid #1F2937;">
+              <p style="margin: 0; color: #64748B; font-size: 11.5px; line-height: 1.5;">
+                © 2026 Ngenou. Tous droits réservés.<br>
+                Contact : <a href="mailto:ngenou.support@gmail.com" style="color: #64748B; text-decoration: underline;">ngenou.support@gmail.com</a>
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>''';
+  }
 }

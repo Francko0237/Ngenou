@@ -489,6 +489,13 @@ class AuthService {
     );
 
     if (res is Map && res['success'] == true) {
+      // Envoyer l'e-mail de confirmation de sécurité attestant le succès
+      EmailService.sendPasswordResetSuccessEmail(toEmail: cleanEmail).then((sent) {
+        debugPrint('[AuthService] ✅ Confirmation post-reset envoyée : $sent');
+      }).catchError((Object e) {
+        debugPrint('[AuthService] ⚠️ Erreur confirmation post-reset : $e');
+      });
+
       try {
         await signInWithEmail(email: cleanEmail, password: newPassword);
       } catch (e) {
