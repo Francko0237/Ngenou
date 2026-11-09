@@ -409,9 +409,41 @@ class AuthService {
     return response;
   }
 
-  /// Envoie un e-mail avec un lien sécurisé pour réinitialiser le mot de passe
+  /// Vérifie si une adresse e-mail existe dans la base de données
+  static Future<bool> checkEmailExists(String email) async {
+    final cleanEmail = email.trim().toLowerCase();
+    if (cleanEmail.isEmpty || !cleanEmail.contains('@')) return false;
+    try {
+      final res = await _client.rpc(
+        'check_email_exists',
+        params: {'email_to_check': cleanEmail},
+      );
+      if (res is bool) return res;
+      return false;
+    } catch (e) {
+      debugPrint('[AuthService] Erreur checkEmailExists: $e');
+      // En cas d'erreur de connexion RPC, on autorise la tentative
+      return true;
+    }
+  }
+
+  /// Envoie un e-mail avec le code de sécurité pour réinitialiser le mot de passe
   static Future<void> resetPassword(String email) async {
     await _client.auth.resetPasswordForEmail(email.trim());
+  }
+
+  /// Vérifie le code de récupération (OTP) envoyé par e-mail
+  static Future<AuthResponse> verifyRecoveryOtp({
+    required String email,
+    required String token,
+  }) async {
+    final cleanEmail = email.trim().toLowerCase();
+    final cleanToken = token.trim();
+    return await _client.auth.verifyOTP(
+      email: cleanEmail,
+      token: cleanToken,
+      type: OtpType.recovery,
+    );
   }
 
   /// Met à jour le mot de passe de l'utilisateur (après réinitialisation ou dans les paramètres)

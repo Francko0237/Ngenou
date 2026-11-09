@@ -334,289 +334,18 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _showForgotPasswordDialog() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primary = Theme.of(context).primaryColor;
-    final emailController = TextEditingController(
-      text: !_isPhoneMode ? _emailController.text.trim() : '',
-    );
-    final formKey = GlobalKey<FormState>();
-
     showDialog(
       context: context,
-      builder: (dialogCtx) {
-        bool isLoading = false;
-        String? error;
-        bool isSent = false;
-
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              title: Column(
-                children: [
-                  Container(
-                    width: 58,
-                    height: 58,
-                    decoration: BoxDecoration(
-                      color: primary.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.lock_reset_rounded,
-                      color: primary,
-                      size: 32,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    "Mot de passe oublié ?",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : AppColors.textLight,
-                    ),
-                  ),
-                ],
-              ),
-              content: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (!isSent) ...[
-                      Text(
-                        "Saisissez votre e-mail pour recevoir un lien sécurisé de réinitialisation.",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isDark
-                              ? Colors.white70
-                              : AppColors.textSecondaryLight,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        style: TextStyle(
-                          color: isDark ? Colors.white : Colors.black87,
-                          fontSize: 14,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: "exemple@email.com",
-                          hintStyle: TextStyle(
-                            color: isDark ? Colors.white38 : Colors.black38,
-                            fontSize: 14,
-                          ),
-                          prefixIcon: Icon(
-                            Icons.email_outlined,
-                            size: 20,
-                            color: isDark ? Colors.white54 : Colors.black45,
-                          ),
-                          filled: true,
-                          fillColor: isDark
-                              ? const Color(0xFF0F172A)
-                              : const Color(0xFFF8FAFC),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 12,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                              color: isDark ? Colors.white12 : Colors.black12,
-                            ),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                              color: isDark ? Colors.white12 : Colors.black12,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: primary, width: 1.5),
-                          ),
-                        ),
-                        validator: (v) {
-                          if (v == null || v.trim().isEmpty) {
-                            return "Champ requis.";
-                          }
-                          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                              .hasMatch(v.trim())) {
-                            return "Adresse e-mail invalide.";
-                          }
-                          return null;
-                        },
-                      ),
-                      if (error != null) ...[
-                        const SizedBox(height: 12),
-                        Text(
-                          error!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: AppColors.error,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                      if (_isPhoneMode) ...[
-                        const SizedBox(height: 14),
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? const Color(0xFF0F172A)
-                                : const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.info_outline_rounded,
-                                size: 16,
-                                color: isDark ? Colors.white54 : Colors.black45,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  "Pour les comptes créés avec un numéro sans e-mail associé, contactez l'assistance.",
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: isDark
-                                        ? Colors.white54
-                                        : Colors.black54,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ] else ...[
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: AppColors.success.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          children: [
-                            const Icon(
-                              Icons.mark_email_read_rounded,
-                              color: AppColors.success,
-                              size: 38,
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              "E-mail envoyé !",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                                color: isDark
-                                    ? Colors.white
-                                    : AppColors.textLight,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              "Vérifiez votre boîte de réception à l'adresse :\n${emailController.text.trim()}\n\nSuivez le lien reçu pour définir votre nouveau mot de passe.",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: isDark ? Colors.white70 : Colors.black87,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              actions: [
-                if (!isSent) ...[
-                  TextButton(
-                    onPressed: isLoading
-                        ? null
-                        : () => Navigator.of(dialogCtx).pop(),
-                    child: Text(
-                      "Annuler",
-                      style: TextStyle(
-                        color: isDark ? Colors.white60 : Colors.black54,
-                      ),
-                    ),
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    onPressed: isLoading
-                        ? null
-                        : () async {
-                            if (!formKey.currentState!.validate()) return;
-                            setDialogState(() {
-                              isLoading = true;
-                              error = null;
-                            });
-                            try {
-                              await AuthService.resetPassword(
-                                emailController.text.trim(),
-                              );
-                              if (context.mounted) {
-                                setDialogState(() {
-                                  isLoading = false;
-                                  isSent = true;
-                                });
-                              }
-                            } catch (e) {
-                              if (context.mounted) {
-                                setDialogState(() {
-                                  isLoading = false;
-                                  error = _friendlyAuthError(e.toString());
-                                });
-                              }
-                            }
-                          },
-                    child: isLoading
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text("Envoyer"),
-                  ),
-                ] else ...[
-                  Center(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      onPressed: () => Navigator.of(dialogCtx).pop(),
-                      child: const Text("Fermer"),
-                    ),
-                  ),
-                ],
-              ],
-            );
-          },
-        );
-      },
+      barrierDismissible: false,
+      builder: (dialogCtx) => _ForgotPasswordDialog(
+        initialEmail: !_isPhoneMode ? _emailController.text.trim() : '',
+        isPhoneMode: _isPhoneMode,
+        onPasswordResetSuccess: (ctx, msg) async {
+          if (mounted) {
+            await _performSyncAndRedirect(context, msg);
+          }
+        },
+      ),
     );
   }
 
@@ -1800,3 +1529,693 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
+
+/// Dialogue en 3 étapes pour la réinitialisation de mot de passe par code e-mail
+class _ForgotPasswordDialog extends StatefulWidget {
+  final String initialEmail;
+  final bool isPhoneMode;
+  final Future<void> Function(BuildContext, String) onPasswordResetSuccess;
+
+  const _ForgotPasswordDialog({
+    required this.initialEmail,
+    required this.isPhoneMode,
+    required this.onPasswordResetSuccess,
+  });
+
+  @override
+  State<_ForgotPasswordDialog> createState() => _ForgotPasswordDialogState();
+}
+
+class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
+  int _currentStep = 0; // 0: email, 1: code OTP, 2: nouveau mot de passe
+  late final TextEditingController _emailController;
+  final TextEditingController _codeController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
+
+  final _formKeyEmail = GlobalKey<FormState>();
+  final _formKeyCode = GlobalKey<FormState>();
+  final _formKeyPassword = GlobalKey<FormState>();
+
+  bool _isLoading = false;
+  String? _errorMessage;
+  bool _obscurePassword = true;
+  bool _obscureConfirm = true;
+  bool _codeResent = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController(text: widget.initialEmail);
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _codeController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleSendCode() async {
+    if (!_formKeyEmail.currentState!.validate()) return;
+    final email = _emailController.text.trim();
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // 1. Vérifier si l'adresse e-mail existe dans la base de données
+      final exists = await AuthService.checkEmailExists(email);
+      if (!exists) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = "Aucun compte n'est associé à cette adresse e-mail.";
+          });
+        }
+        return;
+      }
+
+      // 2. Envoyer le code de réinitialisation via Supabase
+      await AuthService.resetPassword(email);
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _currentStep = 1;
+          _errorMessage = null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = "Erreur lors de l'envoi du code : ${e.toString()}";
+        });
+      }
+    }
+  }
+
+  Future<void> _handleVerifyCode() async {
+    if (!_formKeyCode.currentState!.validate()) return;
+    final email = _emailController.text.trim();
+    final code = _codeController.text.trim();
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await AuthService.verifyRecoveryOtp(email: email, token: code);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _currentStep = 2;
+          _errorMessage = null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage =
+              "Code incorrect ou expiré. Vérifiez votre boîte de réception.";
+        });
+      }
+    }
+  }
+
+  Future<void> _handleUpdatePassword() async {
+    if (!_formKeyPassword.currentState!.validate()) return;
+    final newPassword = _passwordController.text;
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await AuthService.updatePassword(newPassword);
+
+      if (mounted) {
+        Navigator.of(context).pop();
+        await widget.onPasswordResetSuccess(
+          context,
+          "Mot de passe réinitialisé avec succès !",
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage =
+              "Erreur lors de la mise à jour du mot de passe : ${e.toString()}";
+        });
+      }
+    }
+  }
+
+  Future<void> _pasteFromClipboard() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    if (data != null && data.text != null) {
+      final clean = data.text!.replaceAll(RegExp(r'\s+'), '').trim();
+      _codeController.text = clean;
+      setState(() {});
+    }
+  }
+
+  Future<void> _resendCode() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      await AuthService.resetPassword(email);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _codeResent = true;
+        });
+        Future.delayed(const Duration(seconds: 4), () {
+          if (mounted) setState(() => _codeResent = false);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = "Impossible de renvoyer le code : $e";
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = Theme.of(context).primaryColor;
+
+    return AlertDialog(
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+      title: Column(
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              color: primary.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _currentStep == 0
+                  ? Icons.lock_reset_rounded
+                  : _currentStep == 1
+                      ? Icons.mark_email_read_rounded
+                      : Icons.password_rounded,
+              color: primary,
+              size: 32,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _currentStep == 0
+                ? "Mot de passe oublié ?"
+                : _currentStep == 1
+                    ? "Code de sécurité 🔑"
+                    : "Nouveau mot de passe",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : AppColors.textLight,
+            ),
+          ),
+        ],
+      ),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 380),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_currentStep == 0) _buildStepEmail(isDark, primary),
+              if (_currentStep == 1) _buildStepCode(isDark, primary),
+              if (_currentStep == 2) _buildStepNewPassword(isDark, primary),
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline_rounded,
+                          color: AppColors.error, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(
+                            color: AppColors.error,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: _buildActions(isDark, primary),
+    );
+  }
+
+  Widget _buildStepEmail(bool isDark, Color primary) {
+    return Form(
+      key: _formKeyEmail,
+      child: Column(
+        children: [
+          Text(
+            "Entrez votre adresse e-mail pour recevoir votre code de réinitialisation à 6 chiffres.",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 18),
+          TextFormField(
+            controller: _emailController,
+            keyboardType: TextInputType.emailAddress,
+            style: TextStyle(
+              color: isDark ? Colors.white : Colors.black87,
+              fontSize: 14,
+            ),
+            decoration: InputDecoration(
+              hintText: "votre-email@exemple.com",
+              hintStyle: TextStyle(
+                color: isDark ? Colors.white38 : Colors.black38,
+                fontSize: 14,
+              ),
+              prefixIcon: Icon(
+                Icons.email_outlined,
+                size: 20,
+                color: isDark ? Colors.white54 : Colors.black45,
+              ),
+              filled: true,
+              fillColor:
+                  isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: isDark ? Colors.white12 : Colors.black12,
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: isDark ? Colors.white12 : Colors.black12,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: primary, width: 1.5),
+              ),
+            ),
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) {
+                return "L'adresse e-mail est requise.";
+              }
+              if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                  .hasMatch(v.trim())) {
+                return "Format d'adresse e-mail invalide.";
+              }
+              return null;
+            },
+          ),
+          if (widget.isPhoneMode) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color:
+                    isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    size: 16,
+                    color: isDark ? Colors.white54 : Colors.black45,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "Si votre compte a été créé avec un téléphone sans e-mail, contactez l'assistance.",
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? Colors.white54 : Colors.black54,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepCode(bool isDark, Color primary) {
+    return Form(
+      key: _formKeyCode,
+      child: Column(
+        children: [
+          RichText(
+            textAlign: TextAlign.center,
+            text: TextSpan(
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
+                height: 1.4,
+              ),
+              children: [
+                const TextSpan(text: "Un code à 6 chiffres a été envoyé à :\n"),
+                TextSpan(
+                  text: _emailController.text.trim(),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+          TextButton.icon(
+            onPressed: () => setState(() {
+              _currentStep = 0;
+              _errorMessage = null;
+            }),
+            icon: const Icon(Icons.edit_outlined, size: 14),
+            label: const Text("Changer d'e-mail",
+                style: TextStyle(fontSize: 12)),
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              foregroundColor: primary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _codeController,
+            keyboardType: TextInputType.text,
+            textAlign: TextAlign.center,
+            maxLength: 8,
+            style: TextStyle(
+              color: isDark ? Colors.white : Colors.black87,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 6,
+            ),
+            decoration: InputDecoration(
+              counterText: "",
+              hintText: "123456",
+              hintStyle: TextStyle(
+                color: isDark ? Colors.white24 : Colors.black26,
+                letterSpacing: 4,
+                fontSize: 18,
+              ),
+              filled: true,
+              fillColor:
+                  isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              suffixIcon: IconButton(
+                tooltip: "Coller le code",
+                icon: Icon(Icons.content_paste_rounded,
+                    color: primary, size: 20),
+                onPressed: _pasteFromClipboard,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: isDark ? Colors.white12 : Colors.black12,
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: isDark ? Colors.white12 : Colors.black12,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: primary, width: 1.5),
+              ),
+            ),
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) {
+                return "Veuillez entrer le code de sécurité.";
+              }
+              if (v.trim().length < 6) {
+                return "Le code doit contenir au moins 6 chiffres.";
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                "Vous n'avez rien reçu ?",
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? Colors.white54 : Colors.black45,
+                ),
+              ),
+              TextButton(
+                onPressed: _isLoading ? null : _resendCode,
+                child: Text(
+                  _codeResent ? "✅ Renvoyé !" : "Renvoyer",
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: _codeResent ? AppColors.success : primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepNewPassword(bool isDark, Color primary) {
+    return Form(
+      key: _formKeyPassword,
+      child: Column(
+        children: [
+          Text(
+            "Code validé ! ✅\nDéfinissez maintenant votre nouveau mot de passe sécurisé :",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _passwordController,
+            obscureText: _obscurePassword,
+            style: TextStyle(
+              color: isDark ? Colors.white : Colors.black87,
+              fontSize: 14,
+            ),
+            decoration: InputDecoration(
+              hintText: "Nouveau mot de passe",
+              hintStyle: TextStyle(
+                color: isDark ? Colors.white38 : Colors.black38,
+                fontSize: 14,
+              ),
+              prefixIcon: Icon(Icons.lock_outline_rounded,
+                  size: 20, color: isDark ? Colors.white54 : Colors.black45),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscurePassword
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  size: 20,
+                  color: isDark ? Colors.white54 : Colors.black45,
+                ),
+                onPressed: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
+              ),
+              filled: true,
+              fillColor:
+                  isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: isDark ? Colors.white12 : Colors.black12,
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: isDark ? Colors.white12 : Colors.black12,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: primary, width: 1.5),
+              ),
+            ),
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) {
+                return "Veuillez entrer un mot de passe.";
+              }
+              if (v.trim().length < 6) {
+                return "Le mot de passe doit comporter au moins 6 caractères.";
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _confirmPasswordController,
+            obscureText: _obscureConfirm,
+            style: TextStyle(
+              color: isDark ? Colors.white : Colors.black87,
+              fontSize: 14,
+            ),
+            decoration: InputDecoration(
+              hintText: "Confirmer le mot de passe",
+              hintStyle: TextStyle(
+                color: isDark ? Colors.white38 : Colors.black38,
+                fontSize: 14,
+              ),
+              prefixIcon: Icon(Icons.lock_reset_rounded,
+                  size: 20, color: isDark ? Colors.white54 : Colors.black45),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscureConfirm
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  size: 20,
+                  color: isDark ? Colors.white54 : Colors.black45,
+                ),
+                onPressed: () =>
+                    setState(() => _obscureConfirm = !_obscureConfirm),
+              ),
+              filled: true,
+              fillColor:
+                  isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: isDark ? Colors.white12 : Colors.black12,
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: isDark ? Colors.white12 : Colors.black12,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: primary, width: 1.5),
+              ),
+            ),
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) {
+                return "Veuillez confirmer le mot de passe.";
+              }
+              if (v != _passwordController.text) {
+                return "Les mots de passe ne correspondent pas.";
+              }
+              return null;
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildActions(bool isDark, Color primary) {
+    return [
+      TextButton(
+        onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+        child: Text(
+          "Annuler",
+          style: TextStyle(color: isDark ? Colors.white60 : Colors.black54),
+        ),
+      ),
+      ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primary,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+        onPressed: _isLoading
+            ? null
+            : () {
+                if (_currentStep == 0) {
+                  _handleSendCode();
+                } else if (_currentStep == 1) {
+                  _handleVerifyCode();
+                } else {
+                  _handleUpdatePassword();
+                }
+              },
+        child: _isLoading
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : Text(
+                _currentStep == 0
+                    ? "Envoyer le code"
+                    : _currentStep == 1
+                        ? "Vérifier le code"
+                        : "Enregistrer & Se connecter",
+              ),
+      ),
+    ];
+  }
+}
+
