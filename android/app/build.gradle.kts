@@ -45,7 +45,7 @@ android {
 
     defaultConfig {
         applicationId = "com.ngenou.app"
-        minSdk = 26
+        minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
