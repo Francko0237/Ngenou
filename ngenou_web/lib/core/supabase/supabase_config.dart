@@ -2,18 +2,22 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Configuration et initialisation sécurisée de Supabase
-/// Les clés sont injectées au build via --dart-define
+/// Les clés peuvent être injectées via --dart-define ou utiliser les clés par défaut du projet
 class SupabaseConfig {
   SupabaseConfig._();
 
+  static const String _defaultUrl = 'https://boarzpbrrztqjfnuckxq.supabase.co';
+  static const String _defaultAnonKey =
+      'sb_publishable_-705eJ--wBQYCGLFxgU1Vw_RMNgYM5K';
+
   static const String supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: '',
+    defaultValue: _defaultUrl,
   );
 
   static const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue: '',
+    defaultValue: _defaultAnonKey,
   );
 
   /// Vérifie si les variables d'environnement sont correctement renseignées
@@ -22,12 +26,12 @@ class SupabaseConfig {
 
   static SupabaseClient get client => Supabase.instance.client;
 
-  /// Initialise Supabase si les variables sont présentes
+  /// Initialise Supabase
   static Future<void> initialize() async {
     if (!isConfigured) {
       if (kDebugMode) {
         debugPrint(
-          '⚠️ SUPABASE_URL ou SUPABASE_ANON_KEY non définis via --dart-define. '
+          '⚠️ SUPABASE_URL ou SUPABASE_ANON_KEY non définis. '
           'L\'application utilisera le mode hors-ligne / démonstration.',
         );
       }
@@ -42,6 +46,9 @@ class SupabaseConfig {
         anonKey: supabaseAnonKey,
         debug: kDebugMode,
       );
+      if (kDebugMode) {
+        debugPrint('✅ Supabase connecté avec succès ($supabaseUrl)');
+      }
     } catch (e) {
       debugPrint('Erreur lors de l\'initialisation de Supabase : $e');
     }

@@ -189,9 +189,15 @@ class _ReleaseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateStr = release.publishedAt != null
-        ? DateFormat('d MMMM yyyy', 'fr_FR').format(release.publishedAt!)
-        : 'Récemment';
+    String dateStr = 'Récemment';
+    if (release.publishedAt != null) {
+      try {
+        dateStr = DateFormat('d MMMM yyyy', 'fr_FR').format(release.publishedAt!);
+      } catch (_) {
+        final d = release.publishedAt!;
+        dateStr = '${d.day}/${d.month}/${d.year}';
+      }
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 40),

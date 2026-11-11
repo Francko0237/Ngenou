@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'core/supabase/supabase_config.dart';
 import 'core/theme/app_theme.dart';
 import 'routes/app_router.dart';
@@ -11,7 +12,12 @@ Future<void> main() async {
   // Activer des URLs sans le préfixe '#' pour que /admin et /nouveautes fonctionnent proprement
   usePathUrlStrategy();
 
-  // Initialisation de Supabase via --dart-define
+  // Initialisation des formats de dates en français
+  try {
+    await initializeDateFormatting('fr_FR', null);
+  } catch (_) {}
+
+  // Initialisation de Supabase
   await SupabaseConfig.initialize();
 
   runApp(

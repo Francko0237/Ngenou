@@ -479,9 +479,15 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
   }
 
   Widget _buildReleaseItem(AppRelease release, bool isMobile) {
-    final dateStr = release.publishedAt != null
-        ? DateFormat('d MMM yyyy', 'fr_FR').format(release.publishedAt!)
-        : 'Non publiée';
+    String dateStr = 'Non publiée';
+    if (release.publishedAt != null) {
+      try {
+        dateStr = DateFormat('d MMM yyyy', 'fr_FR').format(release.publishedAt!);
+      } catch (_) {
+        final d = release.publishedAt!;
+        dateStr = '${d.day}/${d.month}/${d.year}';
+      }
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),

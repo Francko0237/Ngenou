@@ -71,9 +71,15 @@ class DownloadButton extends ConsumerWidget {
 
     String releaseMeta = 'Version Android';
     if (release != null) {
-      final dateStr = release.publishedAt != null
-          ? DateFormat('d MMMM yyyy', 'fr_FR').format(release.publishedAt!)
-          : 'Dernière version';
+      String dateStr = 'Dernière version';
+      if (release.publishedAt != null) {
+        try {
+          dateStr = DateFormat('d MMMM yyyy', 'fr_FR').format(release.publishedAt!);
+        } catch (_) {
+          final d = release.publishedAt!;
+          dateStr = '${d.day}/${d.month}/${d.year}';
+        }
+      }
       releaseMeta = 'v${release.versionName} • $dateStr';
     }
 
