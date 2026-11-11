@@ -35,8 +35,10 @@ class SupabaseConfig {
     }
 
     try {
+      // ignore: deprecated_member_use
       await Supabase.initialize(
         url: supabaseUrl,
+        // ignore: deprecated_member_use
         anonKey: supabaseAnonKey,
         debug: kDebugMode,
       );

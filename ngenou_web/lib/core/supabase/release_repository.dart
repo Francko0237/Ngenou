@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/app_release.dart';
@@ -14,18 +13,20 @@ class ReleaseRepository {
 
   /// Récupère toutes les versions publiées avec leurs fonctionnalités (Public)
   Future<List<AppRelease>> getPublishedReleases() async {
-    if (_client == null) {
+    final client = _client;
+    if (client == null) {
       return _getFallbackReleases();
     }
 
     try {
-      final response = await _client
+      final response = await client
           .from('app_releases')
           .select('*, release_features(*)')
           .eq('is_published', true)
           .order('published_at', ascending: false);
 
-      return (response as List).map((row) {
+      final list = response as List;
+      return list.map((row) {
         final featuresJson = row['release_features'] as List? ?? [];
         final features = featuresJson
             .map((f) => ReleaseFeature.fromJson(f as Map<String, dynamic>))
@@ -45,13 +46,14 @@ class ReleaseRepository {
 
   /// Récupère la dernière version publiée (pour le bouton Télécharger)
   Future<AppRelease?> getLatestPublishedRelease() async {
-    if (_client == null) {
+    final client = _client;
+    if (client == null) {
       final fallback = _getFallbackReleases();
       return fallback.isNotEmpty ? fallback.first : null;
     }
 
     try {
-      final response = await _client
+      final response = await client
           .from('app_releases')
           .select('*, release_features(*)')
           .eq('is_published', true)
@@ -68,7 +70,7 @@ class ReleaseRepository {
         ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
 
       return AppRelease.fromJson(
-        response as Map<String, dynamic>,
+        response,
         features: features,
       );
     } catch (e) {
@@ -80,16 +82,18 @@ class ReleaseRepository {
 
   /// Récupère toutes les versions (brouillon et publiées) pour l'espace admin
   Future<List<AppRelease>> getAllReleasesAdmin() async {
-    if (_client == null) {
+    final client = _client;
+    if (client == null) {
       return _getFallbackReleases();
     }
 
-    final response = await _client
+    final response = await client
         .from('app_releases')
         .select('*, release_features(*)')
         .order('version_code', ascending: false);
 
-    return (response as List).map((row) {
+    final list = response as List;
+    return list.map((row) {
       final featuresJson = row['release_features'] as List? ?? [];
       final features = featuresJson
           .map((f) => ReleaseFeature.fromJson(f as Map<String, dynamic>))
@@ -105,9 +109,10 @@ class ReleaseRepository {
 
   /// Récupère une version spécifique par son identifiant
   Future<AppRelease?> getReleaseById(String id) async {
-    if (_client == null) return null;
+    final client = _client;
+    if (client == null) return null;
 
-    final response = await _client
+    final response = await client
         .from('app_releases')
         .select('*, release_features(*)')
         .eq('id', id)
@@ -122,21 +127,22 @@ class ReleaseRepository {
       ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
 
     return AppRelease.fromJson(
-      response as Map<String, dynamic>,
+      response,
       features: features,
     );
   }
 
   /// Crée ou met à jour une version
   Future<AppRelease> saveRelease(AppRelease release) async {
-    if (_client == null) {
+    final client = _client;
+    if (client == null) {
       throw Exception('Supabase n\'est pas configuré.');
     }
 
     final data = release.toJson(includeId: false);
     if (release.id.isEmpty) {
       // Insertion
-      final res = await _client
+      final res = await client
           .from('app_releases')
           .insert(data)
           .select()
@@ -144,7 +150,7 @@ class ReleaseRepository {
       return AppRelease.fromJson(res);
     } else {
       // Mise à jour
-      final res = await _client
+      final res = await client
           .from('app_releases')
           .update(data)
           .eq('id', release.id)
@@ -156,8 +162,9 @@ class ReleaseRepository {
 
   /// Bascule l'état de publication d'une release
   Future<void> togglePublish(String id, bool publish) async {
-    if (_client == null) return;
-    await _client.from('app_releases').update({
+    final client = _client;
+    if (client == null) return;
+    await client.from('app_releases').update({
       'is_published': publish,
       'published_at': publish ? DateTime.now().toIso8601String() : null,
     }).eq('id', id);
@@ -165,16 +172,18 @@ class ReleaseRepository {
 
   /// Supprime une version (cascade sur les features)
   Future<void> deleteRelease(String id) async {
-    if (_client == null) return;
-    await _client.from('app_releases').delete().eq('id', id);
+    final client = _client;
+    if (client == null) return;
+    await client.from('app_releases').delete().eq('id', id);
   }
 
   /// Enregistre les fonctionnalités d'une version
   Future<void> saveFeatures(String releaseId, List<ReleaseFeature> features) async {
-    if (_client == null) return;
+    final client = _client;
+    if (client == null) return;
 
     // Supprimer les anciennes fonctionnalités
-    await _client.from('release_features').delete().eq('release_id', releaseId);
+    await client.from('release_features').delete().eq('release_id', releaseId);
 
     if (features.isEmpty) return;
 
@@ -190,7 +199,7 @@ class ReleaseRepository {
       };
     }).toList();
 
-    await _client.from('release_features').insert(data);
+    await client.from('release_features').insert(data);
   }
 
   /// Upload d'une image dans le bucket public "release-media"
@@ -198,18 +207,19 @@ class ReleaseRepository {
     required Uint8List bytes,
     required String fileName,
   }) async {
-    if (_client == null) {
+    final client = _client;
+    if (client == null) {
       throw Exception('Supabase n\'est pas configuré pour le téléversement.');
     }
 
     final path = 'features/${DateTime.now().millisecondsSinceEpoch}_$fileName';
-    await _client.storage.from('release-media').uploadBinary(
+    await client.storage.from('release-media').uploadBinary(
           path,
           bytes,
           fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
         );
 
-    final publicUrl = _client.storage.from('release-media').getPublicUrl(path);
+    final publicUrl = client.storage.from('release-media').getPublicUrl(path);
     return publicUrl;
   }
 
@@ -218,18 +228,19 @@ class ReleaseRepository {
     required Uint8List bytes,
     required String fileName,
   }) async {
-    if (_client == null) {
+    final client = _client;
+    if (client == null) {
       throw Exception('Supabase n\'est pas configuré pour le téléversement.');
     }
 
     final path = 'builds/${DateTime.now().millisecondsSinceEpoch}_$fileName';
-    await _client.storage.from('apks').uploadBinary(
+    await client.storage.from('apks').uploadBinary(
           path,
           bytes,
           fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
         );
 
-    final publicUrl = _client.storage.from('apks').getPublicUrl(path);
+    final publicUrl = client.storage.from('apks').getPublicUrl(path);
     return publicUrl;
   }
 

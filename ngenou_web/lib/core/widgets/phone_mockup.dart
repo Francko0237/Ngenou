@@ -47,7 +47,7 @@ class PhoneMockup extends StatelessWidget {
               const BoxShadow(
                 color: Colors.black54,
                 blurRadius: 30,
-                offset: const Offset(0, 15),
+                offset: Offset(0, 15),
               ),
             ],
           ),

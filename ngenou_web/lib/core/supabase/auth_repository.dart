@@ -24,11 +24,12 @@ class AuthRepository {
     required String email,
     required String password,
   }) async {
-    if (_client == null) {
+    final client = _client;
+    if (client == null) {
       throw Exception('Supabase n\'est pas configuré avec des clés valides.');
     }
 
-    return await _client.auth.signInWithPassword(
+    return await client.auth.signInWithPassword(
       email: email.trim(),
       password: password,
     );
@@ -36,13 +37,14 @@ class AuthRepository {
 
   /// Vérifie si l'utilisateur actuellement connecté est répertorié dans admin_users
   Future<bool> verifyIsAdmin() async {
-    if (_client == null) return false;
+    final client = _client;
+    if (client == null) return false;
 
-    final user = _client.auth.currentUser;
+    final user = client.auth.currentUser;
     if (user == null) return false;
 
     try {
-      final res = await _client
+      final res = await client
           .from('admin_users')
           .select('user_id')
           .eq('user_id', user.id)
@@ -57,7 +59,8 @@ class AuthRepository {
 
   /// Déconnexion
   Future<void> signOut() async {
-    if (_client == null) return;
-    await _client.auth.signOut();
+    final client = _client;
+    if (client == null) return;
+    await client.auth.signOut();
   }
 }
