@@ -1,0 +1,45 @@
+name: ngenou_web
+description: "Site vitrine et console d'administration de l'application Ngenou"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
+
+  # Navigation & Routing
+  go_router: ^14.8.1
+
+  # Backend & Auth
+  supabase_flutter: ^2.8.4
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+
+  # Typography & Animations
+  google_fonts: ^6.2.1
+  flutter_animate: ^4.5.2
+
+  # Utilities
+  url_launcher: ^6.3.1
+  cached_network_image: ^3.4.1
+  file_picker: ^8.1.7
+  intl: ^0.20.2
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/screenshots/
