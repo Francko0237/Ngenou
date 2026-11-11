@@ -1,6 +1,0 @@
-User-agent: *
-Disallow: /admin
-Disallow: /admin/
-Allow: /
-
-Sitemap: https://ngenou.top/sitemap.xml

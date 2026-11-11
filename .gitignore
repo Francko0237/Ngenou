@@ -53,3 +53,4 @@ assets/ngenou-release.jks
 # Extensions / Micro-logiciels — Dépôts GitHub séparés, NE PAS inclure dans ce dépôt
 /extensions/
 landing_page/Ngenou.zip
+ngenou_web/
