@@ -78,7 +78,7 @@ class _AdminLoginPageState extends ConsumerState<AdminLoginPage> {
         password: _passwordController.text,
       );
 
-      // Vérifier si l'utilisateur est bien présent dans la table admin_users
+      // Vérifier si l'utilisateur a le rôle 'admin' dans profiles
       final isAdmin = await authRepo.verifyIsAdmin();
       if (!isAdmin) {
         // Déconnexion immédiate si pas admin

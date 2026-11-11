@@ -35,7 +35,7 @@ class AuthRepository {
     );
   }
 
-  /// Vérifie si l'utilisateur actuellement connecté est répertorié dans admin_users
+  /// Vérifie si l'utilisateur actuellement connecté a le rôle 'admin' dans profiles
   Future<bool> verifyIsAdmin() async {
     final client = _client;
     if (client == null) return false;
@@ -45,12 +45,12 @@ class AuthRepository {
 
     try {
       final res = await client
-          .from('admin_users')
-          .select('user_id')
-          .eq('user_id', user.id)
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
           .maybeSingle();
 
-      return res != null;
+      return res != null && res['role'] == 'admin';
     } catch (e) {
       debugPrint('Erreur lors de la vérification admin: $e');
       return false;

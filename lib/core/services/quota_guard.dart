@@ -202,7 +202,7 @@ class QuotaGuard {
   /// Récupère le compteur pour [type] depuis Supabase (colonne JSONB).
   static Future<int> _getServerCount(AiOperationType type) async {
     final data = await _supabase
-        .from('users')
+        .from('profiles')
         .select(AiConfig.supabaseQuotaColumn)
         .eq('id', _userId())
         .maybeSingle();
@@ -223,9 +223,9 @@ class QuotaGuard {
     AiOperationType type, {
     required int delta,
   }) async {
-    // Lire d'abord la valeur actuelle depuis 'users'
+    // Lire d'abord la valeur actuelle depuis 'profiles'
     final data = await _supabase
-        .from('users')
+        .from('profiles')
         .select(AiConfig.supabaseQuotaColumn)
         .eq('id', _userId())
         .maybeSingle();
@@ -245,10 +245,11 @@ class QuotaGuard {
     quota[key] = ((quota[key] as num?)?.toInt() ?? 0) + delta;
     quota['date'] = today;
 
-    await _supabase.from('users').upsert({
-      'id': _userId(),
-      AiConfig.supabaseQuotaColumn: quota,
-    });
+    // UPDATE uniquement (le profil existe déjà grâce au trigger handle_new_user)
+    await _supabase
+        .from('profiles')
+        .update({AiConfig.supabaseQuotaColumn: quota})
+        .eq('id', _userId());
   }
 
   static String _serverKeyFor(AiOperationType type) {
