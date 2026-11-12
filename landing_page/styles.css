@@ -4,10 +4,10 @@
    ========================================================================== */
 
 :root {
-  --ink: #060b1a;
-  --ink-2: #0a1226;
-  --panel: #0f1a33;
-  --panel-2: #14213f;
+  --ink: #0b1124;
+  --ink-2: #101935;
+  --panel: #111c38;
+  --panel-2: #17264c;
   --line: rgba(160, 182, 255, 0.14);
   --line-strong: rgba(160, 182, 255, 0.26);
 
@@ -48,7 +48,12 @@ body {
   font-size: 1rem;
   line-height: 1.65;
   color: var(--paper);
-  background: var(--ink);
+  background-color: var(--ink);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 85% -10%, rgba(240, 185, 58, 0.08), transparent 60%),
+    radial-gradient(ellipse 70% 40% at 10% 20%, rgba(60, 200, 232, 0.07), transparent 60%),
+    radial-gradient(ellipse 60% 60% at 50% 100%, rgba(17, 28, 56, 0.8), transparent 70%);
+  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   overflow-x: clip;
 }
@@ -264,22 +269,31 @@ button {
 .btn-store {
   display: inline-flex;
   align-items: center;
-  gap: 14px;
-  padding: 12px 26px 12px 20px;
-  border-radius: 16px;
-  background: var(--paper);
-  color: var(--ink);
-  transition: transform 0.2s, box-shadow 0.2s;
-  box-shadow: 0 10px 30px -10px rgba(240, 185, 58, 0.45);
+  gap: 16px;
+  padding: 14px 28px 14px 22px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #FCF9F5 0%, #EDE4D7 100%);
+  color: #0b1124;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 14px 34px -8px rgba(0, 0, 0, 0.45),
+    0 0 24px -2px rgba(240, 185, 58, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s, filter 0.25s;
 }
 
 .btn-store .ico {
-  stroke-width: 2;
+  stroke-width: 2.2;
+  stroke: #0b1124;
 }
 
 .btn-store:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 16px 36px -10px rgba(240, 185, 58, 0.6);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow:
+    0 20px 42px -10px rgba(0, 0, 0, 0.5),
+    0 0 32px rgba(240, 185, 58, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+  filter: brightness(1.02);
 }
 
 .btn-store-text {
@@ -290,14 +304,17 @@ button {
 }
 
 .btn-store-text small {
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   font-weight: 600;
-  color: #4b5472;
+  color: #55607c;
+  letter-spacing: 0.02em;
 }
 
 .btn-store-text strong {
-  font-size: 1.12rem;
+  font-size: 1.18rem;
   font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #0b1124;
 }
 
 .btn-secondary {
@@ -416,12 +433,16 @@ button {
   gap: 9px;
 }
 
-.hero-specs .ico {
+.hero-specs li:nth-child(1) .ico {
   color: var(--cyan);
 }
 
 .hero-specs li:nth-child(2) .ico {
   color: var(--gold);
+}
+
+.hero-specs li:nth-child(3) .ico {
+  color: #2dd4bf;
 }
 
 /* Scène : le cerveau + un téléphone */
@@ -1534,6 +1555,20 @@ footer {
   .navbar-wrap {
     top: 10px;
     padding: 0 12px;
+  }
+
+  .navbar-wrap::after {
+    content: '';
+    position: fixed;
+    top: -35px;
+    right: -35px;
+    width: 175px;
+    height: 175px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(240, 185, 58, 0.38) 0%, rgba(240, 185, 58, 0.12) 45%, transparent 70%);
+    filter: blur(35px);
+    pointer-events: none;
+    z-index: 99;
   }
 
   .navbar {

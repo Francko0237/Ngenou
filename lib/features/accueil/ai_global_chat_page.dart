@@ -554,48 +554,85 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = Theme.of(context).primaryColor;
-    final bg = isDark ? const Color(0xFF161616) : const Color(0xFFF9FAFB);
-    final inputBg = isDark ? const Color(0xFF222222) : const Color(0xFFF3F4F6);
+    final bg = isDark ? const Color(0xFF0D121F) : const Color(0xFFF8FAFC);
+    final headerBg = isDark ? const Color(0xFF131929) : Colors.white;
+    final inputBg = isDark ? const Color(0xFF161D2D) : const Color(0xFFF1F5F9);
 
     return Scaffold(
       backgroundColor: bg,
       appBar: AppBar(
+        elevation: 0,
+        backgroundColor: headerBg,
+        surfaceTintColor: Colors.transparent,
+        titleSpacing: 16,
         title: Row(
           children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isDark
-                      ? const Color.fromARGB(255, 59, 59, 71)
-                      : const Color.fromARGB(255, 98, 107, 119),
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 0),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: primary.withValues(alpha: 0.35),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: primary.withValues(alpha: 0.15),
+                        blurRadius: 6,
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: ClipOval(
-                child: Transform.scale(
-                  scale: 1.3,
-                  child: Image.asset(
-                    'assets/images/launcher_icon.png',
-                    fit: BoxFit.cover,
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/images/launcher_icon.png',
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
-              ),
+                Positioned(
+                  bottom: -1,
+                  right: -1,
+                  child: Container(
+                    width: 11,
+                    height: 11,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2DD4BF),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: headerBg,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 5),
-            const Text(
-              'Ngenou Assistant',
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Ngenou',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                Text(
+                  'Tuteur IA • En ligne',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -608,6 +645,7 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
           labelColor: primary,
           unselectedLabelColor: isDark ? Colors.grey[500] : Colors.grey[600],
           indicatorColor: primary,
+          indicatorWeight: 2.5,
           indicatorSize: TabBarIndicatorSize.tab,
           labelStyle: const TextStyle(
             fontWeight: FontWeight.w800,
@@ -644,28 +682,29 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
       onTap: () => _showModelPicker(isDark, primary),
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
         decoration: BoxDecoration(
           color: isPro
-              ? const Color(0xFF6C3FE8).withValues(alpha: 0.15)
+              ? const Color(0xFF6C3FE8).withValues(alpha: 0.16)
               : (isDark
-                    ? Colors.grey[800]!.withValues(alpha: 0.8)
-                    : Colors.grey[200]!),
+                    ? const Color(0xFF1E2638)
+                    : const Color(0xFFEDF2F7)),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isPro
-                ? const Color(0xFF6C3FE8).withValues(alpha: 0.5)
-                : Colors.transparent,
+                ? const Color(0xFF8B5CF6).withValues(alpha: 0.5)
+                : (isDark ? const Color(0xFF2E3A52) : const Color(0xFFCBD5E1)),
+            width: 1,
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              isPro ? Icons.auto_awesome : Icons.bolt_rounded,
+              isPro ? Icons.auto_awesome_rounded : Icons.bolt_rounded,
               size: 14,
               color: isPro
-                  ? const Color(0xFF6C3FE8)
+                  ? const Color(0xFF8B5CF6)
                   : (isDark ? Colors.grey[300] : Colors.grey[700]),
             ),
             const SizedBox(width: 4),
@@ -675,7 +714,7 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: isPro
-                    ? const Color(0xFF6C3FE8)
+                    ? const Color(0xFF8B5CF6)
                     : (isDark ? Colors.grey[300] : Colors.grey[700]),
               ),
             ),
@@ -684,7 +723,7 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
               Icons.expand_more_rounded,
               size: 14,
               color: isPro
-                  ? const Color(0xFF6C3FE8)
+                  ? const Color(0xFF8B5CF6)
                   : (isDark ? Colors.grey[400] : Colors.grey[600]),
             ),
           ],
@@ -807,12 +846,13 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
         ),
         // Champ de saisie
         Container(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+            color: isDark ? const Color(0xFF131929) : Colors.white,
             border: Border(
               top: BorderSide(
-                color: isDark ? Colors.grey[850]! : Colors.grey[200]!,
+                color: isDark ? const Color(0xFF1F293D) : const Color(0xFFE2E8F0),
+                width: 1,
               ),
             ),
           ),
@@ -827,13 +867,17 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
                   height: 40,
                   margin: const EdgeInsets.only(bottom: 4, right: 8),
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.grey[800] : Colors.grey[200],
+                    color: isDark ? const Color(0xFF1E2638) : const Color(0xFFF1F5F9),
                     shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF2B374E) : const Color(0xFFE2E8F0),
+                      width: 1,
+                    ),
                   ),
                   child: Icon(
                     Icons.add_rounded,
-                    color: isDark ? Colors.grey[300] : Colors.grey[600],
-                    size: 20,
+                    color: isDark ? Colors.grey[300] : Colors.grey[700],
+                    size: 22,
                   ),
                 ),
               ),
@@ -1070,68 +1114,115 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
     );
   }
 
+  String _formatTime(DateTime dt) {
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    return '$h:$m';
+  }
+
+  IconData _getSuggestionIcon(String text) {
+    if (text.contains('révision') || text.contains('méthode')) {
+      return Icons.lightbulb_outline_rounded;
+    }
+    if (text.contains('quiz')) return Icons.quiz_outlined;
+    if (text.contains('notion') || text.contains('Explique')) {
+      return Icons.menu_book_rounded;
+    }
+    return Icons.explore_outlined;
+  }
+
   Widget _buildWelcome(bool isDark, Color primary) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
       child: Column(
         children: [
-          const SizedBox(height: 24),
-          Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: primary.withOpacity(0.3),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5),
+          const SizedBox(height: 16),
+          // Avatar central avec double halo
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: 90,
+                height: 90,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: primary.withValues(alpha: 0.08),
                 ),
-              ],
-            ),
-            child: ClipOval(
-              child: Image.asset(
-                'assets/images/launcher_icon.png',
-                fit: BoxFit.cover,
               ),
-            ),
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: primary.withValues(alpha: 0.35),
+                    width: 2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: primary.withValues(alpha: 0.25),
+                      blurRadius: 18,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: ClipOval(
+                  child: Image.asset(
+                    'assets/images/launcher_icon.png',
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 22),
           Text(
-            'Bienvenue chez Ngenou 👋🏾',
+            'Comment puis-je t\'aider ?',
             style: TextStyle(
-              fontWeight: FontWeight.w900,
-              fontSize: 20,
-              color: isDark ? Colors.white : Colors.black87,
-              letterSpacing: 0.2,
+              fontWeight: FontWeight.w800,
+              fontSize: 21,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+              letterSpacing: -0.3,
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 10),
           Text(
-            'Je connais toutes les notions et matières de l\'application. Tu peux me poser des questions d\'ordre général, ou me demander d\'expliquer un cours en particulier.',
+            'Je connais toutes les matières et notions de ton programme. Pose-moi une question ou demande-moi de t\'expliquer un cours pas à pas.',
             style: TextStyle(
-              fontSize: 14.5,
+              fontSize: 14,
               color: isDark ? Colors.grey[400] : Colors.grey[600],
               height: 1.5,
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 36),
-          Text(
-            'Suggestions rapides',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: isDark ? Colors.grey[400] : Colors.grey[600],
-              letterSpacing: 0.5,
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Row(
+              children: [
+                Icon(
+                  Icons.auto_awesome_rounded,
+                  size: 15,
+                  color: primary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Suggestions rapides',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 10,
-            alignment: WrapAlignment.center,
             children: _suggestions
                 .map((s) => _buildSuggestionChip(s, primary, isDark))
                 .toList(),
@@ -1142,21 +1233,43 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
   }
 
   Widget _buildSuggestionChip(String text, Color primary, bool isDark) {
-    return GestureDetector(
-      onTap: () => _send(text),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: primary.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: primary.withOpacity(0.25)),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: 13,
-            color: primary,
-            fontWeight: FontWeight.w600,
+    final icon = _getSuggestionIcon(text);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _send(text),
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF161D2D) : Colors.white,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: isDark ? const Color(0xFF26334A) : const Color(0xFFE2E8F0),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.03),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 15, color: primary),
+              const SizedBox(width: 8),
+              Text(
+                text,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isDark ? Colors.grey[200] : const Color(0xFF1E293B),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1167,45 +1280,76 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
     final isUser = msg.role == 'user';
     final msgIndex = _globalMessages.indexOf(msg);
 
+    // ── MESSAGE DE L'UTILISATEUR ──────────────────────────────────────
     if (isUser) {
       return GestureDetector(
         onLongPress: () =>
             _showUserMessageOptions(context, msg, msgIndex, isDark, primary),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.end,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Flexible(
                 child: Container(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.82,
+                  ),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
-                    vertical: 12,
+                    vertical: 11,
                   ),
                   decoration: BoxDecoration(
-                    color: primary,
+                    gradient: LinearGradient(
+                      colors: [
+                        primary,
+                        Color.lerp(primary, const Color(0xFF0F1A33), 0.18) ??
+                            primary,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(18),
                       topRight: Radius.circular(18),
                       bottomLeft: Radius.circular(18),
                       bottomRight: Radius.circular(4),
                     ),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.12),
+                      width: 1,
+                    ),
                     boxShadow: [
                       BoxShadow(
-                        color: primary.withOpacity(0.15),
-                        blurRadius: 6,
+                        color: primary.withValues(alpha: 0.22),
+                        blurRadius: 8,
                         offset: const Offset(0, 3),
                       ),
                     ],
                   ),
-                  child: Text(
-                    msg.content,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14.5,
-                      height: 1.45,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        msg.content,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14.5,
+                          height: 1.45,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _formatTime(msg.timestamp),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.white.withValues(alpha: 0.65),
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -1215,74 +1359,149 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
       );
     }
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 26,
-                height: 26,
-                decoration: const BoxDecoration(shape: BoxShape.circle),
-                child: ClipOval(
-                  child: Image.asset(
-                    'assets/images/launcher_icon.png',
-                    fit: BoxFit.cover,
+    // ── MESSAGE DE NGENOU (CARTE PRO ET ÉLÉGANTE) ────────────────────
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF161D2D) : Colors.white,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(6),
+            topRight: Radius.circular(18),
+            bottomLeft: Radius.circular(18),
+            bottomRight: Radius.circular(18),
+          ),
+          border: Border.all(
+            color: isDark ? const Color(0xFF243048) : const Color(0xFFE2E8F0),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // En-tête : Avatar Ngenou + Nom + Badge Tuteur IA + Heure
+            Row(
+              children: [
+                Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: primary.withValues(alpha: 0.35),
+                      width: 1.2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: primary.withValues(alpha: 0.18),
+                        blurRadius: 6,
+                      ),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/images/launcher_icon.png',
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Ngenou',
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 13.5,
-                  color: primary,
+                const SizedBox(width: 8),
+                Text(
+                  'Ngenou',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13.5,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    letterSpacing: -0.1,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          AiMarkdownText(
-            text: msg.content,
-            selectable: true,
-            style: TextStyle(
-              color: isDark ? Colors.grey[200] : Colors.grey[800],
-              fontSize: 15,
-              height: 1.55,
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'Tuteur IA',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: primary,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  _formatTime(msg.timestamp),
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    color: isDark ? Colors.grey[500] : Colors.grey[400],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 4),
-          // Boutons action : audio + copie
-          Align(
-            alignment: Alignment.centerRight,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+            const SizedBox(height: 12),
+            AiMarkdownText(
+              text: msg.content,
+              selectable: true,
+              style: TextStyle(
+                color: isDark
+                    ? const Color(0xFFE2E8F0)
+                    : const Color(0xFF1E293B),
+                fontSize: 14.5,
+                height: 1.55,
+              ),
+            ),
+            const SizedBox(height: 10),
+            // Barre d'actions discrète et pro
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TtsButton(
                   msgId: msg.timestamp.millisecondsSinceEpoch.toString(),
                   text: msg.content,
                   isDark: isDark,
                 ),
-                InkWell(
-                  borderRadius: BorderRadius.circular(8),
-                  onTap: () => _copyToClipboard(msg.content),
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Icon(
-                      Icons.copy_rounded,
-                      size: 15,
-                      color: isDark ? Colors.grey[600] : Colors.grey[400],
+                const SizedBox(width: 4),
+                Tooltip(
+                  message: 'Copier',
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () {
+                      _copyToClipboard(msg.content);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Réponse copiée'),
+                          duration: Duration(seconds: 1),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: Icon(
+                        Icons.copy_rounded,
+                        size: 16,
+                        color: isDark ? Colors.grey[500] : Colors.grey[400],
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1377,42 +1596,63 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
   }
 
   Widget _buildTypingIndicator(bool isDark, Color primary) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: const BoxDecoration(shape: BoxShape.circle),
-            child: ClipOval(
-              child: Image.asset(
-                'assets/images/launcher_icon.png',
-                fit: BoxFit.cover,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF161D2D) : Colors.white,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(6),
+            topRight: Radius.circular(18),
+            bottomLeft: Radius.circular(18),
+            bottomRight: Radius.circular(18),
+          ),
+          border: Border.all(
+            color: isDark ? const Color(0xFF243048) : const Color(0xFFE2E8F0),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: primary.withValues(alpha: 0.35),
+                  width: 1.2,
+                ),
+              ),
+              child: ClipOval(
+                child: Image.asset(
+                  'assets/images/launcher_icon.png',
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Ngenou',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13.5,
-                    color: primary,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const SinusoidalDotIndicator(),
-              ],
+            const SizedBox(width: 10),
+            Text(
+              'Ngenou prépare une réponse…',
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
-        ],
+            const Spacer(),
+            const SinusoidalDotIndicator(),
+          ],
+        ),
       ),
     );
   }

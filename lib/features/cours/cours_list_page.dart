@@ -206,7 +206,8 @@ class _CoursListPageState extends State<CoursListPage> {
                   Widget? sectionHeader;
                   if (notion.section != null) {
                     bool isFirstOfSection =
-                        index == 0 || notions[index - 1].section != notion.section;
+                        index == 0 ||
+                        notions[index - 1].section != notion.section;
                     if (isFirstOfSection) {
                       sectionHeader = Padding(
                         padding: const EdgeInsets.only(
@@ -229,7 +230,9 @@ class _CoursListPageState extends State<CoursListPage> {
 
                   Progression? prog;
                   try {
-                    final progs = progProvider.getProgressions(widget.matiereId);
+                    final progs = progProvider.getProgressions(
+                      widget.matiereId,
+                    );
                     if (progs.isNotEmpty) {
                       prog = progs.firstWhere((p) => p.notionId == notion.id);
                     }
@@ -284,8 +287,12 @@ class _CoursListPageState extends State<CoursListPage> {
                       widget.matiereId,
                       notion.id,
                     );
-                    final totalEx = exList.isNotEmpty ? exList.length.toDouble() : 1.0;
-                    pct = ((prog.nbExercicesReussis / totalEx).clamp(0, 1) * 100).toInt();
+                    final totalEx = exList.isNotEmpty
+                        ? exList.length.toDouble()
+                        : 1.0;
+                    pct =
+                        ((prog.nbExercicesReussis / totalEx).clamp(0, 1) * 100)
+                            .toInt();
                   } else if (isTermine) {
                     pct = 100;
                   } else if (isEnCours) {
@@ -302,20 +309,26 @@ class _CoursListPageState extends State<CoursListPage> {
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: isEnCours
-                              ? Theme.of(context).primaryColor.withValues(alpha: 0.85)
+                              ? Theme.of(
+                                  context,
+                                ).primaryColor.withValues(alpha: 0.85)
                               : (isTermine
-                                  ? const Color(0xFF2ECC71).withValues(alpha: 0.45)
-                                  : (isDark
-                                      ? Colors.white.withValues(alpha: 0.06)
-                                      : Colors.black.withValues(alpha: 0.05))),
+                                    ? const Color(
+                                        0xFF2ECC71,
+                                      ).withValues(alpha: 0.45)
+                                    : (isDark
+                                          ? Colors.white.withValues(alpha: 0.06)
+                                          : Colors.black.withValues(
+                                              alpha: 0.05,
+                                            ))),
                           width: isEnCours ? 1.6 : 1,
                         ),
                         boxShadow: [
                           BoxShadow(
                             color: isEnCours
-                                ? Theme.of(context)
-                                    .primaryColor
-                                    .withValues(alpha: isDark ? 0.22 : 0.12)
+                                ? Theme.of(context).primaryColor.withValues(
+                                    alpha: isDark ? 0.22 : 0.12,
+                                  )
                                 : Colors.black.withValues(
                                     alpha: isDark ? 0.25 : 0.04,
                                   ),
@@ -330,7 +343,9 @@ class _CoursListPageState extends State<CoursListPage> {
                           borderRadius: BorderRadius.circular(16),
                           onTap: () async {
                             if (isUnlocked) {
-                              await context.push('/cours/${widget.matiereId}/${notion.id}');
+                              await context.push(
+                                '/cours/${widget.matiereId}/${notion.id}',
+                              );
                               // Rafraîchir immédiatement le statut au retour
                               if (context.mounted) {
                                 context
@@ -367,7 +382,8 @@ class _CoursListPageState extends State<CoursListPage> {
                                           )
                                         : statusBoxColor,
                                     borderRadius: BorderRadius.circular(12),
-                                    border: notion.contexte != null && isUnlocked
+                                    border:
+                                        notion.contexte != null && isUnlocked
                                         ? Border.all(
                                             color:
                                                 CourseContextMapper.getColorForContext(
@@ -383,9 +399,13 @@ class _CoursListPageState extends State<CoursListPage> {
                                         ? CourseContextMapper.getColorForContext(
                                             notion.contexte,
                                           )
-                                        : (isUnlocked
-                                            ? Theme.of(context).primaryColor
-                                            : Colors.grey),
+                                        : (prog?.statut == 'termine'
+                                              ? Colors.amber
+                                              : (isUnlocked
+                                                    ? Theme.of(
+                                                        context,
+                                                      ).primaryColor
+                                                    : Colors.grey)),
                                     size: 22,
                                   ),
                                 ),
@@ -402,11 +422,11 @@ class _CoursListPageState extends State<CoursListPage> {
                                           fontSize: 14.5,
                                           color: isUnlocked
                                               ? (isDark
-                                                  ? Colors.white
-                                                  : Colors.black87)
+                                                    ? Colors.white
+                                                    : Colors.black87)
                                               : (isDark
-                                                  ? Colors.white38
-                                                  : Colors.black38),
+                                                    ? Colors.white38
+                                                    : Colors.black38),
                                         ),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
@@ -435,9 +455,8 @@ class _CoursListPageState extends State<CoursListPage> {
                                               color: niveauColor.withValues(
                                                 alpha: 0.12,
                                               ),
-                                              borderRadius: BorderRadius.circular(
-                                                6,
-                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
                                             ),
                                             child: Text(
                                               niveauLabel,
@@ -451,13 +470,15 @@ class _CoursListPageState extends State<CoursListPage> {
                                           if (isTermine) ...[
                                             const SizedBox(width: 6),
                                             Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: 7,
-                                                vertical: 3,
-                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 7,
+                                                    vertical: 3,
+                                                  ),
                                               decoration: BoxDecoration(
-                                                color: const Color(0xFF2ECC71)
-                                                    .withValues(alpha: 0.15),
+                                                color: const Color(
+                                                  0xFF2ECC71,
+                                                ).withValues(alpha: 0.15),
                                                 borderRadius:
                                                     BorderRadius.circular(6),
                                               ),
@@ -475,7 +496,8 @@ class _CoursListPageState extends State<CoursListPage> {
                                                     style: TextStyle(
                                                       color: Color(0xFF2ECC71),
                                                       fontSize: 10,
-                                                      fontWeight: FontWeight.w700,
+                                                      fontWeight:
+                                                          FontWeight.w700,
                                                     ),
                                                   ),
                                                 ],
@@ -484,10 +506,11 @@ class _CoursListPageState extends State<CoursListPage> {
                                           ] else if (isEnCours) ...[
                                             const SizedBox(width: 6),
                                             Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: 7,
-                                                vertical: 3,
-                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 7,
+                                                    vertical: 3,
+                                                  ),
                                               decoration: BoxDecoration(
                                                 color: Theme.of(context)
                                                     .primaryColor
@@ -499,19 +522,23 @@ class _CoursListPageState extends State<CoursListPage> {
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
                                                   Icon(
-                                                    Icons.play_circle_filled_rounded,
+                                                    Icons
+                                                        .play_circle_filled_rounded,
                                                     size: 11,
-                                                    color: Theme.of(context)
-                                                        .primaryColor,
+                                                    color: Theme.of(
+                                                      context,
+                                                    ).primaryColor,
                                                   ),
                                                   const SizedBox(width: 3),
                                                   Text(
                                                     'En cours',
                                                     style: TextStyle(
-                                                      color: Theme.of(context)
-                                                          .primaryColor,
+                                                      color: Theme.of(
+                                                        context,
+                                                      ).primaryColor,
                                                       fontSize: 10,
-                                                      fontWeight: FontWeight.w700,
+                                                      fontWeight:
+                                                          FontWeight.w700,
                                                     ),
                                                   ),
                                                 ],
@@ -519,26 +546,36 @@ class _CoursListPageState extends State<CoursListPage> {
                                             ),
                                           ],
                                           const Spacer(),
-                                          if (isUnlocked && (isTermine || isEnCours || pct > 0))
+                                          if (isUnlocked &&
+                                              (isTermine ||
+                                                  isEnCours ||
+                                                  pct > 0))
                                             Row(
                                               children: [
                                                 SizedBox(
                                                   width: 13,
                                                   height: 13,
-                                                  child: CircularProgressIndicator(
-                                                    value: pct / 100,
-                                                    strokeWidth: 2,
-                                                    backgroundColor: isDark
-                                                        ? Colors.white
-                                                            .withValues(alpha: 0.1)
-                                                        : Colors.black
-                                                            .withValues(alpha: 0.08),
-                                                    color: isTermine
-                                                        ? const Color(0xFF2ECC71)
-                                                        : Theme.of(
-                                                            context,
-                                                          ).primaryColor,
-                                                  ),
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        value: pct / 100,
+                                                        strokeWidth: 2,
+                                                        backgroundColor: isDark
+                                                            ? Colors.white
+                                                                  .withValues(
+                                                                    alpha: 0.1,
+                                                                  )
+                                                            : Colors.black
+                                                                  .withValues(
+                                                                    alpha: 0.08,
+                                                                  ),
+                                                        color: isTermine
+                                                            ? const Color(
+                                                                0xFF2ECC71,
+                                                              )
+                                                            : Theme.of(
+                                                                context,
+                                                              ).primaryColor,
+                                                      ),
                                                 ),
                                                 const SizedBox(width: 5),
                                                 Text(
@@ -546,7 +583,9 @@ class _CoursListPageState extends State<CoursListPage> {
                                                   style: TextStyle(
                                                     fontSize: 11,
                                                     color: isTermine
-                                                        ? const Color(0xFF2ECC71)
+                                                        ? const Color(
+                                                            0xFF2ECC71,
+                                                          )
                                                         : Theme.of(
                                                             context,
                                                           ).primaryColor,
@@ -576,7 +615,9 @@ class _CoursListPageState extends State<CoursListPage> {
                                       ? Theme.of(context).primaryColor
                                       : (isDark
                                             ? Colors.white24
-                                            : Colors.black.withValues(alpha: 0.24)),
+                                            : Colors.black.withValues(
+                                                alpha: 0.24,
+                                              )),
                                 ),
                               ],
                             ),
