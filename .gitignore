@@ -54,3 +54,7 @@ assets/ngenou-release.jks
 /extensions/
 landing_page/Ngenou.zip
 ngenou_web/
+landing_page/Ngenou.apk
+landing_page/Ngenou.zip
+landing_page/*.apk
+landing_page/*.zip
