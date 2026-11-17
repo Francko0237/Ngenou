@@ -143,7 +143,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage>
           textSecondary: textSecondary,
           title: 'Politique de Confidentialité de Ngenou',
           date: 'Dernière mise à jour : 28 octobre 2026',
-          badgeText: 'Conforme RGPD & Exigences Stores (Google & Apple)',
+          badgeText: 'Conforme RGPD & Exigences Stores (Google)',
           description:
               'Chez Ngenou, nous accordons une importance primordiale au respect de votre vie privée et de vos données d\'apprentissage. La présente Politique explique de manière transparente quelles données nous collectons, comment nous les protégeons et comment vous pouvez exercer vos droits (y compris la suppression totale et immédiate de votre compte).',
         ),
@@ -159,8 +159,8 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage>
           content:
               'L\'application mobile Ngenou est développée et éditée par :\n\n'
               '• Développeur / Responsable : Yamga Mokube Franck Daniel\n'
-              '• Contact Support & DPO : support@ngenou.app\n'
-              '• Site officiel : https://ngenou.app\n\n'
+              '• Contact Support & DPO : ngenou.support@gmail.com\n'
+              '• Site officiel : https://ngenou.vercel.app/\n\n'
               'Ngenou respecte les réglementations applicables en matière de protection des données personnelles (Règlement Général sur la Protection des Données - RGPD UE 2016/679 et directives de l\'App Store d\'Apple et Google Play).',
         ),
         const SizedBox(height: 14),
