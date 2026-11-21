@@ -55,7 +55,7 @@ dependencies:
   google_mlkit_text_recognition: ^0.15.1
   image_picker: ^1.2.2
   syncfusion_flutter_pdf: ^33.2.13
-  audioplayers: ^6.7.1
+  audioplayers: ^6.8.1
   audio_session: ^0.1.25
   path_provider: ^2.1.6
   supabase_flutter: ^2.8.0
