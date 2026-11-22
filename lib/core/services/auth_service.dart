@@ -644,8 +644,20 @@ class AuthService {
         final uri = request.uri;
         final path = uri.path;
 
+        // Répondre aux requêtes preflight OPTIONS
+        if (request.method == 'OPTIONS') {
+          request.response
+            ..statusCode = HttpStatus.noContent
+            ..headers.set('Access-Control-Allow-Origin', '*')
+            ..headers.set('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
+            ..headers.set('Access-Control-Allow-Headers', '*');
+          await request.response.close();
+          return;
+        }
+
         // 1. Réception directe des tokens via le script JavaScript de la page de callback (si fragment hash #)
         if (path == '/token-exchange') {
+          request.response.headers.set('Access-Control-Allow-Origin', '*');
           try {
             String content = '';
             if (request.method == 'POST') {
@@ -654,7 +666,9 @@ class AuthService {
               content = uri.queryParameters['payload'] ?? '';
             }
 
-            final data = content.isNotEmpty ? jsonDecode(content) as Map<String, dynamic> : uri.queryParameters;
+            final data = content.isNotEmpty
+                ? jsonDecode(content) as Map<String, dynamic>
+                : uri.queryParameters;
 
             if (data.containsKey('error')) {
               request.response
@@ -682,7 +696,8 @@ class AuthService {
 
             await _resolvePostSignInMetadata();
 
-            if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+            if (!kIsWeb &&
+                (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
               try {
                 await windowManager.show();
                 await windowManager.focus();
@@ -720,7 +735,10 @@ class AuthService {
             request.response
               ..statusCode = HttpStatus.ok
               ..headers.contentType = ContentType.html
-              ..write(_buildConfirmationHtml(status: 'error', message: 'L\'authentification a été annulée ou refusée.'));
+              ..write(_buildConfirmationHtml(
+                status: 'error',
+                message: 'L\'authentification a été annulée ou refusée.',
+              ));
             await request.response.close();
 
             if (!completer.isCompleted) completer.complete(false);
@@ -735,7 +753,8 @@ class AuthService {
               await _resolvePostSignInMetadata();
               success = true;
 
-              if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+              if (!kIsWeb &&
+                  (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
                 try {
                   await windowManager.show();
                   await windowManager.focus();
@@ -783,7 +802,13 @@ class AuthService {
       );
       return result;
     } finally {
-      await server?.close(force: true);
+      // Laisser un court délai de 2 secondes avant d'arrêter le serveur HTTP
+      // pour que le navigateur ait le temps de recevoir complètement la réponse finale
+      Future.delayed(const Duration(seconds: 2), () async {
+        try {
+          await server?.close(force: true);
+        } catch (_) {}
+      });
     }
   }
 
@@ -792,7 +817,8 @@ class AuthService {
     required String status, // 'success' | 'error' | 'processing'
     String? message,
   }) {
-    const logoUrl = 'https://boarzpbrrztqjfnuckxq.supabase.co/storage/v1/object/public/app-assets/logo.png';
+    const logoUrl =
+        'https://boarzpbrrztqjfnuckxq.supabase.co/storage/v1/object/public/app-assets/logo.png';
 
     final isSuccess = status == 'success';
     final isError = status == 'error';
@@ -823,48 +849,67 @@ class AuthService {
       padding: 0;
     }
     body {
-      background: radial-gradient(circle at 50% 20%, #151D30 0%, #0B0F19 80%);
+      background: radial-gradient(circle at 50% 15%, #111A2E 0%, #070A11 100%);
       color: #E2E8F0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 24px;
+      padding: 32px 20px;
     }
     .card {
-      background: rgba(17, 24, 39, 0.85);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 24px;
+      background: linear-gradient(160deg, rgba(19, 27, 46, 0.92) 0%, rgba(10, 14, 25, 0.96) 100%);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(56, 189, 248, 0.15);
+      border-radius: 36px;
       width: 100%;
-      max-width: 440px;
-      padding: 40px 32px;
+      max-width: 520px;
+      padding: 48px 36px;
       text-align: center;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.04);
-      animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 30px 70px -15px rgba(0, 0, 0, 0.8), 0 0 40px rgba(56, 189, 248, 0.08);
+      animation: fadeIn 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      top: -100px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 300px;
+      height: 200px;
+      background: radial-gradient(ellipse at center, rgba(56, 189, 248, 0.22) 0%, rgba(56, 189, 248, 0) 70%);
+      pointer-events: none;
     }
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(16px); }
-      to { opacity: 1; transform: translateY(0); }
+      from { opacity: 0; transform: translateY(20px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
     }
     .logo-container {
-      margin-bottom: 24px;
+      margin-bottom: 30px;
       display: inline-block;
       position: relative;
     }
+    /* Logo bien grand et glorieux (5x plus grand) */
     .logo-img {
-      width: 68px;
-      height: 68px;
-      border-radius: 18px;
+      width: 210px;
+      height: 210px;
+      max-width: 80vw;
+      border-radius: 34px;
       object-fit: cover;
-      box-shadow: 0 10px 25px rgba(56, 189, 248, 0.2);
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      filter: drop-shadow(0 15px 35px rgba(56, 189, 248, 0.35));
+      border: 2px solid rgba(255, 255, 255, 0.16);
+      transition: transform 0.3s ease;
+    }
+    .logo-img:hover {
+      transform: scale(1.03);
     }
     .icon-badge {
-      width: 52px;
-      height: 52px;
+      width: 60px;
+      height: 60px;
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -872,85 +917,94 @@ class AuthService {
       margin: 0 auto 20px auto;
     }
     .icon-badge.success {
-      background: rgba(16, 185, 129, 0.15);
-      border: 1px solid rgba(16, 185, 129, 0.3);
+      background: rgba(16, 185, 129, 0.18);
+      border: 1.5px solid rgba(16, 185, 129, 0.4);
       color: #10B981;
+      box-shadow: 0 0 25px rgba(16, 185, 129, 0.25);
     }
     .icon-badge.error {
-      background: rgba(244, 63, 94, 0.15);
-      border: 1px solid rgba(244, 63, 94, 0.3);
+      background: rgba(244, 63, 94, 0.18);
+      border: 1.5px solid rgba(244, 63, 94, 0.4);
       color: #F43F5E;
+      box-shadow: 0 0 25px rgba(244, 63, 94, 0.25);
     }
     .icon-badge.processing {
-      background: rgba(56, 189, 248, 0.15);
-      border: 1px solid rgba(56, 189, 248, 0.3);
+      background: rgba(56, 189, 248, 0.18);
+      border: 1.5px solid rgba(56, 189, 248, 0.4);
       color: #38BDF8;
+      box-shadow: 0 0 25px rgba(56, 189, 248, 0.25);
     }
     .icon-svg {
-      width: 26px;
-      height: 26px;
+      width: 30px;
+      height: 30px;
     }
     .spinner {
-      border: 3px solid rgba(56, 189, 248, 0.2);
+      border: 3.5px solid rgba(56, 189, 248, 0.2);
       border-top-color: #38BDF8;
       border-radius: 50%;
-      width: 26px;
-      height: 26px;
+      width: 30px;
+      height: 30px;
       animation: spin 0.8s linear infinite;
     }
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
     h1 {
-      font-size: 22px;
-      font-weight: 700;
+      font-size: 26px;
+      font-weight: 800;
       color: #F8FAFC;
-      letter-spacing: -0.02em;
-      margin-bottom: 12px;
+      letter-spacing: -0.03em;
+      margin-bottom: 14px;
+      background: linear-gradient(135deg, #FFFFFF 40%, #7DD3FC 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
     p {
       color: #94A3B8;
-      font-size: 14.5px;
-      line-height: 1.6;
-      margin-bottom: 28px;
+      font-size: 15.5px;
+      line-height: 1.65;
+      margin-bottom: 32px;
+      padding: 0 10px;
     }
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      gap: 10px;
       width: 100%;
-      padding: 13px 20px;
-      font-size: 14.5px;
-      font-weight: 600;
-      border-radius: 12px;
+      padding: 15px 24px;
+      font-size: 15.5px;
+      font-weight: 700;
+      border-radius: 16px;
       text-decoration: none;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
       border: none;
       outline: none;
     }
     .btn-primary {
-      background: #38BDF8;
-      color: #0B0F19;
-      box-shadow: 0 4px 14px rgba(56, 189, 248, 0.35);
+      background: linear-gradient(135deg, #38BDF8 0%, #0284C7 100%);
+      color: #040814;
+      box-shadow: 0 8px 24px -4px rgba(56, 189, 248, 0.5);
     }
     .btn-primary:hover {
-      background: #7DD3FC;
-      transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(56, 189, 248, 0.45);
+      background: linear-gradient(135deg, #7DD3FC 0%, #0369A1 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px -4px rgba(56, 189, 248, 0.65);
     }
     .btn-secondary {
-      background: rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.08);
       color: #CBD5E1;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.14);
     }
     .btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.14);
       color: #FFFFFF;
+      transform: translateY(-1px);
     }
     .subtext {
-      margin-top: 20px;
-      font-size: 12px;
+      margin-top: 22px;
+      font-size: 13px;
       color: #64748B;
       line-height: 1.4;
     }
@@ -965,12 +1019,12 @@ class AuthService {
     <div id="status-icon">
       ${isSuccess ? '''
       <div class="icon-badge success">
-        <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="20 6 9 17 4 12"></polyline>
         </svg>
       </div>''' : isError ? '''
       <div class="icon-badge error">
-        <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"></circle>
           <line x1="15" y1="9" x2="9" y2="15"></line>
           <line x1="9" y1="9" x2="15" y2="15"></line>
@@ -986,8 +1040,8 @@ class AuthService {
 
     <div id="action-area">
       ${isSuccess ? '''
-      <button class="btn btn-primary" onclick="window.close()">Retourner sur Ngenou</button>
-      <div class="subtext">Cette fenêtre peut être fermée en toute sécurité.</div>
+      <button class="btn btn-primary" onclick="window.close()">🚀 Revenir sur Ngenou</button>
+      <div class="subtext">Cette fenêtre va se fermer ou peut être fermée.</div>
       ''' : isError ? '''
       <button class="btn btn-secondary" onclick="window.close()">Fermer cette fenêtre</button>
       <div class="subtext">Retournez sur Ngenou pour réessayer la connexion.</div>
@@ -999,7 +1053,20 @@ class AuthService {
 
   <script>
     (function() {
-      // Si la page est en mode processing (analyse client des fragments hash)
+      var currentStatus = '$status';
+
+      // Si le serveur a DÉJÀ validé avec succès ou échec, ne rien envoyer de plus
+      if (currentStatus === 'success') {
+        setTimeout(function() {
+          try { window.close(); } catch(e) {}
+        }, 4000);
+        return;
+      }
+      if (currentStatus === 'error') {
+        return;
+      }
+
+      // Si et seulement si status === 'processing', lire le hash fragment et l'envoyer au serveur
       var hash = window.location.hash;
       var search = window.location.search;
 
@@ -1020,7 +1087,7 @@ class AuthService {
       parseQuery(search);
       parseQuery(hash);
 
-      // Si des tokens ou une erreur sont présents, transmettre au serveur local
+      // Si des tokens sont présents dans le fragment #, transmettre au serveur local
       if (params.access_token || params.refresh_token || params.code || params.error) {
         fetch('/token-exchange', {
           method: 'POST',
@@ -1041,15 +1108,17 @@ class AuthService {
       }
 
       function renderSuccess() {
-        document.getElementById('status-icon').innerHTML = '<div class="icon-badge success"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>';
+        document.getElementById('status-icon').innerHTML = '<div class="icon-badge success"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>';
         document.getElementById('title').textContent = 'Authentification réussie !';
         document.getElementById('desc').textContent = 'Votre compte Google a été connecté à Ngenou. Vous pouvez retourner dans votre application.';
-        document.getElementById('action-area').innerHTML = '<button class="btn btn-primary" onclick="window.close()">Retourner sur Ngenou</button><div class="subtext">Cette fenêtre peut être fermée.</div>';
-        setTimeout(function() { window.close(); }, 3500);
+        document.getElementById('action-area').innerHTML = '<button class="btn btn-primary" onclick="window.close()">🚀 Revenir sur Ngenou</button><div class="subtext">Cette fenêtre peut être fermée.</div>';
+        setTimeout(function() {
+          try { window.close(); } catch(e) {}
+        }, 3500);
       }
 
       function renderError(msg) {
-        document.getElementById('status-icon').innerHTML = '<div class="icon-badge error"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg></div>';
+        document.getElementById('status-icon').innerHTML = '<div class="icon-badge error"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg></div>';
         document.getElementById('title').textContent = 'Connexion interrompue';
         document.getElementById('desc').textContent = msg || 'L\\'authentification a échoué.';
         document.getElementById('action-area').innerHTML = '<button class="btn btn-secondary" onclick="window.close()">Fermer cette fenêtre</button><div class="subtext">Vous pouvez réessayer la connexion depuis Ngenou.</div>';
