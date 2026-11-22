@@ -17,6 +17,8 @@ param(
     [string]$Title,
     [string]$Notes,
     [string]$Bump,
+    [string]$ApkUrl,
+    [string]$WindowsUrl,
     [switch]$Force,
     [switch]$DryRun
 )
@@ -31,6 +33,12 @@ if ($Notes) {
 }
 if ($Bump) {
     $argsList += "--bump=$Bump"
+}
+if ($ApkUrl) {
+    $argsList += "--apk-url=$ApkUrl"
+}
+if ($WindowsUrl) {
+    $argsList += "--windows-url=$WindowsUrl"
 }
 if ($Force) {
     $argsList += "--force"

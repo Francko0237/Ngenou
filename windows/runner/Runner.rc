@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "novamind" "\0"
+            VALUE "CompanyName", "com.ngenou" "\0"
+            VALUE "FileDescription", "Ngenou" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "novamind" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "novamind.exe" "\0"
-            VALUE "ProductName", "novamind" "\0"
+            VALUE "InternalName", "ngenou" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Ngenou. All rights reserved." "\0"
+            VALUE "OriginalFilename", "ngenou.exe" "\0"
+            VALUE "ProductName", "Ngenou" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

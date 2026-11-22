@@ -69,6 +69,7 @@ class AppUpdateService {
       final notes = response['notes'] as String? ?? '';
       final apkUrl = response['apk_url'] as String? ??
           'https://github.com/Francko0237/Ngenou_Web/releases/latest';
+      final windowsUrl = response['windows_url'] as String? ?? '';
       final forceUpdate = response['force_update'] as bool? ?? false;
 
       final rawFeatures = response['release_features'] as List? ?? [];
@@ -93,6 +94,7 @@ class AppUpdateService {
             title: title,
             notes: notes,
             apkUrl: apkUrl,
+            windowsUrl: windowsUrl,
             forceUpdate: forceUpdate,
             features: features,
           ),

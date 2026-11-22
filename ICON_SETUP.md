@@ -1,4 +1,4 @@
-# Configuration des Icônes et Splash Screen NovaMind
+# Configuration des Icônes et Splash Screen Ngenou
 
 ## Splash Screen Flutter
 
@@ -18,7 +18,7 @@ Fichier: `lib/features/splash/splash_screen.dart`
 flutter run lib/tools/generate_app_icon.dart
 ```
 
-Cela créera `assets/images/logo.png` avec une icône stylée NovaMind.
+Cela créera `assets/images/logo.png` avec une icône stylée Ngenou.
 
 ### Étape 2: Générer les icônes pour toutes les plateformes
 ```bash
@@ -42,7 +42,7 @@ Les couleurs principales sont définies dans :
 - `lib/features/splash/splash_screen.dart` (Flutter splash)
 - `lib/tools/generate_app_icon.dart` (Icône générée)
 
-Couleurs NovaMind:
+Couleurs Ngenou:
 - Primary: #667eea (Violet bleu)
 - Secondary: #764ba2 (Violet)
 - Accent: #f093fb (Rose)

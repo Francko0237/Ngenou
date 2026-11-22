@@ -1,11 +1,11 @@
-# NovaMind - Project Info & Architecture
+# Ngenou - Project Info & Architecture
 
-Ce document centralise toutes les informations essentielles sur le projet **NovaMind**, son architecture, ses fonctionnalités et l'historique des modifications. Il est conçu pour aider tout développeur (ou IA) à comprendre rapidement le fonctionnement de l'application.
+Ce document centralise toutes les informations essentielles sur le projet **Ngenou**, son architecture, ses fonctionnalités et l'historique des modifications. Il est conçu pour aider tout développeur (ou IA) à comprendre rapidement le fonctionnement de l'application.
 
 ---
 
 ## 🚀 Présentation du Projet
-**NovaMind** est une application d'apprentissage interactive développée en **Flutter**. L'application propose des parcours pédagogiques structurés en "Matières" (ex: Algorithmique, Micro-ordinateur). L'utilisateur lit des leçons, fait des exercices (QCM, QRO, Éditeur de code) et peut suivre sa progression globale.
+**Ngenou** est une application d'apprentissage interactive développée en **Flutter**. L'application propose des parcours pédagogiques structurés en "Matières" (ex: Algorithmique, Micro-ordinateur). L'utilisateur lit des leçons, fait des exercices (QCM, QRO, Éditeur de code) et peut suivre sa progression globale.
 
 ### Fonctionnalités Clés
 - **Apprentissage Multi-Matières** : L'application charge dynamiquement les leçons et exercices depuis un registre unifié.
@@ -58,7 +58,7 @@ Veuillez ajouter ci-dessous chaque modification architecturale ou ajout de fonct
 - **UI** : Le bouton flottant "Terminal" a été rendu exclusif à la matière "Algorithmique". Correction de l'outil `AlgoSyntaxController` pour le rendu syntaxique de base.
 
 ### [Avant Mai 2026] - Fondation du Projet
-- Création de l'application NovaMind.
+- Création de l'application Ngenou.
 - Implémentation du moteur d'exécution Algo.
 - Interface des cours, des leçons et des exercices d'algorithmique.
 - Thème sombre et clair.

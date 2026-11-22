@@ -94,11 +94,17 @@ void main(List<String> args) async {
   final notes = argMap['notes'] ??
       'Cette mise à jour apporte des améliorations de performance, des corrections de bugs et de nouvelles fonctionnalités.';
   final apkFileName = 'ngenou-v$versionName.apk';
-  final apkUrl = 'https://github.com/Francko0237/Ngenou_Web/releases/download/v$versionName/$apkFileName';
+  final apkUrl = argMap['apk-url'] ??
+      'https://github.com/Francko0237/Ngenou_Web/releases/download/v$versionName/$apkFileName';
+
+  final windowsFileName = 'ngenou-v$versionName-windows.zip';
+  final windowsUrl = argMap['windows-url'] ??
+      'https://github.com/Francko0237/Ngenou_Web/releases/download/v$versionName/$windowsFileName';
 
   print('📝 Titre : $title');
   print('📄 Notes : $notes');
-  print('🔗 URL APK GitHub : $apkUrl');
+  print('🔗 URL APK Android : $apkUrl');
+  print('🔗 URL Windows PC  : $windowsUrl');
   print('⚠️ Mise à jour obligatoire : $isForce');
 
   // 3. Analyse des captures d'écran (Mise à jour visuelle)
@@ -198,6 +204,7 @@ void main(List<String> args) async {
       'title': title,
       'notes': notes,
       'apk_url': apkUrl,
+      'windows_url': windowsUrl,
       'force_update': isForce,
       'is_published': true,
       'published_at': DateTime.now().toUtc().toIso8601String(),
@@ -263,13 +270,20 @@ void main(List<String> args) async {
   }
 
   print('\n🎉 PUBLICATION SUPABASE RÉUSSIE !');
-  print('   Le site web Ngenou_Web et l\'application mobile Ngenou sont synchronisés en direct.');
-  print('\n📦 ÉTAPES GITHUB (À faire quand vous êtes prêt) :');
-  print('   1. Construire l\'APK :');
+  print('   Le site web Ngenou_Web et les clients Ngenou (Mobile & PC Windows) sont synchronisés en direct.');
+  print('\n📦 ÉTAPES GITHUB RELEASES (Francko0237/Ngenou_Web) :');
+  print('   -------------------------------------------------');
+  print('   📱 Pour Android :');
   print('      flutter build apk --release');
-  print('   2. Renommer et uploader sur GitHub Releases (repo Ngenou_Web) :');
-  print('      gh release create v$versionName build/app/outputs/flutter-apk/app-release.apk#$apkFileName --repo Francko0237/Ngenou_Web --title "$title" --notes "$notes"');
-  print('   3. (Si des captures d\'écran ont été ajoutées) :');
-  print('      git add assets/screenshots && git commit -m "feat: screenshots v$versionName" && git push');
+  print('      gh release upload v$versionName build/app/outputs/flutter-apk/app-release.apk#$apkFileName --repo Francko0237/Ngenou_Web');
+  print('');
+  print('   💻 Pour Windows PC :');
+  print('      flutter build windows --release');
+  print('      Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath build/windows/x64/runner/$windowsFileName');
+  print('      gh release upload v$versionName build/windows/x64/runner/$windowsFileName --repo Francko0237/Ngenou_Web');
+  print('      (ou téléversez manuellement votre exécutable/setup sur GitHub Releases sous le tag v$versionName)');
+  print('');
+  print('   🖼️ Pour les captures d\'écran :');
+  print('      git add assets/screenshots && git commit -m "feat: captures v$versionName" && git push');
   print('====================================================\n');
 }

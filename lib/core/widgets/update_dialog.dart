@@ -1,13 +1,15 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// Boîte de dialogue de mise à jour pour l'application Ngenou
+/// Boîte de dialogue de mise à jour pour l'application Ngenou (Mobile & PC Windows)
 class UpdateDialog extends StatelessWidget {
   final String versionName;
   final int versionCode;
   final String title;
   final String notes;
   final String apkUrl;
+  final String windowsUrl;
   final bool forceUpdate;
   final List<Map<String, String>> features;
 
@@ -18,14 +20,26 @@ class UpdateDialog extends StatelessWidget {
     required this.title,
     required this.notes,
     required this.apkUrl,
+    this.windowsUrl = '',
     required this.forceUpdate,
     this.features = const [],
   });
 
   Future<void> _handleDownload(BuildContext context) async {
-    final uri = Uri.parse(
-      apkUrl.isNotEmpty ? apkUrl : 'https://github.com/Francko0237/Ngenou_Web/releases/latest',
-    );
+    String targetUrl;
+    if (Platform.isWindows) {
+      targetUrl = windowsUrl.isNotEmpty
+          ? windowsUrl
+          : (apkUrl.isNotEmpty
+              ? apkUrl.replaceAll('.apk', '-windows.zip')
+              : 'https://github.com/Francko0237/Ngenou_Web/releases/latest');
+    } else {
+      targetUrl = apkUrl.isNotEmpty
+          ? apkUrl
+          : 'https://github.com/Francko0237/Ngenou_Web/releases/latest';
+    }
+
+    final uri = Uri.parse(targetUrl);
     try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (e) {
@@ -205,10 +219,13 @@ class UpdateDialog extends StatelessWidget {
               ),
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
             ),
-            icon: const Icon(Icons.download_rounded, size: 18),
-            label: const Text(
-              'Télécharger',
-              style: TextStyle(fontWeight: FontWeight.w700),
+            icon: Icon(
+              Platform.isWindows ? Icons.desktop_windows_rounded : Icons.download_rounded,
+              size: 18,
+            ),
+            label: Text(
+              Platform.isWindows ? 'Télécharger pour Windows' : 'Télécharger l\'APK',
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
         ],
