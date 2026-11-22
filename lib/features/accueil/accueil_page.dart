@@ -11,6 +11,7 @@ import '../../core/services/auth_service.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/services/teacher_courses_service.dart';
 import '../../core/services/tutorial_service.dart';
+import '../../core/services/app_update_service.dart';
 import '../../core/widgets/tutorial_overlay.dart';
 import 'tabs/cours_tab.dart';
 import 'tabs/quotidien_tab.dart';
@@ -67,6 +68,9 @@ class _AccueilPageState extends State<AccueilPage> {
       _refreshAllDataQuietly();
       // Démarrer le bon tuto selon l'onglet actif
       await _checkCurrentTabTutorial();
+      if (mounted) {
+        AppUpdateService.checkOnStartup(context);
+      }
     });
   }
 

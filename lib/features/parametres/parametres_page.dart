@@ -19,6 +19,7 @@ import '../auth/login_page.dart';
 import '../splash/onboarding_page.dart';
 import 'edit_profile_page.dart';
 import 'privacy_policy_page.dart';
+import '../../core/services/app_update_service.dart';
 import '../../core/services/tutorial_service.dart';
 import '../../core/widgets/tutorial_overlay.dart';
 
@@ -1183,8 +1184,22 @@ class _ParametresPageState extends State<ParametresPage>
                       iconColor: const Color(0xFF4A90D9),
                       title: 'Ngenou',
                       subtitle:
-                          'Version 1.1.1 • Par Yamga Mokube Franck Daniel',
+                          'Version ${AppUpdateService.currentVersionName} • Par Yamga Mokube Franck Daniel',
                       isDark: isDark,
+                    ),
+                    Divider(height: 1, color: dividerColor),
+                    _settingsTile(
+                      icon: Icons.system_update_rounded,
+                      iconColor: const Color(0xFF38BDF8),
+                      title: 'Mise à jour de l\'application',
+                      subtitle: 'Vérifier les nouvelles versions',
+                      trailing: Icon(
+                        Icons.chevron_right_rounded,
+                        color: textSecondary,
+                        size: 20,
+                      ),
+                      isDark: isDark,
+                      onTap: () => AppUpdateService.checkForUpdate(context, isManual: true),
                     ),
                     Divider(height: 1, color: dividerColor),
                     _settingsTile(
