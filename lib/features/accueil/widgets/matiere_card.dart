@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../core/utils/course_context_mapper.dart';
 import '../../course_builder/manage_custom_course_page.dart';

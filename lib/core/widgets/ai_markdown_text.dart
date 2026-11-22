@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Rendu Markdown léger pour les messages IA.
 /// Gère : titres (#, ##, ###), gras (**), italique (*),
@@ -351,7 +351,7 @@ class AiMarkdownText extends StatelessWidget {
           decoration: BoxDecoration(
             color: isEven
                 ? Colors.transparent
-                : (isDark ? Colors.white.withOpacity(0.02) : Colors.grey[50]!),
+                : (isDark ? Colors.white.withValues(alpha: 0.02) : Colors.grey[50]!),
           ),
           children: paddedCells.asMap().entries.map((entry) {
             final index = entry.key;

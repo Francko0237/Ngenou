@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import '../../algo_interpreter/syntax_highlighter.dart';
 
@@ -252,7 +252,7 @@ class _AlgoCodeEditorState extends State<AlgoCodeEditor> {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           border: Border(
-            right: BorderSide(color: Colors.grey.withOpacity(0.3)),
+            right: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
           ),
         ),
         child: Text(
@@ -283,7 +283,7 @@ class _AlgoCodeEditorState extends State<AlgoCodeEditor> {
                 topLeft: Radius.circular(8),
                 topRight: Radius.circular(8),
               ),
-              border: Border.all(color: Colors.grey.withOpacity(0.3)),
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -363,8 +363,8 @@ class _AlgoCodeEditorState extends State<AlgoCodeEditor> {
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF2A2A2A) : Colors.grey[300],
             border: Border(
-              left: BorderSide(color: Colors.grey.withOpacity(0.3)),
-              right: BorderSide(color: Colors.grey.withOpacity(0.3)),
+              left: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
+              right: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
             ),
           ),
           child: ListView.builder(
@@ -401,12 +401,12 @@ class _AlgoCodeEditorState extends State<AlgoCodeEditor> {
                     ),
                   ),
                   backgroundColor: isFirstMatch
-                      ? Theme.of(context).primaryColor.withOpacity(0.4)
-                      : Theme.of(context).primaryColor.withOpacity(0.1),
+                      ? Theme.of(context).primaryColor.withValues(alpha: 0.4)
+                      : Theme.of(context).primaryColor.withValues(alpha: 0.1),
                   side: BorderSide(
                     color: Theme.of(
                       context,
-                    ).primaryColor.withOpacity(isFirstMatch ? 0.8 : 0.3),
+                    ).primaryColor.withValues(alpha: isFirstMatch ? 0.8 : 0.3),
                   ),
                   onPressed: () => _insertSuggestion(_activeSuggestions[index]),
                 ),
@@ -423,7 +423,7 @@ class _AlgoCodeEditorState extends State<AlgoCodeEditor> {
               bottomLeft: Radius.circular(8),
               bottomRight: Radius.circular(8),
             ),
-            border: Border.all(color: Colors.grey.withOpacity(0.3)),
+            border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
           ),
           child: ListView(
             scrollDirection: Axis.horizontal,

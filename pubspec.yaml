@@ -69,6 +69,7 @@ dependencies:
   url_launcher: ^6.3.2
 
 
+  material_ui: any
 dev_dependencies:
   flutter_test:
     sdk: flutter

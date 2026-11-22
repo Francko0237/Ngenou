@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../core/models/defi.dart';
 import '../../algo_interpreter/syntax_highlighter.dart';
 import '../../algo_interpreter/interpreter.dart';
@@ -246,10 +246,10 @@ class _DefiSolvePageState extends State<DefiSolvePage> {
                 decoration: BoxDecoration(
                   color: Theme.of(
                     context,
-                  ).primaryColor.withOpacity(isDark ? 0.2 : 0.1),
+                  ).primaryColor.withValues(alpha: isDark ? 0.2 : 0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: Theme.of(context).primaryColor.withOpacity(0.5),
+                    color: Theme.of(context).primaryColor.withValues(alpha: 0.5),
                   ),
                 ),
                 child: Text(
@@ -330,8 +330,8 @@ class _DefiSolvePageState extends State<DefiSolvePage> {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: isDark
-                          ? Colors.grey.withOpacity(0.2)
-                          : Colors.grey.withOpacity(0.3),
+                          ? Colors.grey.withValues(alpha: 0.2)
+                          : Colors.grey.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Column(

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../../core/models/study_task.dart';
 import '../../../core/providers/schedule_provider.dart';
 import 'package:provider/provider.dart';

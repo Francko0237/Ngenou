@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 class PremiumLoader extends StatefulWidget {
   final String? customText;
@@ -82,7 +82,7 @@ class _PremiumLoaderState extends State<PremiumLoader>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: SweepGradient(
-                      colors: [primaryColor.withOpacity(0.1), primaryColor],
+                      colors: [primaryColor.withValues(alpha: 0.1), primaryColor],
                     ),
                   ),
                   child: Padding(
@@ -109,7 +109,7 @@ class _PremiumLoaderState extends State<PremiumLoader>
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: primaryColor.withOpacity(0.1),
+                    color: primaryColor.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -150,7 +150,7 @@ class _PremiumLoaderState extends State<PremiumLoader>
               key: ValueKey<int>(_textIndex),
               style: TextStyle(
                 fontSize: 15,
-                color: primaryColor.withOpacity(0.8),
+                color: primaryColor.withValues(alpha: 0.8),
                 fontStyle: FontStyle.italic,
               ),
               textAlign: TextAlign.center,

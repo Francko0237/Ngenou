@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../../core/models/projet.dart';
 
 /// Carte visuelle d'un projet avec barre de progression sur 100.

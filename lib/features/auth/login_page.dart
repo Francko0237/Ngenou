@@ -1,5 +1,5 @@
 import 'dart:ui';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -700,7 +700,7 @@ class _LoginPageState extends State<LoginPage> {
             isDark: isDark,
             primary: primary,
             keyboardType: TextInputType.phone,
-            inputFormatters: [_PhoneDigitsFormatter(maxDigits: 9)],
+            inputFormatters: [const _PhoneDigitsFormatter(maxDigits: 9)],
             validator: (v) {
               if (v == null || v.trim().isEmpty) return "Champ requis.";
               final digits = v.trim().replaceAll(RegExp(r'\D'), '');

@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'widgets/course_generation_waiting_view.dart';
 import '../../core/models/custom_course_package.dart';
 import '../../core/models/deep_seek_model.dart';
@@ -225,8 +225,9 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage>
       type: FileType.custom,
       allowedExtensions: ['pdf'],
     );
-    if (r?.files.single.path != null)
+    if (r?.files.single.path != null) {
       await _ocrFile(File(r!.files.single.path!), isPdf: true);
+    }
   }
 
   Future<void> _ocrFile(File f, {required bool isPdf}) async {
@@ -389,8 +390,9 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage>
                           onPickPdf: _pickPdf,
                           onTextChanged: (v) {
                             final has = v.trim().isNotEmpty;
-                            if (has != _hasDocuments)
+                            if (has != _hasDocuments) {
                               setState(() => _hasDocuments = has);
+                            }
                           },
                         ),
                         _StepStructure(
@@ -784,7 +786,7 @@ class _CourseBuilderWizardPageState extends State<CourseBuilderWizardPage>
     if (!_isGenerating) return;
     _activeGenerationId++;
     // Revenir à l'étape de vérification (Structure = étape avant Générer)
-    final targetStep = _totalSteps - 2;
+    const targetStep = _totalSteps - 2;
     setState(() {
       _isGenerating = false;
       _step = targetStep;
@@ -1824,12 +1826,13 @@ class _CoverPicker extends StatelessWidget {
         return const Icon(Icons.broken_image);
       }
     }
-    if (url.startsWith('http'))
+    if (url.startsWith('http')) {
       return Image.network(
         url,
         fit: BoxFit.cover,
         errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
       );
+    }
     if (url.startsWith('assets/')) return Image.asset(url, fit: BoxFit.cover);
     return Image.file(
       File(url),
@@ -2742,7 +2745,7 @@ class _StepGeneration extends StatelessWidget {
       );
     }
 
-    String _objLabel() => switch (objectif) {
+    String objLabel() => switch (objectif) {
       'revision' => 'Révision',
       'culture' => 'Culture',
       _ => 'Compréhension',
@@ -2785,7 +2788,7 @@ class _StepGeneration extends StatelessWidget {
               _RecapRow(
                 icon: Icons.flag_outlined,
                 label: 'Objectif',
-                value: _objLabel(),
+                value: objLabel(),
                 primary: primary,
                 isDark: isDark,
               ),

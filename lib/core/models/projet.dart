@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../utils/duration_utils.dart';
 
 /// Modèle représentant un projet d'étude regroupant plusieurs cours/matières.
@@ -177,7 +177,7 @@ class Projet {
   }
 
   static String colorToHex(Color c) =>
-      '#${c.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
+      '#${c.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
 
   // ─── Palettes de design ──────────────────────────────────────────────────────
 

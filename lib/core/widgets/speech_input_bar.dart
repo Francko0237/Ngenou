@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 /// Barre de saisie avec Speech-to-Text style Gemini.

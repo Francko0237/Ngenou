@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/theme_provider.dart';
 import '../../core/theme/app_colors.dart';
@@ -194,9 +194,9 @@ class _SplashOverlayState extends State<SplashOverlay>
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
                                   child: LinearProgressIndicator(
-                                    backgroundColor: accent.withOpacity(0.15),
+                                    backgroundColor: accent.withValues(alpha: 0.15),
                                     valueColor: AlwaysStoppedAnimation<Color>(
-                                      accent.withOpacity(0.75),
+                                      accent.withValues(alpha: 0.75),
                                     ),
                                     minHeight: 3,
                                   ),

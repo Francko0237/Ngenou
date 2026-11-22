@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
@@ -825,7 +825,7 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.15),
+                                color: Colors.black.withValues(alpha: 0.15),
                                 blurRadius: 8,
                                 offset: const Offset(0, 2),
                               ),
@@ -1027,7 +1027,7 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: lessonColor.withOpacity(0.08),
+                      color: lessonColor.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(lessonIcon, color: lessonColor, size: 22),

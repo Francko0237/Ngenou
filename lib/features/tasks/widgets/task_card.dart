@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../../core/models/study_task.dart';
 import '../../../core/models/task_priority.dart';
 import '../task_format.dart';

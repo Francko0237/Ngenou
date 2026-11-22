@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../../core/models/exercice.dart';
 
 class QroWidget extends StatefulWidget {
@@ -90,8 +90,8 @@ class _QroWidgetState extends State<QroWidget> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: _isCorrect
-                  ? Colors.green.withOpacity(isDark ? 0.15 : 0.08)
-                  : Colors.red.withOpacity(isDark ? 0.15 : 0.08),
+                  ? Colors.green.withValues(alpha: isDark ? 0.15 : 0.08)
+                  : Colors.red.withValues(alpha: isDark ? 0.15 : 0.08),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: _isCorrect ? Colors.green : Colors.redAccent,

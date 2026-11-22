@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../core/services/auth_service.dart';
 
 class EditProfilePage extends StatefulWidget {

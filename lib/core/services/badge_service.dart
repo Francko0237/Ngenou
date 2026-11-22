@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../database/database_helper.dart';
 import '../models/badge.dart';
 import '../widgets/badge_unlocked_dialog.dart';

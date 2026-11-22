@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../services/tts_service.dart';
 
 /// Bouton audio discret pour lire/arrêter la lecture TTS d'un message IA.

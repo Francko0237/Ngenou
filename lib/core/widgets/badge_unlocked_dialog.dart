@@ -1,5 +1,5 @@
 import 'dart:ui';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:confetti/confetti.dart';
 import '../models/badge.dart';
 
@@ -62,7 +62,7 @@ class _BadgeUnlockedDialogState extends State<BadgeUnlockedDialog>
         // Glassmorphic background blur
         BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-          child: Container(color: Colors.black.withOpacity(0.65)),
+          child: Container(color: Colors.black.withValues(alpha: 0.65)),
         ),
 
         // Confetti Widget
@@ -102,13 +102,13 @@ class _BadgeUnlockedDialogState extends State<BadgeUnlockedDialog>
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: theme.primaryColor.withOpacity(0.3),
+                    color: theme.primaryColor.withValues(alpha: 0.3),
                     blurRadius: 30,
                     spreadRadius: 2,
                   ),
                 ],
                 border: Border.all(
-                  color: theme.primaryColor.withOpacity(0.2),
+                  color: theme.primaryColor.withValues(alpha: 0.2),
                   width: 1.5,
                 ),
               ),
@@ -120,11 +120,11 @@ class _BadgeUnlockedDialogState extends State<BadgeUnlockedDialog>
                     width: 100,
                     height: 100,
                     decoration: BoxDecoration(
-                      color: theme.primaryColor.withOpacity(0.12),
+                      color: theme.primaryColor.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: theme.primaryColor.withOpacity(0.2),
+                          color: theme.primaryColor.withValues(alpha: 0.2),
                           blurRadius: 20,
                           spreadRadius: 2,
                         ),
@@ -167,10 +167,10 @@ class _BadgeUnlockedDialogState extends State<BadgeUnlockedDialog>
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: theme.primaryColor.withOpacity(0.08),
+                      color: theme.primaryColor.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: theme.primaryColor.withOpacity(0.15),
+                        color: theme.primaryColor.withValues(alpha: 0.15),
                       ),
                     ),
                     child: Text(

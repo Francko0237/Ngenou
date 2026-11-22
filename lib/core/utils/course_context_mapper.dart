@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Utilitaire pour mapper les contextes de cours vers des icônes et couleurs adaptées
 class CourseContextMapper {

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../../core/models/daily_challenge.dart';
 
 /// Widget interactif permettant à l'utilisateur de répondre à un défi QCM.
@@ -75,7 +75,7 @@ class _QcmSolveWidgetState extends State<QcmSolveWidget>
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: primary.withOpacity(0.15),
+            color: primary.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
@@ -113,18 +113,18 @@ class _QcmSolveWidgetState extends State<QcmSolveWidget>
 
           if (_revealed) {
             if (isCorrect) {
-              bgColor = Colors.green.withOpacity(0.15);
+              bgColor = Colors.green.withValues(alpha: 0.15);
               borderColor = Colors.green;
               labelColor = Colors.green;
               textColor = isDark ? Colors.green[200]! : Colors.green[800]!;
             } else if (isSelected && !isCorrect) {
-              bgColor = Colors.red.withOpacity(0.12);
+              bgColor = Colors.red.withValues(alpha: 0.12);
               borderColor = Colors.red;
               labelColor = Colors.red;
               textColor = isDark ? Colors.red[200]! : Colors.red[800]!;
             }
           } else if (isSelected) {
-            bgColor = primary.withOpacity(0.1);
+            bgColor = primary.withValues(alpha: 0.1);
             borderColor = primary;
           }
 
@@ -146,7 +146,7 @@ class _QcmSolveWidgetState extends State<QcmSolveWidget>
                     height: 30,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: labelColor.withOpacity(0.15),
+                      color: labelColor.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
                     child: Text(
@@ -190,7 +190,7 @@ class _QcmSolveWidgetState extends State<QcmSolveWidget>
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: isDark
-                        ? Colors.blueGrey[900]!.withOpacity(0.6)
+                        ? Colors.blueGrey[900]!.withValues(alpha: 0.6)
                         : Colors.blue[50],
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(

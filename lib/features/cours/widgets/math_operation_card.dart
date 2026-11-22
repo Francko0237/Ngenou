@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Détecte si une ligne représente une opération mathématique ou une équation à mettre en valeur
 bool isMathOperationLine(String line) {

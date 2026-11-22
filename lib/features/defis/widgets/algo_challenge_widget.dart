@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../../core/models/daily_challenge.dart';
 import '../../../core/widgets/algo_code_editor.dart';
 import '../../../algo_interpreter/syntax_highlighter.dart';

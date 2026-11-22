@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
 import '../../../core/services/ai_tutor_history_service.dart';
@@ -355,7 +355,7 @@ class _AiTutorChatSheetState extends State<AiTutorChatSheet> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
@@ -389,12 +389,12 @@ class _AiTutorChatSheetState extends State<AiTutorChatSheet> {
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                   colors: [
-                                    primary.withOpacity(0.35),
-                                    primary.withOpacity(0.1),
+                                    primary.withValues(alpha: 0.35),
+                                    primary.withValues(alpha: 0.1),
                                   ],
                                 ),
                                 border: Border.all(
-                                  color: primary.withOpacity(0.4),
+                                  color: primary.withValues(alpha: 0.4),
                                   width: 1.5,
                                 ),
                               ),
@@ -545,7 +545,7 @@ class _AiTutorChatSheetState extends State<AiTutorChatSheet> {
                                     ),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withOpacity(0.15),
+                                        color: Colors.black.withValues(alpha: 0.15),
                                         blurRadius: 8,
                                         offset: const Offset(0, 2),
                                       ),
@@ -723,8 +723,8 @@ class _AiTutorChatSheetState extends State<AiTutorChatSheet> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    primary.withOpacity(0.25),
-                    primary.withOpacity(0.05),
+                    primary.withValues(alpha: 0.25),
+                    primary.withValues(alpha: 0.05),
                     Colors.transparent,
                   ],
                   stops: const [0.5, 0.85, 1.0],
@@ -735,12 +735,12 @@ class _AiTutorChatSheetState extends State<AiTutorChatSheet> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: primary.withOpacity(0.4),
+                    color: primary.withValues(alpha: 0.4),
                     width: 2,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: primary.withOpacity(0.2),
+                      color: primary.withValues(alpha: 0.2),
                       blurRadius: 16,
                       offset: const Offset(0, 4),
                     ),
@@ -856,7 +856,7 @@ class _AiTutorChatSheetState extends State<AiTutorChatSheet> {
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
+                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
                 blurRadius: 4,
                 offset: const Offset(0, 1),
               ),
@@ -927,12 +927,12 @@ class _AiTutorChatSheetState extends State<AiTutorChatSheet> {
                       bottomRight: Radius.circular(4),
                     ),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.15),
+                      color: Colors.white.withValues(alpha: 0.15),
                       width: 1,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: primary.withOpacity(0.25),
+                        color: primary.withValues(alpha: 0.25),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -961,14 +961,14 @@ class _AiTutorChatSheetState extends State<AiTutorChatSheet> {
                             style: TextStyle(
                               fontSize: 10.5,
                               fontWeight: FontWeight.w500,
-                              color: Colors.white.withOpacity(0.65),
+                              color: Colors.white.withValues(alpha: 0.65),
                             ),
                           ),
                           const SizedBox(width: 4),
                           Icon(
                             Icons.done_all_rounded,
                             size: 13,
-                            color: Colors.white.withOpacity(0.7),
+                            color: Colors.white.withValues(alpha: 0.7),
                           ),
                         ],
                       ),
@@ -1009,7 +1009,7 @@ class _AiTutorChatSheetState extends State<AiTutorChatSheet> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
+                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -1028,7 +1028,7 @@ class _AiTutorChatSheetState extends State<AiTutorChatSheet> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: primary.withOpacity(0.5),
+                            color: primary.withValues(alpha: 0.5),
                             width: 1.2,
                           ),
                         ),
@@ -1054,7 +1054,7 @@ class _AiTutorChatSheetState extends State<AiTutorChatSheet> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                         decoration: BoxDecoration(
-                          color: primary.withOpacity(0.12),
+                          color: primary.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -1251,7 +1251,7 @@ class _AiTutorChatSheetState extends State<AiTutorChatSheet> {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -1267,7 +1267,7 @@ class _AiTutorChatSheetState extends State<AiTutorChatSheet> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: primary.withOpacity(0.5),
+                      color: primary.withValues(alpha: 0.5),
                       width: 1.2,
                     ),
                   ),
@@ -1362,7 +1362,7 @@ class _SinusoidalDotIndicatorState extends State<SinusoidalDotIndicator>
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: color!.withOpacity(0.3),
+                          color: color!.withValues(alpha: 0.3),
                           blurRadius: 3,
                           spreadRadius: 0.5,
                         ),

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../core/models/matiere.dart';
 import '../../core/models/notion.dart';
 import '../../core/models/lecon.dart';

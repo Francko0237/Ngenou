@@ -124,8 +124,9 @@ class SyncService extends ChangeNotifier {
   /// Parse un timestamp ISO-8601 en ignorant les problèmes de timezone.
   /// Retourne toujours un DateTime UTC comparable.
   DateTime _parseTs(String? raw) {
-    if (raw == null || raw.isEmpty)
+    if (raw == null || raw.isEmpty) {
       return DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+    }
     final dt = DateTime.tryParse(raw);
     if (dt == null) return DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
     // S'assurer qu'on compare toujours en UTC

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../../algo_interpreter/syntax_highlighter.dart';
 import '../../../core/utils/lesson_block_mapper.dart';
 import '../../../core/utils/lesson_content_parser.dart';

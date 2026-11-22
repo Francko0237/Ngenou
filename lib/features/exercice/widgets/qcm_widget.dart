@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../../core/models/exercice.dart';
 
 class QcmWidget extends StatefulWidget {
@@ -67,20 +67,20 @@ class _QcmWidgetState extends State<QcmWidget> {
 
           if (_hasValidated) {
             if (isCorrect) {
-              cardBgColor = Colors.green.withOpacity(isDark ? 0.15 : 0.08);
+              cardBgColor = Colors.green.withValues(alpha: isDark ? 0.15 : 0.08);
               borderColor = Colors.green;
               prefixBgColor = Colors.green;
               prefixTextColor = Colors.white;
               suffixIcon = const Icon(Icons.check_circle_rounded, color: Colors.green, size: 22);
             } else if (isSelected && !isCorrect) {
-              cardBgColor = Colors.red.withOpacity(isDark ? 0.15 : 0.08);
+              cardBgColor = Colors.red.withValues(alpha: isDark ? 0.15 : 0.08);
               borderColor = Colors.redAccent;
               prefixBgColor = Colors.redAccent;
               prefixTextColor = Colors.white;
               suffixIcon = const Icon(Icons.cancel_rounded, color: Colors.redAccent, size: 22);
             }
           } else if (isSelected) {
-            cardBgColor = Theme.of(context).primaryColor.withOpacity(isDark ? 0.15 : 0.08);
+            cardBgColor = Theme.of(context).primaryColor.withValues(alpha: isDark ? 0.15 : 0.08);
             borderColor = Theme.of(context).primaryColor;
             prefixBgColor = Theme.of(context).primaryColor;
             prefixTextColor = Colors.white;
@@ -99,7 +99,7 @@ class _QcmWidgetState extends State<QcmWidget> {
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
-                  color: cardBgColor.value == 0 ? (isDark ? const Color(0xFF1E1E1E) : Colors.white) : cardBgColor,
+                  color: cardBgColor.toARGB32() == 0 ? (isDark ? const Color(0xFF1E1E1E) : Colors.white) : cardBgColor,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: borderColor,
@@ -108,7 +108,7 @@ class _QcmWidgetState extends State<QcmWidget> {
                   boxShadow: [
                     if (isSelected && !_hasValidated)
                       BoxShadow(
-                        color: Theme.of(context).primaryColor.withOpacity(0.1),
+                        color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
@@ -159,10 +159,10 @@ class _QcmWidgetState extends State<QcmWidget> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Theme.of(context).primaryColor.withOpacity(isDark ? 0.08 : 0.05),
+              color: Theme.of(context).primaryColor.withValues(alpha: isDark ? 0.08 : 0.05),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: Theme.of(context).primaryColor.withOpacity(0.2),
+                color: Theme.of(context).primaryColor.withValues(alpha: 0.2),
                 width: 1,
               ),
             ),

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import '../../algo_interpreter/syntax_highlighter.dart';
 import '../../algo_interpreter/interpreter.dart';
@@ -704,8 +704,8 @@ Fin''',
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: isDark
-                          ? Colors.grey.withOpacity(0.2)
-                          : Colors.grey.withOpacity(0.3),
+                          ? Colors.grey.withValues(alpha: 0.2)
+                          : Colors.grey.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Column(
