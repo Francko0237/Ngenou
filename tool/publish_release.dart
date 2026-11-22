@@ -97,15 +97,25 @@ void main(List<String> args) async {
   final apkUrl = argMap['apk-url'] ??
       'https://github.com/Francko0237/Ngenou_Web/releases/download/v$versionName/$apkFileName';
 
+  final apkArm64FileName = 'ngenou-v$versionName-arm64.apk';
+  final apkArm64Url = argMap['apk-arm64-url'] ??
+      'https://github.com/Francko0237/Ngenou_Web/releases/download/v$versionName/$apkArm64FileName';
+
+  final apkArm32FileName = 'ngenou-v$versionName-arm32.apk';
+  final apkArm32Url = argMap['apk-arm32-url'] ??
+      'https://github.com/Francko0237/Ngenou_Web/releases/download/v$versionName/$apkArm32FileName';
+
   final windowsFileName = 'ngenou-v$versionName-windows.zip';
   final windowsUrl = argMap['windows-url'] ??
       'https://github.com/Francko0237/Ngenou_Web/releases/download/v$versionName/$windowsFileName';
 
   print('📝 Titre : $title');
   print('📄 Notes : $notes');
-  print('🔗 URL APK Android : $apkUrl');
-  print('🔗 URL Windows PC  : $windowsUrl');
-  print('⚠️ Mise à jour obligatoire : $isForce');
+  print('🔗 URL APK Universel   : $apkUrl');
+  print('🔗 URL APK 64 bits     : $apkArm64Url');
+  print('🔗 URL APK 32 bits     : $apkArm32Url');
+  print('🔗 URL Windows PC      : $windowsUrl');
+  print('⚠️ Mise à jour requise : $isForce');
 
   // 3. Analyse des captures d'écran (Mise à jour visuelle)
   final screenshotsDir = Directory('assets/screenshots');
@@ -204,6 +214,8 @@ void main(List<String> args) async {
       'title': title,
       'notes': notes,
       'apk_url': apkUrl,
+      'apk_url_arm64': apkArm64Url,
+      'apk_url_arm32': apkArm32Url,
       'windows_url': windowsUrl,
       'force_update': isForce,
       'is_published': true,
@@ -273,9 +285,10 @@ void main(List<String> args) async {
   print('   Le site web Ngenou_Web et les clients Ngenou (Mobile & PC Windows) sont synchronisés en direct.');
   print('\n📦 ÉTAPES GITHUB RELEASES (Francko0237/Ngenou_Web) :');
   print('   -------------------------------------------------');
-  print('   📱 Pour Android :');
-  print('      flutter build apk --release');
-  print('      gh release upload v$versionName build/app/outputs/flutter-apk/app-release.apk#$apkFileName --repo Francko0237/Ngenou_Web');
+  print('   📱 Pour Android (Split APKs 64 bits et 32 bits) :');
+  print('      flutter build apk --split-per-abi');
+  print('      gh release upload v$versionName build/app/outputs/flutter-apk/app-arm64-v8a-release.apk#$apkArm64FileName --repo Francko0237/Ngenou_Web');
+  print('      gh release upload v$versionName build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk#$apkArm32FileName --repo Francko0237/Ngenou_Web');
   print('');
   print('   💻 Pour Windows PC :');
   print('      flutter build windows --release');

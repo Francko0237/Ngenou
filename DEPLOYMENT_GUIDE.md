@@ -51,12 +51,17 @@ Options disponibles :
 
 ## 💻 Compilation & Packaging Manuel (Android & Windows)
 
-### 1. Android (APK)
+### 1. Android (APKs 64 bits & 32 bits)
 ```bash
-flutter build apk --release
+flutter build apk --split-per-abi
 ```
-- Fichier généré : `build/app/outputs/flutter-apk/app-release.apk`
-- Nom pour la release : `ngenou-v{versionName}.apk`
+Cette commande génère deux APKs optimisés et beaucoup plus légers :
+- **64 bits (ARM64)** : `build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`
+  ➔ À renommer pour la release : `ngenou-v{versionName}-arm64.apk`
+- **32 bits (ARMv7)** : `build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk`
+  ➔ À renommer pour la release : `ngenou-v{versionName}-arm32.apk`
+
+*(Si vous préférez un APK universel tout-en-un, lancez `flutter build apk --release` ➔ `ngenou-v{versionName}.apk`)*.
 
 ---
 
@@ -80,7 +85,8 @@ Dépôt cible : **`Francko0237/Ngenou_Web`**
 ### Option A : Via GitHub CLI (`gh`)
 ```bash
 gh release create v1.1.1 \
-  build/app/outputs/flutter-apk/app-release.apk#ngenou-v1.1.1.apk \
+  build/app/outputs/flutter-apk/app-arm64-v8a-release.apk#ngenou-v1.1.1-arm64.apk \
+  build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk#ngenou-v1.1.1-arm32.apk \
   build/windows/x64/runner/ngenou-v1.1.1-windows.zip \
   --repo Francko0237/Ngenou_Web \
   --title "Mise à jour Ngenou v1.1.1" \
