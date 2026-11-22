@@ -334,16 +334,22 @@ class SyncService extends ChangeNotifier {
           .select()
           .eq('user_id', userId);
 
+      // Pré-chargement en mémoire de la table locale pour éliminer les requêtes N+1
+      final existingLocalRows = await db.query(tableName);
+      final Map<String, Map<String, dynamic>> localIndex = {};
+      for (final row in existingLocalRows) {
+        final key = useIdDistant ? row['id_distant']?.toString() : row[primaryKey]?.toString();
+        if (key != null && key.isNotEmpty) {
+          localIndex[key] = row;
+        }
+      }
+
       for (final remote in remoteRows) {
         if (useIdDistant) {
           final remoteIdVal = remote['id'].toString();
-          final localRows = await db.query(
-            tableName,
-            where: 'id_distant = ?',
-            whereArgs: [remoteIdVal],
-          );
+          final local = localIndex[remoteIdVal];
 
-          if (localRows.isEmpty) {
+          if (local == null) {
             final isDeleted = remote['is_deleted'];
             final deleted = isDeleted == true || isDeleted == 1;
             if (!deleted) {
@@ -362,6 +368,7 @@ class SyncService extends ChangeNotifier {
                   ],
                 );
                 if (matchExisting.isNotEmpty) {
+                  final matchId = matchExisting.first['id'];
                   await db.update(
                     tableName,
                     {
@@ -369,8 +376,13 @@ class SyncService extends ChangeNotifier {
                       'is_synced': 1,
                     },
                     where: 'id = ?',
-                    whereArgs: [matchExisting.first['id']],
+                    whereArgs: [matchId],
                   );
+                  localIndex[remoteIdVal] = {
+                    ...matchExisting.first,
+                    'id_distant': remoteIdVal,
+                    'is_synced': 1,
+                  };
                   continue;
                 }
               }
@@ -383,13 +395,13 @@ class SyncService extends ChangeNotifier {
               _toSqliteBooleans(toInsert);
               _toLocalScheduledAt(toInsert, tableName);
               try {
-                await db.insert(tableName, toInsert);
+                final newId = await db.insert(tableName, toInsert);
+                localIndex[remoteIdVal] = {...toInsert, primaryKey: newId};
               } catch (e) {
                 debugPrint('Erreur insert pull $tableName : $e');
               }
             }
           } else {
-            final local = localRows.first;
             if (local['is_synced'] == 0) continue;
 
             final localUpdated = _parseTs(local['updated_at']?.toString());
@@ -410,20 +422,17 @@ class SyncService extends ChangeNotifier {
                   where: 'id_distant = ?',
                   whereArgs: [remoteIdVal],
                 );
+                localIndex[remoteIdVal] = toUpdate;
               } catch (e) {
                 debugPrint('Erreur update pull $tableName : $e');
               }
             }
           }
         } else {
-          final keyVal = remote[primaryKey];
-          final localRows = await db.query(
-            tableName,
-            where: '$primaryKey = ?',
-            whereArgs: [keyVal],
-          );
+          final keyVal = remote[primaryKey]?.toString() ?? '';
+          final local = localIndex[keyVal];
 
-          if (localRows.isEmpty) {
+          if (local == null) {
             final isDeleted = remote['is_deleted'];
             final deleted = isDeleted == true || isDeleted == 1;
             if (!deleted) {
@@ -435,12 +444,12 @@ class SyncService extends ChangeNotifier {
               _toLocalScheduledAt(toInsert, tableName);
               try {
                 await db.insert(tableName, toInsert);
+                localIndex[keyVal] = toInsert;
               } catch (e) {
                 debugPrint('Erreur insert pull $tableName : $e');
               }
             }
           } else {
-            final local = localRows.first;
             if (local['is_synced'] == 0) continue;
 
             final localUpdated = _parseTs(local['updated_at']?.toString());
@@ -458,8 +467,9 @@ class SyncService extends ChangeNotifier {
                   tableName,
                   toUpdate,
                   where: '$primaryKey = ?',
-                  whereArgs: [keyVal],
+                  whereArgs: [remote[primaryKey]],
                 );
+                localIndex[keyVal] = toUpdate;
               } catch (e) {
                 debugPrint('Erreur update pull $tableName : $e');
               }
@@ -538,18 +548,19 @@ class SyncService extends ChangeNotifier {
           .select()
           .eq('user_id', userId);
 
+      final existingBadges = await db.query('badges');
+      final Map<String, Map<String, dynamic>> localBadgesMap = {
+        for (final b in existingBadges) b['id'].toString(): b,
+      };
+
       for (final remote in remoteBadges) {
         final badgeId = remote['id'] as String;
-        final localRows = await db.query(
-          'badges',
-          where: 'id = ?',
-          whereArgs: [badgeId],
-        );
+        final local = localBadgesMap[badgeId];
 
         final isDeleted = remote['is_deleted'];
         final deleted = isDeleted == true || isDeleted == 1;
 
-        if (localRows.isEmpty) {
+        if (local == null) {
           if (!deleted) {
             final toInsert = Map<String, dynamic>.from(remote);
             toInsert['is_synced'] = 1;
@@ -561,12 +572,12 @@ class SyncService extends ChangeNotifier {
                 toInsert,
                 conflictAlgorithm: ConflictAlgorithm.replace,
               );
+              localBadgesMap[badgeId] = toInsert;
             } catch (e) {
               debugPrint('Erreur insert pull badge $badgeId : $e');
             }
           }
         } else {
-          final local = localRows.first;
           if (local['is_synced'] == 0) continue;
 
           final localUpdated = _parseTs(local['updated_at']?.toString());
@@ -584,6 +595,7 @@ class SyncService extends ChangeNotifier {
                 where: 'id = ?',
                 whereArgs: [badgeId],
               );
+              localBadgesMap[badgeId] = toUpdate;
             } catch (e) {
               debugPrint('Erreur update pull badge $badgeId : $e');
             }

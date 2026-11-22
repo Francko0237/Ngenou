@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:window_manager/window_manager.dart';
 import '../database/database_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'email_service.dart';
@@ -610,123 +612,452 @@ class AuthService {
         server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       }
       final port = server.port;
-      // On pointe le redirect_to vers /callback afin que Supabase y envoie
-      // le code PKCE directement en query params (évite le fragment hash JS).
       final redirectUrl = 'http://localhost:$port/callback';
 
-      final authUri = Uri.parse(
-        '${SupabaseCredentials.url}/auth/v1/authorize?provider=google&redirect_to=${Uri.encodeComponent(redirectUrl)}',
-      );
+      // Génération de l'URL d'authentification avec PKCE automatique via le SDK Supabase
+      String authUrl;
+      try {
+        final oAuthRes = await _client.auth.getOAuthSignInUrl(
+          provider: OAuthProvider.google,
+          redirectTo: redirectUrl,
+        );
+        authUrl = oAuthRes.url;
+      } catch (e) {
+        debugPrint('[AuthService] Fallback URL OAuth: $e');
+        authUrl =
+            '${SupabaseCredentials.url}/auth/v1/authorize?provider=google&redirect_to=${Uri.encodeComponent(redirectUrl)}';
+      }
 
-      final launched = await launchUrl(authUri, mode: LaunchMode.externalApplication);
+      final launched = await launchUrl(
+        Uri.parse(authUrl),
+        mode: LaunchMode.externalApplication,
+      );
       if (!launched) {
-        throw Exception('Impossible d\'ouvrir le navigateur web pour l\'authentification Google.');
+        throw Exception(
+          'Impossible d\'ouvrir le navigateur web pour l\'authentification Google.',
+        );
       }
 
       final completer = Completer<bool>();
 
-      final subscription = server.listen((HttpRequest request) async {
+      server.listen((HttpRequest request) async {
         final uri = request.uri;
+        final path = uri.path;
 
-        // Si c'est une requête pour /callback (redirection depuis le hash JS)
-        // on traite le code ici sans renvoyer de page HTML
-        final isCallback = uri.path == '/callback';
+        // 1. Réception directe des tokens via le script JavaScript de la page de callback (si fragment hash #)
+        if (path == '/token-exchange') {
+          try {
+            String content = '';
+            if (request.method == 'POST') {
+              content = await utf8.decoder.bind(request).join();
+            } else {
+              content = uri.queryParameters['payload'] ?? '';
+            }
 
-        if (!isCallback) {
-          // Page initiale : extraire le fragment hash côté JS et rediriger vers /callback
+            final data = content.isNotEmpty ? jsonDecode(content) as Map<String, dynamic> : uri.queryParameters;
+
+            if (data.containsKey('error')) {
+              request.response
+                ..statusCode = HttpStatus.ok
+                ..headers.contentType = ContentType.json
+                ..write(jsonEncode({'success': false}));
+              await request.response.close();
+
+              if (!completer.isCompleted) completer.complete(false);
+              return;
+            }
+
+            final refreshToken = data['refresh_token'] as String?;
+            final code = data['code'] as String?;
+
+            if (code != null && code.isNotEmpty) {
+              await _client.auth.exchangeCodeForSession(code);
+            } else if (refreshToken != null && refreshToken.isNotEmpty) {
+              await _client.auth.setSession(refreshToken);
+            } else {
+              final rawHash = data['hash'] as String? ?? '';
+              final dummyUri = Uri.parse('http://localhost?$rawHash');
+              await _client.auth.getSessionFromUrl(dummyUri);
+            }
+
+            await _resolvePostSignInMetadata();
+
+            if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+              try {
+                await windowManager.show();
+                await windowManager.focus();
+              } catch (_) {}
+            }
+
+            request.response
+              ..statusCode = HttpStatus.ok
+              ..headers.contentType = ContentType.json
+              ..write(jsonEncode({'success': true}));
+            await request.response.close();
+
+            if (!completer.isCompleted) completer.complete(true);
+          } catch (e) {
+            debugPrint('[AuthService] Erreur /token-exchange: $e');
+            request.response
+              ..statusCode = HttpStatus.ok
+              ..headers.contentType = ContentType.json
+              ..write(jsonEncode({'success': false, 'error': e.toString()}));
+            await request.response.close();
+
+            if (!completer.isCompleted) completer.complete(false);
+          }
+          return;
+        }
+
+        // 2. Traitement du retour callback du navigateur
+        if (path == '/callback' || path == '/') {
+          final query = uri.queryParameters;
+          final error = query['error'];
+          final code = query['code'];
+
+          // Cas A : Erreur ou annulation signalée par Google / Supabase
+          if (error != null && error.isNotEmpty) {
+            request.response
+              ..statusCode = HttpStatus.ok
+              ..headers.contentType = ContentType.html
+              ..write(_buildConfirmationHtml(status: 'error', message: 'L\'authentification a été annulée ou refusée.'));
+            await request.response.close();
+
+            if (!completer.isCompleted) completer.complete(false);
+            return;
+          }
+
+          // Cas B : Code d'autorisation PKCE présent en query parameters
+          if (code != null && code.isNotEmpty) {
+            bool success = false;
+            try {
+              await _client.auth.exchangeCodeForSession(code);
+              await _resolvePostSignInMetadata();
+              success = true;
+
+              if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+                try {
+                  await windowManager.show();
+                  await windowManager.focus();
+                } catch (_) {}
+              }
+            } catch (e) {
+              debugPrint('[AuthService] Erreur exchangeCodeForSession: $e');
+            }
+
+            request.response
+              ..statusCode = HttpStatus.ok
+              ..headers.contentType = ContentType.html
+              ..write(_buildConfirmationHtml(
+                status: success ? 'success' : 'error',
+                message: success
+                    ? 'Votre compte Google est connecté à Ngenou.'
+                    : 'Impossible de valider la session. Veuillez réessayer.',
+              ));
+            await request.response.close();
+
+            if (!completer.isCompleted) completer.complete(success);
+            return;
+          }
+
+          // Cas C : Ni code ni erreur dans l'URL GET (tokens renvoyés dans le fragment # côté client)
           request.response
             ..statusCode = HttpStatus.ok
             ..headers.contentType = ContentType.html
-            ..write('''<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="utf-8">
-  <title>Connexion Ngenou</title>
-</head>
-<body style="background:#0B0F19;color:#CBD5E1;font-family:sans-serif;text-align:center;padding:60px 20px;">
-  <h2 style="color:#38BDF8;">Connexion à Ngenou réussie ! 🎉</h2>
-  <p>Votre compte est connecté. Vous pouvez retourner sur l'application.</p>
-  <script>
-    // Supabase peut renvoyer les tokens dans le fragment (#) ou en query params (?)
-    var hash = window.location.hash;
-    var search = window.location.search;
-    if (hash && hash.length > 1) {
-      // Rediriger vers /callback en convertissant le fragment en query params
-      window.location.replace('/callback' + '?' + hash.substring(1));
-    } else if (search && search.length > 1) {
-      // Déjà en query params, rediriger vers /callback
-      window.location.replace('/callback' + search);
-    } else {
-      // Aucun token trouvé, fermer dans 3 secondes
-      setTimeout(function(){ window.close(); }, 3000);
-    }
-  </script>
-</body>
-</html>''');
+            ..write(_buildConfirmationHtml(status: 'processing'));
           await request.response.close();
-          return; // Ne pas traiter comme un callback
+          return;
         }
 
-        // Page /callback : répondre immédiatement et traiter les tokens
+        // Requêtes secondaires (favicon, etc.)
         request.response
-          ..statusCode = HttpStatus.ok
-          ..headers.contentType = ContentType.html
-          ..write('''<!DOCTYPE html>
-<html lang="fr">
-<head><meta charset="utf-8"><title>Ngenou</title></head>
-<body style="background:#0B0F19;color:#CBD5E1;font-family:sans-serif;text-align:center;padding:60px 20px;">
-  <h2 style="color:#38BDF8;">✅ Authentification réussie</h2>
-  <p>Retournez sur l'application Ngenou.</p>
-  <script>setTimeout(function(){ window.close(); }, 2000);</script>
-</body>
-</html>''');
-        await request.response.close();
-
-        final code = uri.queryParameters['code'];
-        final refreshToken = uri.queryParameters['refresh_token'];
-
-        if (code != null && code.isNotEmpty) {
-          try {
-            await _client.auth.exchangeCodeForSession(code);
-            await _resolvePostSignInMetadata();
-            if (!completer.isCompleted) completer.complete(true);
-          } catch (e) {
-            debugPrint('[AuthService] Erreur exchangeCodeForSession: $e');
-            if (!completer.isCompleted) completer.completeError(e);
-          }
-        } else if (refreshToken != null && refreshToken.isNotEmpty) {
-          try {
-            await _client.auth.setSession(refreshToken);
-            await _resolvePostSignInMetadata();
-            if (!completer.isCompleted) completer.complete(true);
-          } catch (e) {
-            debugPrint('[AuthService] Erreur setSession(refreshToken): $e');
-            if (!completer.isCompleted) completer.completeError(e);
-          }
-        } else if (uri.queryParameters.containsKey('access_token')) {
-          try {
-            await _client.auth.getSessionFromUrl(uri);
-            await _resolvePostSignInMetadata();
-            if (!completer.isCompleted) completer.complete(true);
-          } catch (e) {
-            debugPrint('[AuthService] Erreur getSessionFromUrl: $e');
-            if (!completer.isCompleted) completer.completeError(e);
-          }
-        }
+          ..statusCode = HttpStatus.notFound
+          ..close();
       });
 
       final result = await completer.future.timeout(
         const Duration(minutes: 2),
         onTimeout: () {
-          subscription.cancel();
           return false;
         },
       );
-      await subscription.cancel();
       return result;
     } finally {
       await server?.close(force: true);
     }
+  }
+
+  /// Génère une page HTML moderne, élégante et professionnelle pour la confirmation dans le navigateur.
+  static String _buildConfirmationHtml({
+    required String status, // 'success' | 'error' | 'processing'
+    String? message,
+  }) {
+    const logoUrl = 'https://boarzpbrrztqjfnuckxq.supabase.co/storage/v1/object/public/app-assets/logo.png';
+
+    final isSuccess = status == 'success';
+    final isError = status == 'error';
+
+    final title = isSuccess
+        ? 'Authentification réussie !'
+        : isError
+            ? 'Connexion interrompue'
+            : 'Finalisation de la connexion...';
+
+    final desc = message ??
+        (isSuccess
+            ? 'Votre compte Google a été vérifié avec succès. Vous pouvez désormais retourner dans votre application Ngenou.'
+            : isError
+                ? 'L\'authentification Google a été interrompue ou n\'a pas pu aboutir. Aucune modification n\'a été apportée à votre compte.'
+                : 'Vérification sécurisée de vos identifiants en cours, veuillez patienter un instant...');
+
+    return '''<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>$title - Ngenou</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background: radial-gradient(circle at 50% 20%, #151D30 0%, #0B0F19 80%);
+      color: #E2E8F0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: rgba(17, 24, 39, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 24px;
+      width: 100%;
+      max-width: 440px;
+      padding: 40px 32px;
+      text-align: center;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.04);
+      animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .logo-container {
+      margin-bottom: 24px;
+      display: inline-block;
+      position: relative;
+    }
+    .logo-img {
+      width: 68px;
+      height: 68px;
+      border-radius: 18px;
+      object-fit: cover;
+      box-shadow: 0 10px 25px rgba(56, 189, 248, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .icon-badge {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px auto;
+    }
+    .icon-badge.success {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #10B981;
+    }
+    .icon-badge.error {
+      background: rgba(244, 63, 94, 0.15);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+      color: #F43F5E;
+    }
+    .icon-badge.processing {
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: #38BDF8;
+    }
+    .icon-svg {
+      width: 26px;
+      height: 26px;
+    }
+    .spinner {
+      border: 3px solid rgba(56, 189, 248, 0.2);
+      border-top-color: #38BDF8;
+      border-radius: 50%;
+      width: 26px;
+      height: 26px;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #F8FAFC;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+    }
+    p {
+      color: #94A3B8;
+      font-size: 14.5px;
+      line-height: 1.6;
+      margin-bottom: 28px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 13px 20px;
+      font-size: 14.5px;
+      font-weight: 600;
+      border-radius: 12px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+      outline: none;
+    }
+    .btn-primary {
+      background: #38BDF8;
+      color: #0B0F19;
+      box-shadow: 0 4px 14px rgba(56, 189, 248, 0.35);
+    }
+    .btn-primary:hover {
+      background: #7DD3FC;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(56, 189, 248, 0.45);
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: #CBD5E1;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #FFFFFF;
+    }
+    .subtext {
+      margin-top: 20px;
+      font-size: 12px;
+      color: #64748B;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <div class="logo-container">
+      <img src="$logoUrl" alt="Ngenou Logo" class="logo-img" onerror="this.style.display='none'" />
+    </div>
+
+    <div id="status-icon">
+      ${isSuccess ? '''
+      <div class="icon-badge success">
+        <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </div>''' : isError ? '''
+      <div class="icon-badge error">
+        <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="15" y1="9" x2="9" y2="15"></line>
+          <line x1="9" y1="9" x2="15" y2="15"></line>
+        </svg>
+      </div>''' : '''
+      <div class="icon-badge processing">
+        <div class="spinner"></div>
+      </div>'''}
+    </div>
+
+    <h1 id="title">$title</h1>
+    <p id="desc">$desc</p>
+
+    <div id="action-area">
+      ${isSuccess ? '''
+      <button class="btn btn-primary" onclick="window.close()">Retourner sur Ngenou</button>
+      <div class="subtext">Cette fenêtre peut être fermée en toute sécurité.</div>
+      ''' : isError ? '''
+      <button class="btn btn-secondary" onclick="window.close()">Fermer cette fenêtre</button>
+      <div class="subtext">Retournez sur Ngenou pour réessayer la connexion.</div>
+      ''' : '''
+      <div class="subtext">Connexion à votre espace d'apprentissage Ngenou...</div>
+      '''}
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      // Si la page est en mode processing (analyse client des fragments hash)
+      var hash = window.location.hash;
+      var search = window.location.search;
+
+      if (!hash && !search) return;
+
+      var params = {};
+      function parseQuery(str) {
+        if (!str) return;
+        if (str.startsWith('#') || str.startsWith('?')) str = str.substring(1);
+        str.split('&').forEach(function(pair) {
+          var parts = pair.split('=');
+          if (parts.length === 2) {
+            params[decodeURIComponent(parts[0])] = decodeURIComponent(parts[1].replace(/\\+/g, ' '));
+          }
+        });
+      }
+
+      parseQuery(search);
+      parseQuery(hash);
+
+      // Si des tokens ou une erreur sont présents, transmettre au serveur local
+      if (params.access_token || params.refresh_token || params.code || params.error) {
+        fetch('/token-exchange', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(params)
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          if (data && data.success) {
+            renderSuccess();
+          } else {
+            renderError(data.error || 'Impossible de finaliser la connexion.');
+          }
+        })
+        .catch(function(err) {
+          renderError('Erreur de transmission vers l\\'application Ngenou.');
+        });
+      }
+
+      function renderSuccess() {
+        document.getElementById('status-icon').innerHTML = '<div class="icon-badge success"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>';
+        document.getElementById('title').textContent = 'Authentification réussie !';
+        document.getElementById('desc').textContent = 'Votre compte Google a été connecté à Ngenou. Vous pouvez retourner dans votre application.';
+        document.getElementById('action-area').innerHTML = '<button class="btn btn-primary" onclick="window.close()">Retourner sur Ngenou</button><div class="subtext">Cette fenêtre peut être fermée.</div>';
+        setTimeout(function() { window.close(); }, 3500);
+      }
+
+      function renderError(msg) {
+        document.getElementById('status-icon').innerHTML = '<div class="icon-badge error"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg></div>';
+        document.getElementById('title').textContent = 'Connexion interrompue';
+        document.getElementById('desc').textContent = msg || 'L\\'authentification a échoué.';
+        document.getElementById('action-area').innerHTML = '<button class="btn btn-secondary" onclick="window.close()">Fermer cette fenêtre</button><div class="subtext">Vous pouvez réessayer la connexion depuis Ngenou.</div>';
+      }
+    })();
+  </script>
+</body>
+</html>''';
   }
 
   /// Résout et enregistre les métadonnées (nom, rôle, niveau) après connexion

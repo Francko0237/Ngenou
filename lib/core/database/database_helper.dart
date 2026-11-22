@@ -30,7 +30,10 @@ class DatabaseHelper {
 
     final db = await openDatabase(
       path,
-      version: 13,
+      version: 14,
+      onConfigure: (db) async {
+        await db.execute('PRAGMA foreign_keys = ON');
+      },
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -137,33 +140,34 @@ class DatabaseHelper {
           completed INTEGER NOT NULL
         )
       ''');
-      if (oldVersion < 11) {
-        final tables = [
-          'scores',
-          'progression',
-          'codes_sauvegardes',
-          'cours_personnalises',
-          'projets',
-          'emplois_du_temps',
-          'taches_revision',
-          'defis_quotidiens_sessions',
-        ];
-        for (var table in tables) {
-          try {
-            await db.execute('ALTER TABLE $table ADD COLUMN id_distant TEXT');
-            await db.execute('ALTER TABLE $table ADD COLUMN updated_at TEXT');
-            await db.execute(
-              'ALTER TABLE $table ADD COLUMN is_synced INTEGER NOT NULL DEFAULT 0',
-            );
-            await db.execute(
-              'ALTER TABLE $table ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0',
-            );
-          } catch (e) {
-            debugPrint('Erreur migration table $table: $e');
-          }
+    }
+    if (oldVersion < 11) {
+      final tables = [
+        'scores',
+        'progression',
+        'codes_sauvegardes',
+        'cours_personnalises',
+        'projets',
+        'emplois_du_temps',
+        'taches_revision',
+        'defis_quotidiens_sessions',
+      ];
+      for (var table in tables) {
+        try {
+          await db.execute('ALTER TABLE $table ADD COLUMN id_distant TEXT');
+          await db.execute('ALTER TABLE $table ADD COLUMN updated_at TEXT');
+          await db.execute(
+            'ALTER TABLE $table ADD COLUMN is_synced INTEGER NOT NULL DEFAULT 0',
+          );
+          await db.execute(
+            'ALTER TABLE $table ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0',
+          );
+        } catch (e) {
+          debugPrint('Erreur migration table $table: $e');
         }
+      }
 
-        await db.execute('''
+      await db.execute('''
         CREATE TABLE IF NOT EXISTS tchat_ia_messages (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           session_key TEXT NOT NULL,
@@ -176,7 +180,6 @@ class DatabaseHelper {
           is_deleted INTEGER NOT NULL DEFAULT 0
         )
       ''');
-      }
     }
     if (oldVersion < 12) {
       await db.execute('''
@@ -197,6 +200,31 @@ class DatabaseHelper {
     }
     if (oldVersion < 13) {
       await _ensureProgressionColumns(db);
+    }
+    if (oldVersion < 14) {
+      await _createIndexes(db);
+    }
+  }
+
+  Future<void> _createIndexes(Database db) async {
+    final indexes = [
+      'CREATE INDEX IF NOT EXISTS idx_taches_scheduled ON taches_revision(scheduled_at, is_deleted)',
+      'CREATE INDEX IF NOT EXISTS idx_taches_schedule ON taches_revision(schedule_id, is_deleted)',
+      'CREATE INDEX IF NOT EXISTS idx_scores_notion ON scores(notion_id, is_deleted)',
+      'CREATE INDEX IF NOT EXISTS idx_scores_matiere ON scores(matiere_id, is_deleted)',
+      'CREATE INDEX IF NOT EXISTS idx_progression_matiere ON progression(matiere_id, notion_id, is_deleted)',
+      'CREATE INDEX IF NOT EXISTS idx_tchat_session ON tchat_ia_messages(session_key, is_deleted)',
+      'CREATE INDEX IF NOT EXISTS idx_sync_taches ON taches_revision(is_synced)',
+      'CREATE INDEX IF NOT EXISTS idx_sync_scores ON scores(is_synced)',
+      'CREATE INDEX IF NOT EXISTS idx_sync_progression ON progression(is_synced)',
+      'CREATE INDEX IF NOT EXISTS idx_sync_tchat ON tchat_ia_messages(is_synced)',
+    ];
+    for (final sql in indexes) {
+      try {
+        await db.execute(sql);
+      } catch (e) {
+        debugPrint('Erreur création index : $e');
+      }
     }
   }
 
@@ -406,6 +434,8 @@ class DatabaseHelper {
         is_deleted INTEGER NOT NULL DEFAULT 0
       )
     ''');
+
+    await _createIndexes(db);
   }
 
   Future<void> ensureManualScheduleExists() async {
