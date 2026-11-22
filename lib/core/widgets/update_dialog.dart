@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../theme/app_colors.dart';
 
 /// Boîte de dialogue de mise à jour pour l'application Ngenou
 class UpdateDialog extends StatelessWidget {
@@ -25,7 +24,7 @@ class UpdateDialog extends StatelessWidget {
 
   Future<void> _handleDownload(BuildContext context) async {
     final uri = Uri.parse(
-      apkUrl.isNotEmpty ? apkUrl : 'https://github.com/Francko0237/Ngenou/releases/latest',
+      apkUrl.isNotEmpty ? apkUrl : 'https://github.com/Francko0237/Ngenou_Web/releases/latest',
     );
     try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);

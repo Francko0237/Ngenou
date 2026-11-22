@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     Automatise l'enregistrement de la version dans Supabase, lie les captures d'écran
-    hébergées sur GitHub / CDN, et prépare la release GitHub.
+    hébergées sur GitHub / CDN, et prépare la release GitHub dans Francko0237/Ngenou_Web.
 
 .EXAMPLE
     .\publish-release.ps1
@@ -39,5 +39,10 @@ if ($DryRun) {
     $argsList += "--dry-run"
 }
 
-Write-Host "Lancement de la publication Ngenou..." -ForegroundColor Cyan
-dart run tool/publish_release.dart $argsList
+$dartExe = "D:\Windows\flutter\bin\cache\dart-sdk\bin\dart.exe"
+if (-not (Test-Path $dartExe)) {
+    $dartExe = "dart"
+}
+
+Write-Host "🚀 Lancement de la publication Ngenou..." -ForegroundColor Cyan
+& $dartExe "tool/publish_release.dart" @argsList

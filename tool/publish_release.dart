@@ -94,7 +94,7 @@ void main(List<String> args) async {
   final notes = argMap['notes'] ??
       'Cette mise à jour apporte des améliorations de performance, des corrections de bugs et de nouvelles fonctionnalités.';
   final apkFileName = 'ngenou-v$versionName.apk';
-  final apkUrl = 'https://github.com/Francko0237/Ngenou/releases/download/v$versionName/$apkFileName';
+  final apkUrl = 'https://github.com/Francko0237/Ngenou_Web/releases/download/v$versionName/$apkFileName';
 
   print('📝 Titre : $title');
   print('📄 Notes : $notes');
@@ -267,8 +267,8 @@ void main(List<String> args) async {
   print('\n📦 ÉTAPES GITHUB (À faire quand vous êtes prêt) :');
   print('   1. Construire l\'APK :');
   print('      flutter build apk --release');
-  print('   2. Renommer et uploader sur GitHub Releases :');
-  print('      gh release create v$versionName build/app/outputs/flutter-apk/app-release.apk#$apkFileName --title "$title" --notes "$notes"');
+  print('   2. Renommer et uploader sur GitHub Releases (repo Ngenou_Web) :');
+  print('      gh release create v$versionName build/app/outputs/flutter-apk/app-release.apk#$apkFileName --repo Francko0237/Ngenou_Web --title "$title" --notes "$notes"');
   print('   3. (Si des captures d\'écran ont été ajoutées) :');
   print('      git add assets/screenshots && git commit -m "feat: screenshots v$versionName" && git push');
   print('====================================================\n');

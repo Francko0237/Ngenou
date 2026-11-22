@@ -68,7 +68,7 @@ class AppUpdateService {
       final title = response['title'] as String? ?? 'Nouvelle version disponible';
       final notes = response['notes'] as String? ?? '';
       final apkUrl = response['apk_url'] as String? ??
-          'https://github.com/Francko0237/Ngenou/releases/latest';
+          'https://github.com/Francko0237/Ngenou_Web/releases/latest';
       final forceUpdate = response['force_update'] as bool? ?? false;
 
       final rawFeatures = response['release_features'] as List? ?? [];
