@@ -1,5 +1,3 @@
-@file:Suppress("DEPRECATION", "DEPRECATION_ERROR")
-
 import java.util.Properties
 
 plugins {
@@ -29,6 +27,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
         isCoreLibraryDesugaringEnabled = true
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     signingConfigs {
@@ -70,13 +72,6 @@ android {
 
 flutter {
     source = "../.."
-}
-
-// Kotlin JVM target — nouvelle API KGP 2.4.x (kotlinOptions est ERROR-déprécié)
-kotlin {
-    compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-    }
 }
 
 dependencies {
