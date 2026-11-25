@@ -270,7 +270,14 @@ class Parser {
         algoName = current.value;
         advance();
       }
-      while (match(TokenType.punctuation, ';')) {}
+      if (current.type == TokenType.punctuation && current.value == ';') {
+        debugger.reportError(
+          "Le point-virgule n'est pas autorisé après le nom de l'algorithme",
+          current.line,
+          current.column,
+        );
+        while (match(TokenType.punctuation, ';')) {}
+      }
 
       List<VarDecl> globalVars = [];
       List<FuncDecl> functions = [];

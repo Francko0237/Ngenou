@@ -61,11 +61,11 @@ class _TerminalPageState extends State<TerminalPage> {
   }
 
   final Map<String, String> exemples = {
-    "Hello World": '''Algorithme HelloWorld;
+    "Hello World": '''Algorithme HelloWorld
 Debut
    Ecrire("Bonjour le monde !");
 Fin''',
-    "Factorielle": '''Algorithme Factorielle;
+    "Factorielle": '''Algorithme Factorielle
 Var
    n, i, resultat : Entier;
 Debut
@@ -77,7 +77,7 @@ Debut
    FinPour;
    Ecrire("Factorielle de ", n, " = ", resultat);
 Fin''',
-    "Tri à bulles": '''Algorithme TriBulles;
+    "Tri à bulles": '''Algorithme TriBulles
 Var
    T : Tableau[1..5] de Entier;
    i, j, temp : Entier;
@@ -100,7 +100,7 @@ Debut
       Ecrire(T[i]);
    FinPour;
 Fin''',
-    "Recherche dichotomique": '''Algorithme RechercheDicho;
+    "Recherche dichotomique": '''Algorithme RechercheDicho
 Var
    T : Tableau[1..7] de Entier;
    cible, gauche, droite, milieu : Entier;

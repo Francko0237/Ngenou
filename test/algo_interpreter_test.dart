@@ -277,12 +277,36 @@ Fin''',
     );
   });
 
+  // ---------- Étape 0 : Syntaxe en-tête Algorithme ----------
+
+  test('refuse le point-virgule après le nom de l\'algorithme', () async {
+    await _run(
+      '''
+Algorithme MonAlgo;
+Debut
+   Ecrire("Bonjour")
+Fin''',
+      errorContains: 'point-virgule',
+    );
+  });
+
+  test('accepte Algorithme sans point-virgule après le nom', () async {
+    await _run(
+      '''
+Algorithme MonAlgo
+Debut
+   Ecrire("Bonjour")
+Fin''',
+      expectedOutput: 'Bonjour',
+    );
+  });
+
   // ---------- Non-régression : algorithmes existants ----------
 
   test('non-régression : factorielle impérative', () async {
     await _run(
       '''
-Algorithme Factorielle;
+Algorithme Factorielle
 Var
    n, i, resultat : Entier;
 Debut
@@ -300,7 +324,7 @@ Fin''',
   test('non-régression : tri à bulles (tableau)', () async {
     await _run(
       '''
-Algorithme TriBulles;
+Algorithme TriBulles
 Var
    T : Tableau[1..5] de Entier;
    i, j, temp : Entier;

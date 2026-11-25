@@ -108,8 +108,8 @@ STRUCTURE ALGORITHME (type: "algo") :
   "matiereNom": "Algorithmique",
   "question": "Titre court (ex: Calcul de la moyenne)",
   "explication": "Énoncé clair en 3 parties :\\n1. CE QUE LE PROGRAMME DOIT FAIRE (1 phrase simple)\\n2. ENTRÉES : décris chaque variable lue (ex: Lire n — un entier positif)\\n3. SORTIE : ce qu'Ecrire doit afficher (ex: Ecrire la somme)\\n\\nEXEMPLE :\\nEntrée : n = 3, valeurs = 10, 20, 30\\nSortie attendue : 60",
-  "codeInitial": "Algorithme NomDuDéfi;\\nVar\\n   \\nDebut\\n   \\nFin",
-  "codeSolution": "Algorithme NomDuDéfi;\\nVar\\n   n, i, somme : Entier;\\nDebut\\n   somme <- 0;\\n   Lire(n);\\n   Pour i <- 1 a n Faire\\n      Lire(valeur);\\n      somme <- somme + valeur;\\n   FinPour;\\n   Ecrire(somme);\\nFin",
+  "codeInitial": "Algorithme NomDuDéfi\\nVar\\n   \\nDebut\\n   \\nFin",
+  "codeSolution": "Algorithme NomDuDéfi\\nVar\\n   n, i, somme : Entier;\\nDebut\\n   somme <- 0;\\n   Lire(n);\\n   Pour i <- 1 a n Faire\\n      Lire(valeur);\\n      somme <- somme + valeur;\\n   FinPour;\\n   Ecrire(somme);\\nFin",
   "algoTests": [
     {
       "inputs": ["3", "10", "20", "30"],
@@ -123,7 +123,7 @@ RÈGLE CRITIQUE pour codeInitial :
 - NE METS PAS la logique dans codeInitial. C'est juste le point de départ que l'utilisateur verra.
 - codeSolution est la solution complète et correcte que tu génères. Elle utilise <- pour l'affectation.
 - Exemple INTERDIT dans codeInitial : mettre "somme <- 0" ou toute logique de résolution.
-- Exemple CORRECT pour codeInitial : "Algorithme Somme;\\nVar\\n   n, i, somme : Entier;\\nDebut\\n   \\nFin"
+- Exemple CORRECT pour codeInitial : "Algorithme Somme\\nVar\\n   n, i, somme : Entier;\\nDebut\\n   \\nFin"
 ''';
 
       final generationResult = await DeepSeekService.generateDailyChallenges(
