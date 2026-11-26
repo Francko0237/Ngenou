@@ -1,0 +1,216 @@
+================================================================================
+         CONTRAT DE LICENCE D'UTILISATION FINALE (CLUF / EULA)
+                         APPLICATION NGENOU
+================================================================================
+
+Version : 1.1.2
+Date d'entrée en vigueur : 1er janvier 2025
+
+VEUILLEZ LIRE ATTENTIVEMENT CE CONTRAT AVANT D'INSTALLER OU D'UTILISER
+L'APPLICATION NGENOU. EN INSTALLANT, COPIANT OU UTILISANT CETTE APPLICATION,
+VOUS ACCEPTEZ D'ÊTRE LIÉ(E) PAR LES TERMES DU PRÉSENT CONTRAT. SI VOUS
+N'ACCEPTEZ PAS CES TERMES, N'INSTALLEZ PAS ET N'UTILISEZ PAS CETTE APPLICATION.
+
+================================================================================
+ARTICLE 1 — DÉFINITIONS
+================================================================================
+
+1.1 « Application » désigne le logiciel Ngenou, y compris toutes ses
+    composantes, fichiers de données, médias, contenus imprimés et
+    documentation électronique.
+
+1.2 « Auteur » désigne YAMGA MOKUBE FRANCK DANIEL, créateur et titulaire
+    exclusif de tous droits sur l'Application, né le 16 décembre 2006 au
+    village de Kolla, Cameroun. Contact : danielfranck215@gmail.com
+
+1.3 « Utilisateur » désigne toute personne physique ou morale qui installe,
+    accède ou utilise l'Application.
+
+1.4 « Appareil » désigne tout dispositif informatique (ordinateur, smartphone,
+    tablette, etc.) sur lequel l'Application est installée ou exécutée.
+
+================================================================================
+ARTICLE 2 — OCTROI DE LICENCE
+================================================================================
+
+2.1 Sous réserve du respect des termes du présent Contrat, l'Auteur accorde à
+    l'Utilisateur une licence personnelle, non exclusive, non cessible, non
+    transférable et révocable pour :
+
+    a) Installer et utiliser l'Application sur un ou plusieurs Appareils lui
+       appartenant ou placés sous son contrôle légitime ;
+
+    b) Utiliser l'Application à des fins personnelles, éducatives et non
+       commerciales.
+
+2.2 Cette licence ne constitue pas une vente de l'Application. L'Auteur
+    conserve l'intégralité des droits de propriété intellectuelle sur
+    l'Application.
+
+================================================================================
+ARTICLE 3 — RESTRICTIONS
+================================================================================
+
+L'Utilisateur s'engage expressément à ne pas :
+
+3.1 Copier, reproduire, distribuer, publier ou mettre à disposition de tiers
+    l'Application ou toute partie de celle-ci, que ce soit à titre gratuit
+    ou onéreux, sans l'autorisation écrite préalable de l'Auteur ;
+
+3.2 Modifier, adapter, traduire, décompiler, désassembler, procéder à de
+    l'ingénierie inverse, ou tenter d'extraire le code source de l'Application ;
+
+3.3 Créer des œuvres dérivées basées sur l'Application ;
+
+3.4 Sous-licencier, vendre, louer, prêter, transférer ou autrement céder des
+    droits sur l'Application à quiconque ;
+
+3.5 Supprimer, altérer ou dissimuler tout avis de propriété, marque, droits
+    d'auteur ou autre mention légale contenue dans l'Application ;
+
+3.6 Utiliser l'Application à des fins illégales, frauduleuses ou contraires
+    à l'ordre public ou aux bonnes mœurs ;
+
+3.7 Utiliser l'Application à des fins commerciales, notamment pour la revendre,
+    l'exploiter dans un cadre professionnel à titre lucratif, ou l'intégrer
+    dans un produit ou service commercial sans accord écrit préalable de
+    l'Auteur.
+
+================================================================================
+ARTICLE 4 — PROPRIÉTÉ INTELLECTUELLE
+================================================================================
+
+4.1 L'Application, y compris, sans s'y limiter, le code source, le code
+    objet, les interfaces, les graphismes, les sons, le design, la
+    documentation et tout contenu associé, est et demeure la propriété
+    exclusive de l'Auteur.
+
+4.2 Toute utilisation non autorisée constitue une violation du droit d'auteur
+    et pourra faire l'objet de poursuites judiciaires.
+
+4.3 Les marques, logos et dénominations présents dans l'Application
+    appartiennent à leurs propriétaires respectifs.
+
+================================================================================
+ARTICLE 5 — CONFIDENTIALITÉ ET PROTECTION DES DONNÉES
+================================================================================
+
+5.1 L'Application peut collecter et traiter certaines données d'utilisation
+    dans le but d'améliorer l'expérience utilisateur.
+
+5.2 Aucune donnée personnelle n'est vendue à des tiers.
+
+5.3 L'Utilisateur est informé qu'il peut contacter l'Auteur à l'adresse
+    danielfranck215@gmail.com pour toute question relative à ses données
+    personnelles.
+
+5.4 L'utilisation de l'Application implique l'acceptation de la politique de
+    confidentialité en vigueur, disponible dans les paramètres de l'Application.
+
+================================================================================
+ARTICLE 6 — MISES À JOUR ET ÉVOLUTIONS
+================================================================================
+
+6.1 L'Auteur se réserve le droit de mettre à jour, modifier ou faire évoluer
+    l'Application à tout moment, avec ou sans préavis.
+
+6.2 Les mises à jour sont soumises aux termes du présent Contrat, sauf mention
+    contraire explicite.
+
+6.3 L'Auteur se réserve le droit de mettre fin au support de certaines versions
+    de l'Application.
+
+================================================================================
+ARTICLE 7 — RÉSILIATION
+================================================================================
+
+7.1 Le présent Contrat est en vigueur jusqu'à sa résiliation.
+
+7.2 L'Auteur peut résilier ce Contrat à tout moment si l'Utilisateur enfreint
+    l'un de ses termes.
+
+7.3 En cas de résiliation, l'Utilisateur doit cesser toute utilisation de
+    l'Application et supprimer toutes les copies installées sur ses appareils.
+
+================================================================================
+ARTICLE 8 — EXCLUSION DE GARANTIE
+================================================================================
+
+8.1 L'APPLICATION EST FOURNIE « EN L'ÉTAT » (AS IS), SANS GARANTIE D'AUCUNE
+    SORTE, EXPRESSE OU IMPLICITE, Y COMPRIS, MAIS SANS S'Y LIMITER, LES
+    GARANTIES IMPLICITES DE QUALITÉ MARCHANDE, D'ADÉQUATION À UN USAGE
+    PARTICULIER ET D'ABSENCE DE CONTREFAÇON.
+
+8.2 L'AUTEUR NE GARANTIT PAS QUE L'APPLICATION SERA EXEMPTE D'ERREURS,
+    ININTERROMPUE, SÉCURISÉE OU QUE LES DÉFAUTS SERONT CORRIGÉS.
+
+8.3 L'UTILISATEUR UTILISE L'APPLICATION À SES PROPRES RISQUES.
+
+================================================================================
+ARTICLE 9 — LIMITATION DE RESPONSABILITÉ
+================================================================================
+
+9.1 EN AUCUN CAS L'AUTEUR NE POURRA ÊTRE TENU RESPONSABLE DE DOMMAGES
+    DIRECTS, INDIRECTS, ACCESSOIRES, SPÉCIAUX, EXEMPLAIRES OU CONSÉCUTIFS
+    (NOTAMMENT, MAIS SANS S'Y LIMITER : PERTE DE DONNÉES, PERTE DE PROFITS,
+    INTERRUPTION D'ACTIVITÉ) RÉSULTANT DE L'UTILISATION OU DE L'IMPOSSIBILITÉ
+    D'UTILISER L'APPLICATION, MÊME SI L'AUTEUR A ÉTÉ INFORMÉ DE LA POSSIBILITÉ
+    DE TELS DOMMAGES.
+
+9.2 LA RESPONSABILITÉ TOTALE DE L'AUTEUR NE POURRA EN AUCUN CAS EXCÉDER LE
+    MONTANT ÉVENTUELLEMENT PAYÉ PAR L'UTILISATEUR POUR L'APPLICATION.
+
+================================================================================
+ARTICLE 10 — LOI APPLICABLE ET JURIDICTION
+================================================================================
+
+10.1 Le présent Contrat est régi par le droit camerounais et les conventions
+     internationales applicables en matière de propriété intellectuelle.
+
+10.2 Tout litige relatif à l'interprétation ou à l'exécution du présent
+     Contrat sera soumis à la compétence exclusive des tribunaux compétents
+     du Cameroun, sauf accord amiable préalable entre les parties.
+
+================================================================================
+ARTICLE 11 — DISPOSITIONS GÉNÉRALES
+================================================================================
+
+11.1 Si une disposition du présent Contrat est déclarée nulle ou inapplicable,
+     les autres dispositions demeureront pleinement en vigueur.
+
+11.2 Le fait pour l'Auteur de ne pas exercer un droit prévu par le présent
+     Contrat ne saurait constituer une renonciation à ce droit.
+
+11.3 Ce Contrat constitue l'intégralité de l'accord entre l'Auteur et
+     l'Utilisateur concernant l'Application et remplace tout accord ou
+     communication antérieure.
+
+================================================================================
+ARTICLE 12 — CONTACT
+================================================================================
+
+Pour toute question concernant ce Contrat de Licence, veuillez contacter :
+
+    YAMGA MOKUBE FRANCK DANIEL
+    Créateur de Ngenou
+    Email : danielfranck215@gmail.com
+
+================================================================================
+
+                     ---- ENGLISH TRANSLATION (SUMMARY) ----
+
+This is a proprietary End-User License Agreement (EULA) for the Ngenou
+application, created by YAMGA MOKUBE FRANCK DANIEL (born December 16, 2006,
+Kolla, Cameroon). The application is provided for personal and educational use
+only. Redistribution, reverse engineering, modification, commercial use, or
+sublicensing is strictly prohibited. The application is provided "AS IS" without
+any warranty. The author is not liable for any damages arising from the use of
+the application. This agreement is governed by Cameroonian law and applicable
+international intellectual property treaties.
+
+For any inquiries: danielfranck215@gmail.com
+
+================================================================================
+   Copyright (c) 2024-2025 YAMGA MOKUBE FRANCK DANIEL. Tous droits réservés.
+                   All rights reserved. Ngenou is proprietary software.
+================================================================================

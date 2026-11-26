@@ -8,7 +8,7 @@ class AppUpdateService {
   static const String _kLastCheckKey = 'ngenou_last_update_check_timestamp';
 
   /// Version actuelle de l'application mobile (synchronisée avec pubspec.yaml)
-  static const String currentVersionName = '1.1.1';
+  static const String currentVersionName = '1.1.2';
   static const int currentVersionCode = 1;
 
   /// Vérification silencieuse au lancement de l'application.

@@ -12,7 +12,7 @@ class UpdateChecker {
 
   /// Code de version installé par défaut si package_info_plus n'est pas utilisé
   static const int kCurrentVersionCode = 11;
-  static const String kCurrentVersionName = '1.1.0';
+  static const String kCurrentVersionName = '1.1.2';
 
   /// Vérification silencieuse au lancement de l'application (max 1 fois par jour)
   /// Ne bloque pas l'application et ignore les erreurs réseau en cas de mode hors-ligne.
