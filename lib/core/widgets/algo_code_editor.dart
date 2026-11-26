@@ -62,18 +62,20 @@ class AutoCloseFormatter extends TextInputFormatter {
 class AlgoCodeEditor extends StatefulWidget {
   final AlgoSyntaxController controller;
   final String hintText;
+  final VoidCallback? onRun;
 
   const AlgoCodeEditor({
     super.key,
     required this.controller,
     this.hintText = "",
+    this.onRun,
   });
 
   @override
-  _AlgoCodeEditorState createState() => _AlgoCodeEditorState();
+  AlgoCodeEditorState createState() => AlgoCodeEditorState();
 }
 
-class _AlgoCodeEditorState extends State<AlgoCodeEditor> {
+class AlgoCodeEditorState extends State<AlgoCodeEditor> {
   final ScrollController _scrollController = ScrollController();
   final ScrollController _lineController = ScrollController();
   final FocusNode _focusNode = FocusNode();
@@ -81,6 +83,7 @@ class _AlgoCodeEditorState extends State<AlgoCodeEditor> {
   final List<String> _allSuggestions = [
     'Algorithme ',
     'Var',
+    'Variables',
     'Debut',
     'Fin',
     'Entier',
@@ -103,6 +106,26 @@ class _AlgoCodeEditorState extends State<AlgoCodeEditor> {
     'FinTantQue',
     'Repeter',
     "Jusqu'a ",
+    'Fonction ',
+    'FinFonction',
+    'Procedure ',
+    'FinProcedure',
+    'Retourner ',
+    'Entree ',
+    'Sortie ',
+    'Entree/Sortie ',
+    'Type Structure ',
+    'FinStruct',
+    'Ouvrir ',
+    'Lecture',
+    'Ecriture',
+    'Ajout',
+    'LireFichier ',
+    'EcrireFichier ',
+    'PositionnerFichier(',
+    'EOF(',
+    'FinFichier(',
+    'Fermer(',
     ' ← ',
     ' + ',
     ' - ',
@@ -121,13 +144,23 @@ class _AlgoCodeEditorState extends State<AlgoCodeEditor> {
     _activeSuggestions = List.from(_allSuggestions);
 
     _focusNode.onKeyEvent = (node, event) {
-      if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.tab) {
-        if (_activeSuggestions.isNotEmpty && _currentWord.isNotEmpty) {
-          _insertSuggestion(_activeSuggestions.first);
+      if (event is KeyDownEvent) {
+        if ((event.logicalKey == LogicalKeyboardKey.enter ||
+                event.logicalKey == LogicalKeyboardKey.numpadEnter) &&
+            HardwareKeyboard.instance.isControlPressed) {
+          if (widget.onRun != null) {
+            widget.onRun!();
+            return KeyEventResult.handled;
+          }
+        }
+        if (event.logicalKey == LogicalKeyboardKey.tab) {
+          if (_activeSuggestions.isNotEmpty && _currentWord.isNotEmpty) {
+            _insertSuggestion(_activeSuggestions.first);
+            return KeyEventResult.handled;
+          }
+          _insertText("   ");
           return KeyEventResult.handled;
         }
-        _insertText("   ");
-        return KeyEventResult.handled;
       }
       return KeyEventResult.ignored;
     };
@@ -147,6 +180,35 @@ class _AlgoCodeEditorState extends State<AlgoCodeEditor> {
     _lineController.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  /// Place le curseur au début de la ligne [line] (1-based) et scrolle jusqu'à elle.
+  void jumpToLine(int line) {
+    final text = widget.controller.text;
+    final lines = text.split('\n');
+    final targetIdx = (line - 1).clamp(0, lines.isEmpty ? 0 : lines.length - 1);
+    int offset = 0;
+    for (int i = 0; i < targetIdx; i++) {
+      offset += lines[i].length + 1;
+    }
+    final lineEnd = offset + (targetIdx < lines.length ? lines[targetIdx].length : 0);
+    widget.controller.selection = TextSelection(
+      baseOffset: offset,
+      extentOffset: lineEnd,
+    );
+    _focusNode.requestFocus();
+    if (_scrollController.hasClients) {
+      // fontSize 13 * height 1.5 = 19.5 px par ligne
+      final targetOffset = (targetIdx * 19.5 - 40).clamp(
+        0.0,
+        _scrollController.position.maxScrollExtent,
+      );
+      _scrollController.animateTo(
+        targetOffset,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   void _updateLineNumbers() {

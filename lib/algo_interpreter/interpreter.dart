@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'parser.dart';
 import 'debugger.dart';
 import 'lexer.dart';
+import 'file_storage.dart';
 
 // === Environnements et portée des variables ===
 class AlgoEnvironment {
@@ -162,6 +164,8 @@ class Interpreter {
   final Debugger debugger;
   final Function(String) onOutput;
   final Future<String> Function(String?) onInput;
+  final FileStorage fileStorage;
+  final void Function(FileEvent)? onFileEvent;
 
   int _loopCount = 0;
   int _instructionCount = 0;
@@ -173,6 +177,7 @@ class Interpreter {
 
   final Map<String, FuncDecl> _functions = {};
   final Map<String, StructDecl> _structTypes = {};
+  final Map<int, _OpenFileChannel> _openChannels = {};
 
   AlgoEnvironment globals = AlgoEnvironment();
   late AlgoEnvironment environment;
@@ -182,7 +187,9 @@ class Interpreter {
     required this.onOutput,
     required this.onInput,
     this.maxCallDepth = 100,
-  }) {
+    FileStorage? fileStorage,
+    this.onFileEvent,
+  }) : fileStorage = fileStorage ?? InMemoryFileStorage() {
     environment = globals;
   }
 
@@ -195,6 +202,7 @@ class Interpreter {
 
     _functions.clear();
     _structTypes.clear();
+    _openChannels.clear();
     for (final f in program.functions) {
       _functions[f.name.toLowerCase()] = f;
     }
@@ -215,6 +223,26 @@ class Interpreter {
       // Retour depuis le programme principal : ignoré
     } catch (e) {
       debugger.reportError("Erreur d'exécution: $e", 0, 0);
+    } finally {
+      if (_openChannels.isNotEmpty && !debugger.hasErrors) {
+        for (final entry in _openChannels.entries) {
+          onOutput(
+            "⚠️ Avertissement : le canal ${entry.key} ('${entry.value.fileName}') n'a pas été fermé avant la fin de l'algorithme.",
+          );
+          onFileEvent?.call(
+            FileEvent(
+              channel: entry.key,
+              fileName: entry.value.fileName,
+              mode: entry.value.mode,
+              type: FileEventType.close,
+              linePosition: entry.value.cursor + 1,
+              totalLines: entry.value.lines.length,
+              isEof: entry.value.isEof,
+            ),
+          );
+        }
+      }
+      _openChannels.clear();
     }
   }
 
@@ -320,8 +348,9 @@ class Interpreter {
       }
     } else if (stmt is FieldAssignStmt) {
       final base = await evaluate(stmt.base);
-      final val = await evaluate(stmt.value);
+      var val = await evaluate(stmt.value);
       if (base is StructValue) {
+        val = _truncateStructFieldIfNeeded(base.decl, stmt.field, val, stmt.line);
         base.setField(stmt.field, val);
       } else {
         debugger.reportError(
@@ -390,6 +419,16 @@ class Interpreter {
       throw ReturnException(val);
     } else if (stmt is CallStmt) {
       await _callFunction(stmt.call.name, stmt.call.args, stmt.line);
+    } else if (stmt is OpenFileStmt) {
+      await _executeOpenFile(stmt);
+    } else if (stmt is ReadFileStmt) {
+      await _executeReadFile(stmt);
+    } else if (stmt is WriteFileStmt) {
+      await _executeWriteFile(stmt);
+    } else if (stmt is SeekFileStmt) {
+      await _executeSeekFile(stmt);
+    } else if (stmt is CloseFileStmt) {
+      await _executeCloseFile(stmt);
     }
   }
 
@@ -492,6 +531,9 @@ class Interpreter {
         expr.line,
         asExpression: true,
       );
+    }
+    if (expr is EofExpr) {
+      return await _evaluateEof(expr);
     }
     if (expr is UnaryExpr) {
       final right = await evaluate(expr.expr);
@@ -621,6 +663,9 @@ class Interpreter {
       final p = func.params[i];
       final arg = argExprs[i];
       callEnv.defineType(p.name, p.type);
+      if (p.isArray) {
+        callEnv.define('\$arr_start_${p.name.toLowerCase()}', p.arrayStart);
+      }
       if (p.mode == ParamMode.reference) {
         final ref = await _buildRef(arg, callerEnv, callLine);
         if (ref == null) {
@@ -631,6 +676,7 @@ class Interpreter {
           );
           callEnv.define(p.name, null);
         } else {
+          _checkArgType(p, ref.get(debugger, callLine), name, callLine);
           callEnv.define(p.name, ref);
         }
       } else {
@@ -714,8 +760,526 @@ class Interpreter {
           0,
         );
       }
+    } else {
+      switch (ptype) {
+        case 'entier':
+          if (argVal is! int) {
+            debugger.reportError(
+              "Type incompatible : la fonction '$funcName' attend un Entier pour '${p.name}'",
+              line,
+              0,
+            );
+          }
+          break;
+        case 'réel':
+        case 'reel':
+          if (argVal is! num) {
+            debugger.reportError(
+              "Type incompatible : la fonction '$funcName' attend un Réel pour '${p.name}'",
+              line,
+              0,
+            );
+          }
+          break;
+        case 'chaîne':
+        case 'chaine':
+        case 'caractère':
+        case 'caractere':
+          if (argVal is! String) {
+            debugger.reportError(
+              "Type incompatible : la fonction '$funcName' attend une Chaîne pour '${p.name}'",
+              line,
+              0,
+            );
+          }
+          break;
+        case 'booléen':
+        case 'booleen':
+          if (argVal is! bool) {
+            debugger.reportError(
+              "Type incompatible : la fonction '$funcName' attend un Booléen pour '${p.name}'",
+              line,
+              0,
+            );
+          }
+          break;
+      }
     }
-    // scalaires : pas de vérification stricte (cohérent avec le reste de l'interpréteur)
+  }
+
+  // === Gestion des fichiers (JSON Lines + canaux) ===
+
+  dynamic _truncateStructFieldIfNeeded(
+    StructDecl decl,
+    String fieldName,
+    dynamic val,
+    int line,
+  ) {
+    if (val is! String) return val;
+    for (final f in decl.fields) {
+      if (f.name.toLowerCase() == fieldName.toLowerCase() &&
+          f.length != null &&
+          f.length! > 0 &&
+          val.length > f.length!) {
+        final truncated = val.substring(0, f.length!);
+        onOutput(
+          "⚠️ Avertissement ligne $line : le texte du champ '${f.name}' dépasse ${f.length} caractères et a été tronqué.",
+        );
+        return truncated;
+      }
+    }
+    return val;
+  }
+
+  int? _resolveChannel(Expr channelExpr, int line, dynamic rawVal) {
+    if (rawVal is! int || rawVal <= 0) {
+      debugger.reportError(
+        "Numéro de canal invalide ($rawVal) : doit être un entier positif (>= 1)",
+        line,
+        0,
+      );
+      return null;
+    }
+    return rawVal;
+  }
+
+  FileOpenMode _parseOpenMode(String modeStr) {
+    switch (modeStr.toLowerCase()) {
+      case 'lecture':
+        return FileOpenMode.lecture;
+      case 'ajout':
+        return FileOpenMode.ajout;
+      case 'ecriture':
+      case 'écriture':
+      default:
+        return FileOpenMode.ecriture;
+    }
+  }
+
+  Future<void> _executeOpenFile(OpenFileStmt stmt) async {
+    final pathVal = await evaluate(stmt.pathExpr);
+    if (pathVal is! String || pathVal.trim().isEmpty) {
+      debugger.reportError(
+        "Le nom du fichier doit être une chaîne non vide",
+        stmt.line,
+        0,
+      );
+      return;
+    }
+    final chVal = await evaluate(stmt.channelExpr);
+    final channel = _resolveChannel(stmt.channelExpr, stmt.line, chVal);
+    if (channel == null) return;
+
+    if (_openChannels.containsKey(channel)) {
+      debugger.reportError(
+        "Le canal $channel est déjà utilisé par '${_openChannels[channel]!.fileName}'",
+        stmt.line,
+        0,
+      );
+      return;
+    }
+
+    final fileName = pathVal.trim();
+    final mode = _parseOpenMode(stmt.mode);
+    List<String> lines = [];
+    int cursor = 0;
+
+    if (mode == FileOpenMode.lecture) {
+      final exists = await fileStorage.exists(fileName);
+      if (!exists) {
+        debugger.reportError(
+          "Fichier introuvable en lecture : '$fileName'",
+          stmt.line,
+          0,
+        );
+        return;
+      }
+      lines = await fileStorage.readLines(fileName);
+      cursor = 0;
+    } else if (mode == FileOpenMode.ecriture) {
+      await fileStorage.writeLines(fileName, []);
+      lines = [];
+      cursor = 0;
+    } else if (mode == FileOpenMode.ajout) {
+      if (await fileStorage.exists(fileName)) {
+        lines = await fileStorage.readLines(fileName);
+      } else {
+        await fileStorage.writeLines(fileName, []);
+        lines = [];
+      }
+      cursor = lines.length;
+    }
+
+    final chState = _OpenFileChannel(
+      channel: channel,
+      fileName: fileName,
+      mode: mode,
+      lines: lines,
+      cursor: cursor,
+    );
+    _openChannels[channel] = chState;
+
+    onFileEvent?.call(
+      FileEvent(
+        channel: channel,
+        fileName: fileName,
+        mode: mode,
+        type: FileEventType.open,
+        linePosition: cursor + 1,
+        totalLines: lines.length,
+        isEof: chState.isEof,
+        algoLine: stmt.line,
+      ),
+    );
+  }
+
+  Future<void> _executeReadFile(ReadFileStmt stmt) async {
+    final chVal = await evaluate(stmt.channelExpr);
+    final channel = _resolveChannel(stmt.channelExpr, stmt.line, chVal);
+    if (channel == null) return;
+
+    final chState = _openChannels[channel];
+    if (chState == null) {
+      debugger.reportError(
+        "Impossible de lire sur le canal $channel : canal fermé ou non ouvert",
+        stmt.line,
+        0,
+      );
+      return;
+    }
+
+    if (chState.mode != FileOpenMode.lecture) {
+      debugger.reportError(
+        "Impossible de lire sur le canal $channel : le fichier '${chState.fileName}' n'est pas ouvert en mode Lecture",
+        stmt.line,
+        0,
+      );
+      return;
+    }
+
+    if (chState.isEof) {
+      debugger.reportError(
+        "Lecture impossible sur le canal $channel ('${chState.fileName}') : fin de fichier atteinte (EOF)",
+        stmt.line,
+        0,
+      );
+      return;
+    }
+
+    final rawLine = chState.lines[chState.cursor];
+    dynamic decoded;
+    try {
+      decoded = jsonDecode(rawLine);
+    } catch (_) {
+      decoded = rawLine;
+    }
+
+    // Déterminer la cible (variable ou élément de tableau)
+    dynamic currentTarget;
+    List<dynamic>? targetArr;
+    int? targetRealIdx;
+
+    if (stmt.indexExpr != null) {
+      final idx = await evaluate(stmt.indexExpr!);
+      final arr = environment.get(stmt.varName, stmt.line, debugger);
+      final startOffset =
+          environment.get(
+            '\$arr_start_${stmt.varName.toLowerCase()}',
+            stmt.line,
+            debugger,
+          ) ??
+          1;
+      if (arr is List && idx is int) {
+        final realIdx = idx - (startOffset as int);
+        if (realIdx >= 0 && realIdx < arr.length) {
+          targetArr = arr;
+          targetRealIdx = realIdx;
+          currentTarget = arr[realIdx];
+        } else {
+          debugger.reportError("Index hors tableau ($idx)", stmt.line, 0);
+          return;
+        }
+      } else {
+        debugger.reportError(
+          "'${stmt.varName}' n'est pas un tableau",
+          stmt.line,
+          0,
+        );
+        return;
+      }
+    } else {
+      currentTarget = environment.get(stmt.varName, stmt.line, debugger);
+      if (debugger.hasErrors) return;
+    }
+
+    if (currentTarget is StructValue) {
+      if (decoded is! Map) {
+        debugger.reportError(
+          "Format d'enregistrement invalide à la ligne ${chState.cursor + 1} de '${chState.fileName}' pour la structure '${currentTarget.decl.name}'",
+          stmt.line,
+          0,
+        );
+        return;
+      }
+      final newStruct = _defaultStruct(currentTarget.decl.name);
+      final lowerMap = <String, dynamic>{};
+      decoded.forEach((k, v) {
+        lowerMap[k.toString().toLowerCase()] = v;
+      });
+      for (final f in currentTarget.decl.fields) {
+        if (lowerMap.containsKey(f.name.toLowerCase())) {
+          var fieldVal = _coerceScalar(lowerMap[f.name.toLowerCase()], f.type);
+          fieldVal = _truncateStructFieldIfNeeded(
+            currentTarget.decl,
+            f.name,
+            fieldVal,
+            stmt.line,
+          );
+          newStruct.setField(f.name, fieldVal);
+        }
+      }
+      if (targetArr != null && targetRealIdx != null) {
+        targetArr[targetRealIdx] = newStruct;
+      } else {
+        environment.assign(stmt.varName, newStruct, stmt.line, debugger);
+      }
+    } else {
+      final declaredType = environment.getType(stmt.varName) ?? '';
+      final coerced = _coerceScalar(decoded, declaredType);
+      if (targetArr != null && targetRealIdx != null) {
+        targetArr[targetRealIdx] = coerced;
+      } else {
+        environment.assign(stmt.varName, coerced, stmt.line, debugger);
+      }
+    }
+
+    final readPos = chState.cursor + 1;
+    chState.cursor++;
+
+    onFileEvent?.call(
+      FileEvent(
+        channel: channel,
+        fileName: chState.fileName,
+        mode: chState.mode,
+        type: FileEventType.read,
+        linePosition: readPos,
+        totalLines: chState.lines.length,
+        isEof: chState.isEof,
+        record: decoded,
+        algoLine: stmt.line,
+      ),
+    );
+  }
+
+  dynamic _coerceScalar(dynamic val, String typeName) {
+    if (val == null) return _defaultScalar(typeName);
+    switch (typeName.toLowerCase()) {
+      case 'entier':
+        if (val is int) return val;
+        if (val is num) return val.toInt();
+        return int.tryParse(val.toString()) ?? 0;
+      case 'réel':
+      case 'reel':
+        if (val is num) return val.toDouble();
+        return double.tryParse(val.toString()) ?? 0.0;
+      case 'booléen':
+      case 'booleen':
+        if (val is bool) return val;
+        final s = val.toString().toLowerCase();
+        return s == 'true' || s == 'vrai' || s == '1';
+      case 'chaîne':
+      case 'chaine':
+      case 'caractère':
+      case 'caractere':
+        return val.toString();
+      default:
+        return val;
+    }
+  }
+
+  Future<void> _executeWriteFile(WriteFileStmt stmt) async {
+    final chVal = await evaluate(stmt.channelExpr);
+    final channel = _resolveChannel(stmt.channelExpr, stmt.line, chVal);
+    if (channel == null) return;
+
+    final chState = _openChannels[channel];
+    if (chState == null) {
+      debugger.reportError(
+        "Impossible d'écrire sur le canal $channel : canal fermé ou non ouvert",
+        stmt.line,
+        0,
+      );
+      return;
+    }
+
+    if (chState.mode == FileOpenMode.lecture) {
+      debugger.reportError(
+        "Impossible d'écrire sur le canal $channel : '${chState.fileName}' est ouvert en mode Lecture uniquement",
+        stmt.line,
+        0,
+      );
+      return;
+    }
+
+    final val = await evaluate(stmt.valueExpr);
+    dynamic jsonReady;
+
+    if (val is StructValue) {
+      final map = <String, dynamic>{};
+      for (final f in val.decl.fields) {
+        var fVal = val.getField(f.name);
+        fVal = _truncateStructFieldIfNeeded(val.decl, f.name, fVal, stmt.line);
+        val.setField(f.name, fVal);
+        map[f.name] = fVal;
+      }
+      jsonReady = map;
+    } else if (val is int || val is double || val is String || val is bool) {
+      jsonReady = val;
+    } else {
+      debugger.reportError(
+        "Type non supporté pour l'écriture dans un fichier (attendu Structure ou variable simple)",
+        stmt.line,
+        0,
+      );
+      return;
+    }
+
+    final jsonLine = jsonEncode(jsonReady);
+    int writtenPos;
+
+    if (chState.cursor >= chState.lines.length) {
+      chState.lines.add(jsonLine);
+      writtenPos = chState.lines.length;
+      chState.cursor = chState.lines.length;
+      await fileStorage.appendLine(chState.fileName, jsonLine);
+    } else {
+      chState.lines[chState.cursor] = jsonLine;
+      writtenPos = chState.cursor + 1;
+      chState.cursor++;
+      await fileStorage.writeLines(chState.fileName, chState.lines);
+    }
+
+    onFileEvent?.call(
+      FileEvent(
+        channel: channel,
+        fileName: chState.fileName,
+        mode: chState.mode,
+        type: FileEventType.write,
+        linePosition: writtenPos,
+        totalLines: chState.lines.length,
+        isEof: chState.isEof,
+        record: jsonReady,
+        algoLine: stmt.line,
+      ),
+    );
+  }
+
+  Future<void> _executeSeekFile(SeekFileStmt stmt) async {
+    final chVal = await evaluate(stmt.channelExpr);
+    final channel = _resolveChannel(stmt.channelExpr, stmt.line, chVal);
+    if (channel == null) return;
+
+    final chState = _openChannels[channel];
+    if (chState == null) {
+      debugger.reportError(
+        "Impossible de positionner le canal $channel : canal fermé ou non ouvert",
+        stmt.line,
+        0,
+      );
+      return;
+    }
+
+    final lineVal = await evaluate(stmt.lineExpr);
+    if (lineVal is! int || lineVal < 1) {
+      debugger.reportError(
+        "Numéro de ligne invalide ($lineVal) dans PositionnerFichier : la première ligne est 1",
+        stmt.line,
+        0,
+      );
+      return;
+    }
+
+    if (lineVal > chState.lines.length + 1) {
+      debugger.reportError(
+        "Positionnement hors limites (ligne $lineVal) dans '${chState.fileName}' (${chState.lines.length} enregistrement(s))",
+        stmt.line,
+        0,
+      );
+      return;
+    }
+
+    chState.cursor = lineVal - 1;
+    onFileEvent?.call(
+      FileEvent(
+        channel: channel,
+        fileName: chState.fileName,
+        mode: chState.mode,
+        type: FileEventType.seek,
+        linePosition: chState.cursor + 1,
+        totalLines: chState.lines.length,
+        isEof: chState.isEof,
+        algoLine: stmt.line,
+      ),
+    );
+  }
+
+  Future<void> _executeCloseFile(CloseFileStmt stmt) async {
+    final chVal = await evaluate(stmt.channelExpr);
+    final channel = _resolveChannel(stmt.channelExpr, stmt.line, chVal);
+    if (channel == null) return;
+
+    final chState = _openChannels.remove(channel);
+    if (chState == null) {
+      debugger.reportError(
+        "Impossible de fermer le canal $channel : déjà fermé ou non ouvert",
+        stmt.line,
+        0,
+      );
+      return;
+    }
+
+    onFileEvent?.call(
+      FileEvent(
+        channel: channel,
+        fileName: chState.fileName,
+        mode: chState.mode,
+        type: FileEventType.close,
+        linePosition: chState.cursor + 1,
+        totalLines: chState.lines.length,
+        isEof: chState.isEof,
+        algoLine: stmt.line,
+      ),
+    );
+  }
+
+  Future<bool> _evaluateEof(EofExpr expr) async {
+    final chVal = await evaluate(expr.channelExpr);
+    final channel = _resolveChannel(expr.channelExpr, expr.line, chVal);
+    if (channel == null) return true;
+
+    final chState = _openChannels[channel];
+    if (chState == null) {
+      debugger.reportError(
+        "EOF impossible sur le canal $channel : canal fermé ou non ouvert",
+        expr.line,
+        0,
+      );
+      return true;
+    }
+
+    onFileEvent?.call(
+      FileEvent(
+        channel: channel,
+        fileName: chState.fileName,
+        mode: chState.mode,
+        type: FileEventType.eof,
+        linePosition: chState.cursor + 1,
+        totalLines: chState.lines.length,
+        isEof: chState.isEof,
+        algoLine: expr.line,
+      ),
+    );
+    return chState.isEof;
   }
 
   // === Point d'entrée utilitaire ===
@@ -725,6 +1289,8 @@ class Interpreter {
     Future<String> Function(String?) onInput,
     Function(List<AlgoError>) onErrors, {
     int maxCallDepth = 100,
+    FileStorage? fileStorage,
+    void Function(FileEvent)? onFileEvent,
   }) async {
     final debugger = Debugger();
     final lexer = Lexer(code);
@@ -742,6 +1308,8 @@ class Interpreter {
       onOutput: onOutput,
       onInput: onInput,
       maxCallDepth: maxCallDepth,
+      fileStorage: fileStorage,
+      onFileEvent: onFileEvent,
     );
     await interpreter.execute(program);
 
@@ -749,6 +1317,24 @@ class Interpreter {
       onErrors(debugger.errors);
     }
   }
+}
+
+class _OpenFileChannel {
+  final int channel;
+  final String fileName;
+  final FileOpenMode mode;
+  final List<String> lines;
+  int cursor; // 0-based
+
+  _OpenFileChannel({
+    required this.channel,
+    required this.fileName,
+    required this.mode,
+    required this.lines,
+    required this.cursor,
+  });
+
+  bool get isEof => cursor >= lines.length;
 }
 
 class ReturnException implements Exception {

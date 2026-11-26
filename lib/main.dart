@@ -17,6 +17,7 @@ import 'core/services/schedule_notification_service.dart';
 import 'core/services/home_widget_service.dart';
 import 'core/database/database_helper.dart';
 import 'core/providers/defis_provider.dart';
+import 'core/providers/fichiers_provider.dart';
 
 import 'core/services/supabase_credentials.dart';
 import 'core/services/connectivity_service.dart';
@@ -148,6 +149,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ProjetsProvider()),
         ChangeNotifierProvider(create: (_) => ScheduleProvider()),
         ChangeNotifierProvider(create: (_) => DefisProvider()),
+        ChangeNotifierProvider(create: (_) => FichiersProvider()),
         ChangeNotifierProvider(create: (_) => ConnectivityService()),
         ChangeNotifierProvider.value(value: SyncService.instance),
         ChangeNotifierProvider.value(value: ExtensionsService.instance),

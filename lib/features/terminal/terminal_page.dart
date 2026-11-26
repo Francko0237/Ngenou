@@ -1,11 +1,17 @@
+import 'dart:convert';
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
+import '../../algo_interpreter/file_storage.dart';
 import '../../algo_interpreter/syntax_highlighter.dart';
 import '../../algo_interpreter/interpreter.dart';
 import '../../algo_interpreter/debugger.dart';
 import '../../core/database/database_helper.dart';
 import '../../core/models/ngenou_extension.dart';
+import '../../core/providers/fichiers_provider.dart';
 import '../../core/services/extensions_service.dart';
+import '../../core/services/local_file_storage.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/widgets/algo_code_editor.dart';
 
 class TerminalPage extends StatefulWidget {
@@ -18,8 +24,10 @@ class TerminalPage extends StatefulWidget {
 class _TerminalPageState extends State<TerminalPage> {
   final AlgoSyntaxController _controller = AlgoSyntaxController();
   final TextEditingController _outputController = TextEditingController();
-  final GlobalKey _editorKey = GlobalKey();
+  final GlobalKey<AlgoCodeEditorState> _editorKey =
+      GlobalKey<AlgoCodeEditorState>();
   List<AlgoError> _errors = [];
+  FileEvent? _lastFileEvent;
   bool _isRunning = false;
   bool _isInstallingExt = false;
   List<Map<String, dynamic>> _savedCodes = [];
@@ -130,6 +138,59 @@ Debut
       Ecrire("Non trouvé");
    FinSi;
 Fin''',
+    "Fonction (Carré & Somme)": '''Algorithme ExempleFonction
+Fonction Carre(Entrée x : Entier) : Entier
+Début
+   Retourner x * x
+FinFonction
+
+Var
+   n, res : Entier
+Début
+   n ← 5
+   res ← Carre(n) + 1
+   Ecrire("Carre(", n, ") + 1 = ", res)
+Fin''',
+    "Procédure (Échange)": '''Algorithme ExempleProcedure
+Procédure Echanger(Entrée/Sortie a : Entier, Entrée/Sortie b : Entier)
+Variables
+   tmp : Entier
+Début
+   tmp ← a
+   a ← b
+   b ← tmp
+FinProcédure
+
+Var
+   x, y : Entier
+Début
+   x ← 10
+   y ← 25
+   Echanger(x, y)
+   Ecrire("x = ", x, ", y = ", y)
+Fin''',
+    "Fichiers (Clients)": '''Algorithme ExempleFichier
+Type Structure Client
+   Nom : Chaîne * 25
+   Prenom : Chaîne * 25
+FinStruct
+
+Var
+   clt : Client
+Début
+   Ouvrir "clients.txt" en 1 en Ecriture
+   clt.Nom ← "Dupont"
+   clt.Prenom ← "Jean"
+   EcrireFichier 1, clt
+   Fermer(1)
+
+   Ouvrir "clients.txt" en 1 en Lecture
+   TantQue Non EOF(1) Faire
+      LireFichier 1, clt
+      Ecrire("Client : ", clt.Nom, " ", clt.Prenom)
+   FinTantQue
+   Fermer(1)
+Fin''',
   };
 
   void _loadCodeString(String codeText) {
@@ -137,14 +198,18 @@ Fin''',
       _controller.text = codeText;
       _outputController.text = "";
       _errors = [];
+      _lastFileEvent = null;
     });
   }
 
   void _runCode() async {
+    final fichiersProvider = context.read<FichiersProvider>();
+    fichiersProvider.updateLiveEvent(null);
     setState(() {
       _isRunning = true;
       _outputController.text = "";
       _errors = [];
+      _lastFileEvent = null;
     });
 
     await Interpreter.runCode(
@@ -236,7 +301,18 @@ Fin''',
       (errs) {
         setState(() => _errors = errs);
       },
+      fileStorage: LocalFileStorage(),
+      onFileEvent: (ev) {
+        fichiersProvider.updateLiveEvent(ev);
+        if (mounted) {
+          setState(() => _lastFileEvent = ev);
+        }
+      },
     );
+
+    if (mounted) {
+      fichiersProvider.loadFiles();
+    }
 
     if (_controller.text.trim().isNotEmpty) {
       DatabaseHelper.instance.insertHistoriqueTerminal(
@@ -653,6 +729,11 @@ Fin''',
             tooltip: 'Mes Scripts & Exemples',
             onPressed: _showScriptsModal,
           ),
+          IconButton(
+            icon: const Icon(Icons.storage_rounded),
+            tooltip: 'Fichiers (/fichiers)',
+            onPressed: () => context.push('/fichiers'),
+          ),
         ],
       ),
       body: Padding(
@@ -665,6 +746,7 @@ Fin''',
                 key: _editorKey,
                 controller: _controller,
                 hintText: "Tapez votre algorithme ici...",
+                onRun: _isRunning ? null : _runCode,
               ),
             ),
             const SizedBox(height: 8),
@@ -692,6 +774,7 @@ Fin''',
               ),
             ),
             if (!isKeyboardOpen) ...[
+              if (_lastFileEvent != null) _buildLiveFileBandeau(isDark),
               Expanded(
                 flex: outputFlex,
                 child: Container(
@@ -756,6 +839,46 @@ Fin''',
                           },
                         ),
                       ),
+                      if (_errors.any((e) => e.line > 0))
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: _errors
+                                .where((e) => e.line > 0)
+                                .map(
+                                  (e) => ActionChip(
+                                    visualDensity: VisualDensity.compact,
+                                    avatar: Icon(
+                                      Icons.my_location,
+                                      size: 14,
+                                      color: isDark
+                                          ? Colors.red[200]
+                                          : Colors.red[800],
+                                    ),
+                                    label: Text(
+                                      'Aller à la ligne ${e.line}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? Colors.red[200]
+                                            : Colors.red[800],
+                                      ),
+                                    ),
+                                    backgroundColor: Colors.red.withValues(
+                                      alpha: 0.14,
+                                    ),
+                                    onPressed: () =>
+                                        _editorKey.currentState?.jumpToLine(
+                                          e.line,
+                                        ),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -763,6 +886,143 @@ Fin''',
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  String _modeLabel(FileOpenMode mode) {
+    switch (mode) {
+      case FileOpenMode.lecture:
+        return 'Lecture';
+      case FileOpenMode.ecriture:
+        return 'Écriture';
+      case FileOpenMode.ajout:
+        return 'Ajout';
+    }
+  }
+
+  Widget _buildLiveFileBandeau(bool isDark) {
+    final ev = _lastFileEvent!;
+    final accent = Theme.of(context).primaryColor;
+    final isClosed = ev.type == FileEventType.close;
+    final hasRecordHighlight =
+        ev.record != null &&
+        (ev.type == FileEventType.read || ev.type == FileEventType.write);
+    final recordText = hasRecordHighlight
+        ? (ev.record is Map ? jsonEncode(ev.record) : '${ev.record}')
+        : null;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isClosed
+              ? (isDark
+                  ? Colors.white.withValues(alpha: 0.12)
+                  : Colors.black.withValues(alpha: 0.1))
+              : accent.withValues(alpha: 0.55),
+        ),
+      ),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Icon(
+            isClosed ? Icons.lock_outline_rounded : Icons.sync_alt_rounded,
+            size: 16,
+            color: isClosed ? Colors.grey : accent,
+          ),
+          Text(
+            'Canal ${ev.channel} · ${ev.fileName}',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'monospace',
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+            decoration: BoxDecoration(
+              color: (isClosed ? Colors.grey : accent).withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              isClosed ? 'Fermé' : _modeLabel(ev.mode),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: isClosed ? Colors.grey : accent,
+              ),
+            ),
+          ),
+          Text(
+            'Ligne ${ev.linePosition} / ${ev.totalLines}',
+            style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+          ),
+          if (ev.isEof)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text(
+                'EOF',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange,
+                ),
+              ),
+            ),
+          if (recordText != null)
+            InkWell(
+              onTap: () => context.push('/fichiers'),
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withValues(alpha: isDark ? 0.22 : 0.16),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: AppColors.success.withValues(alpha: 0.65),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      ev.type == FileEventType.write
+                          ? Icons.edit_note_rounded
+                          : Icons.visibility_rounded,
+                      size: 14,
+                      color: AppColors.success,
+                    ),
+                    const SizedBox(width: 4),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 260),
+                      child: Text(
+                        '${ev.type == FileEventType.write ? 'Écrit' : 'Lu'} : $recordText',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

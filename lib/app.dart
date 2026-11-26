@@ -23,6 +23,7 @@ import 'features/cours/lecon_page.dart';
 import 'features/exercice/exercice_page.dart';
 import 'features/exercice/resultat_page.dart';
 import 'features/terminal/terminal_page.dart';
+import 'features/terminal/fichiers_page.dart';
 import 'features/progression/progression_page.dart';
 import 'features/parametres/parametres_page.dart';
 import 'features/defis/daily_defis_page.dart';
@@ -147,6 +148,10 @@ final GoRouter _router = GoRouter(
     GoRoute(
       path: '/terminal',
       builder: (context, state) => const TerminalPage(),
+    ),
+    GoRoute(
+      path: '/fichiers',
+      builder: (context, state) => const FichiersPage(),
     ),
     GoRoute(
       path: '/progression',

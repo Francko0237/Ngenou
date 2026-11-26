@@ -108,6 +108,45 @@ class CallStmt extends Stmt {
   CallStmt(this.call, int line) : super(line);
 }
 
+// === Instructions & Expressions Fichiers ===
+class OpenFileStmt extends Stmt {
+  final Expr pathExpr;
+  final Expr channelExpr;
+  final String mode; // 'lecture', 'ecriture', 'ajout'
+  OpenFileStmt(this.pathExpr, this.channelExpr, this.mode, int line)
+      : super(line);
+}
+
+class ReadFileStmt extends Stmt {
+  final Expr channelExpr;
+  final String varName;
+  final Expr? indexExpr;
+  ReadFileStmt(this.channelExpr, this.varName, this.indexExpr, int line)
+      : super(line);
+}
+
+class WriteFileStmt extends Stmt {
+  final Expr channelExpr;
+  final Expr valueExpr;
+  WriteFileStmt(this.channelExpr, this.valueExpr, int line) : super(line);
+}
+
+class SeekFileStmt extends Stmt {
+  final Expr channelExpr;
+  final Expr lineExpr;
+  SeekFileStmt(this.channelExpr, this.lineExpr, int line) : super(line);
+}
+
+class CloseFileStmt extends Stmt {
+  final Expr channelExpr;
+  CloseFileStmt(this.channelExpr, int line) : super(line);
+}
+
+class EofExpr extends Expr {
+  final Expr channelExpr;
+  EofExpr(this.channelExpr, int line) : super(line);
+}
+
 // === Declarations ===
 class VarDecl {
   final String name;
@@ -437,14 +476,24 @@ class Parser {
     } else {
       consume('debut', "Attendu 'Debut' pour la fonction/procédure");
     }
-    List<Stmt> body = parseBlock({'fin', 'finproc', 'finfonction'});
-    // Terminateur : Fin / FinProc / FinFonction
+    List<Stmt> body = parseBlock({
+      'fin',
+      'finproc',
+      'finprocédure',
+      'finprocedure',
+      'finfonction',
+    });
+    // Terminateur : Fin / FinProc / FinProcédure / FinFonction
     final term = current.value.toLowerCase();
-    if (term == 'fin' || term == 'finproc' || term == 'finfonction') {
+    if (term == 'fin' ||
+        term == 'finproc' ||
+        term == 'finprocédure' ||
+        term == 'finprocedure' ||
+        term == 'finfonction') {
       advance();
     } else {
       debugger.reportError(
-        "Attendu 'Fin', 'FinProc' ou 'FinFonction'",
+        "Attendu 'Fin', 'FinProcédure', 'FinProc' ou 'FinFonction'",
         current.line,
         current.column,
       );
@@ -733,12 +782,112 @@ class Parser {
       return WriteStmt(args, previous.line);
     } else if (match(TokenType.keyword, 'retourner')) {
       Expr? e;
-      if (current.type != TokenType.keyword && current.type != TokenType.eof) {
+      if (current.type == TokenType.punctuation &&
+          current.value == '(' &&
+          peek(1)?.type == TokenType.punctuation &&
+          peek(1)?.value == ')') {
+        advance(); // '('
+        advance(); // ')'
+      } else if (current.type != TokenType.keyword &&
+          current.type != TokenType.eof &&
+          !(current.type == TokenType.punctuation && current.value == ';')) {
         e = parseExpr();
       }
       // ';' optionnel (style ligne-par-ligne)
       match(TokenType.punctuation, ';');
       return ReturnStmt(e, previous.line);
+    } else if (match(TokenType.keyword, 'ouvrir')) {
+      final lineNum = previous.line;
+      final pathExpr = parseExpr();
+      if (current.value.toLowerCase() == 'en') {
+        advance();
+      } else {
+        debugger.reportError(
+          "Attendu 'en' après le nom du fichier dans Ouvrir",
+          current.line,
+          current.column,
+        );
+      }
+      final channelExpr = parseExpr();
+      if (current.value.toLowerCase() == 'en') {
+        advance();
+      } else {
+        debugger.reportError(
+          "Attendu 'en' avant le mode d'ouverture (Lecture, Ecriture ou Ajout)",
+          current.line,
+          current.column,
+        );
+      }
+      final mode = current.value.toLowerCase();
+      if (mode == 'lecture' ||
+          mode == 'ecriture' ||
+          mode == 'écriture' ||
+          mode == 'ajout') {
+        advance();
+      } else {
+        debugger.reportError(
+          "Mode d'ouverture invalide '${current.value}' (attendu : Lecture, Ecriture ou Ajout)",
+          current.line,
+          current.column,
+        );
+      }
+      match(TokenType.punctuation, ';');
+      return OpenFileStmt(pathExpr, channelExpr, mode, lineNum);
+    } else if (match(TokenType.keyword, 'lirefichier')) {
+      final lineNum = previous.line;
+      final hasParens = match(TokenType.punctuation, '(');
+      final channelExpr = parseExpr();
+      consume(',', "Attendu ',' après le numéro de canal dans LireFichier");
+      if (current.type != TokenType.identifier) {
+        debugger.reportError(
+          "Attendu un nom de variable après ',' dans LireFichier",
+          current.line,
+          current.column,
+        );
+      }
+      final varName = current.value;
+      advance();
+      Expr? idx;
+      if (match(TokenType.punctuation, '[')) {
+        idx = parseExpr();
+        consume(']', "Attendu ']'");
+      }
+      if (hasParens) {
+        consume(')', "Attendu ')'");
+      }
+      match(TokenType.punctuation, ';');
+      return ReadFileStmt(channelExpr, varName, idx, lineNum);
+    } else if (match(TokenType.keyword, 'ecrirefichier')) {
+      final lineNum = previous.line;
+      final hasParens = match(TokenType.punctuation, '(');
+      final channelExpr = parseExpr();
+      consume(',', "Attendu ',' après le numéro de canal dans EcrireFichier");
+      final valueExpr = parseExpr();
+      if (hasParens) {
+        consume(')', "Attendu ')'");
+      }
+      match(TokenType.punctuation, ';');
+      return WriteFileStmt(channelExpr, valueExpr, lineNum);
+    } else if (match(TokenType.keyword, 'positionnerfichier')) {
+      final lineNum = previous.line;
+      final hasParens = match(TokenType.punctuation, '(');
+      final channelExpr = parseExpr();
+      consume(',', "Attendu ',' après le numéro de canal dans PositionnerFichier");
+      final targetLineExpr = parseExpr();
+      if (hasParens) {
+        consume(')', "Attendu ')'");
+      }
+      match(TokenType.punctuation, ';');
+      return SeekFileStmt(channelExpr, targetLineExpr, lineNum);
+    } else if (match(TokenType.keyword, 'fermer')) {
+      final lineNum = previous.line;
+      final hasParens = match(TokenType.punctuation, '(');
+      final channelExpr = parseExpr();
+      if (hasParens) {
+        consume(')', "Attendu ')'");
+      }
+      match(TokenType.punctuation, ';');
+      return CloseFileStmt(channelExpr, lineNum);
     } else if (current.type == TokenType.identifier) {
       String id = current.value;
       advance();
@@ -900,6 +1049,14 @@ class Parser {
     }
     if (match(TokenType.keyword, 'faux')) {
       return LiteralExpr(false, previous.line);
+    }
+    if (match(TokenType.keyword, 'eof') ||
+        match(TokenType.keyword, 'finfichier')) {
+      final lineNum = previous.line;
+      consume('(', "Attendu '(' après EOF / FinFichier");
+      final channelExpr = parseExpr();
+      consume(')', "Attendu ')'");
+      return EofExpr(channelExpr, lineNum);
     }
     if (match(TokenType.identifier)) {
       String id = previous.value;

@@ -666,6 +666,7 @@ class _DailyDefiAlgoSolvePageState extends State<DailyDefiAlgoSolvePage> {
                   child: AlgoCodeEditor(
                     controller: _controller,
                     hintText: 'Codez votre solution ici…',
+                    onRun: _isRunning ? null : _tester,
                   ),
                 ),
               ),

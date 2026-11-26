@@ -265,6 +265,7 @@ class _DefiSolvePageState extends State<DefiSolvePage> {
                 key: _editorKey,
                 controller: _controller,
                 hintText: "Codez la solution ici...",
+                onRun: _isRunning ? null : _testerMAnuellement,
               ),
             ),
             const SizedBox(height: 8),

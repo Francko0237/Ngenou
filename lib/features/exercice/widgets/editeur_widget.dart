@@ -63,6 +63,7 @@ class _EditeurWidgetState extends State<EditeurWidget> {
           child: AlgoCodeEditor(
             controller: _controller,
             hintText: "Complétez l'algorithme...",
+            onRun: _runCode,
           ),
         ),
         const SizedBox(height: 8),

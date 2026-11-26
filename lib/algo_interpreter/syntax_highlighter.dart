@@ -6,7 +6,7 @@ class AlgoSyntaxController extends TextEditingController {
   static final RegExp _pattern = RegExp(
     r'(//.*|/\*[\s\S]*?\*/)|' // Comments group 1
     r'("[^"]*"|\x27[^\x27]*\x27)|' // Strings group 2
-    r'\b(algorithme|var|variables|const|début|debut|fin|si|alors|sinon|finsi|tant que|faire|fintantque|pour|de|à|a|finpour|répéter|repeter|jusqu\u0027à|jusqu\u0027a|fonction|procédure|procedure|retourner|et|ou|non|mod|div)\b|' // Keywords group 3
+    r'\b(algorithme|var|variables|const|début|debut|fin|si|alors|sinon|finsi|tant que|tantque|faire|fintantque|pour|de|à|a|finpour|répéter|repeter|jusqu\u0027à|jusqu\u0027a|fonction|finfonction|procédure|procedure|finprocédure|finprocedure|finproc|retourner|entrée|entree|sortie|type|structure|finstruct|ouvrir|en|lecture|écriture|ecriture|ajout|lirefichier|ecrirefichier|positionnerfichier|fermer|eof|finfichier|et|ou|non|mod|div)\b|' // Keywords group 3
     r'\b(entier|réel|reel|chaîne|chaine|caractère|caractere|booléen|booleen|tableau|de)\b|' // Types group 4
     r'\b(vrai|faux)\b|' // Booleans group 5
     r'\b\d+(?:\.\d+)?\b', // Numbers group 6

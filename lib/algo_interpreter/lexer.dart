@@ -54,6 +54,7 @@ class Lexer {
     'finsi',
     'tant',
     'que',
+    'tantque',
     'faire',
     'fintantque',
     'pour',
@@ -68,9 +69,21 @@ class Lexer {
     'mod',
     'div',
     'fonction',
+    'finfonction',
     'procédure',
     'procedure',
+    'finprocédure',
+    'finprocedure',
+    'finproc',
+    'finstruct',
     'retourner',
+    'ouvrir',
+    'lirefichier',
+    'ecrirefichier',
+    'positionnerfichier',
+    'fermer',
+    'eof',
+    'finfichier',
     'vrai',
     'faux',
   ];
@@ -150,8 +163,12 @@ class Lexer {
     List<Token> output = [];
     for (int i = 0; i < input.length; i++) {
       String val = input[i].value.toLowerCase();
-      // Combine "Tant que"
-      if (i + 1 < input.length &&
+      // Combine "Tant que" / normalize "TantQue"
+      if (val == 'tantque') {
+        output.add(
+          Token(TokenType.keyword, 'tant que', input[i].line, input[i].column),
+        );
+      } else if (i + 1 < input.length &&
           val == 'tant' &&
           input[i + 1].value.toLowerCase() == 'que') {
         output.add(
