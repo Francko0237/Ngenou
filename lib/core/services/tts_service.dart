@@ -1,7 +1,10 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
-/// Service TTS singleton qui utilise le moteur natif Android.
+/// Service TTS singleton multiplateforme :
+/// - Android / iOS / Windows : moteur natif via `flutter_tts`
+/// - Linux (Ubuntu / Fedora) : `spd-say` (speech-dispatcher) avec fallback `espeak-ng` / `espeak`
 class TtsService {
   TtsService._();
   static final TtsService instance = TtsService._();
@@ -12,17 +15,24 @@ class TtsService {
   final ValueNotifier<String?> currentMsgId = ValueNotifier(null);
 
   bool _initialized = false;
+  Process? _linuxProcess;
+
+  bool get _useLinuxCli => !kIsWeb && Platform.isLinux;
 
   Future<void> _init() async {
     if (_initialized) return;
     _initialized = true;
 
+    if (_useLinuxCli) return;
+
     await _tts.setLanguage('fr-FR');
-    await _tts.setSpeechRate(1.0);
+    // Sur Windows (SAPI), 1.0 est nettement plus rapide qu'Android : 0.6 offre
+    // un débit naturel confortable.
+    await _tts.setSpeechRate(!kIsWeb && Platform.isWindows ? 0.6 : 1.0);
     await _tts.setVolume(1.0);
     await _tts.setPitch(1.0);
 
-    if (!kIsWeb) {
+    if (!kIsWeb && Platform.isAndroid) {
       try {
         await _tts.setEngine('com.google.android.tts');
       } catch (_) {}
@@ -53,17 +63,71 @@ class TtsService {
       return;
     }
 
-    if (isSpeakingNotifier.value) await _tts.stop();
+    if (isSpeakingNotifier.value) await stop();
 
     currentMsgId.value = msgId;
     isSpeakingNotifier.value = true;
 
     final clean = _cleanForSpeech(text);
+    if (clean.isEmpty) {
+      isSpeakingNotifier.value = false;
+      currentMsgId.value = null;
+      return;
+    }
+
+    if (_useLinuxCli) {
+      await _speakLinux(clean, msgId);
+      return;
+    }
+
     await _tts.speak(clean);
   }
 
+  Future<void> _speakLinux(String cleanText, String msgId) async {
+    final candidates = <({String cmd, List<String> args})>[
+      (cmd: 'spd-say', args: ['-l', 'fr', '-r', '-10', '-w', cleanText]),
+      (cmd: 'espeak-ng', args: ['-v', 'fr', '-s', '145', cleanText]),
+      (cmd: 'espeak', args: ['-v', 'fr', '-s', '145', cleanText]),
+    ];
+
+    for (final c in candidates) {
+      try {
+        final proc = await Process.start(c.cmd, c.args);
+        _linuxProcess = proc;
+        final exitCode = await proc.exitCode;
+        if (identical(_linuxProcess, proc)) {
+          _linuxProcess = null;
+          if (currentMsgId.value == msgId) {
+            isSpeakingNotifier.value = false;
+            currentMsgId.value = null;
+          }
+        }
+        if (exitCode == 0 || exitCode < 0) return;
+      } catch (_) {
+        // Binaire absent, on tente le suivant
+      }
+    }
+
+    isSpeakingNotifier.value = false;
+    currentMsgId.value = null;
+  }
+
   Future<void> stop() async {
-    await _tts.stop();
+    if (_useLinuxCli) {
+      final proc = _linuxProcess;
+      _linuxProcess = null;
+      proc?.kill();
+      try {
+        await Process.run('spd-say', ['-C']);
+      } catch (_) {}
+      isSpeakingNotifier.value = false;
+      currentMsgId.value = null;
+      return;
+    }
+
+    try {
+      await _tts.stop();
+    } catch (_) {}
     isSpeakingNotifier.value = false;
     currentMsgId.value = null;
   }

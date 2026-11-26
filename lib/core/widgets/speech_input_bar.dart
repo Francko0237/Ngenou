@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
@@ -72,19 +75,28 @@ class _SpeechInputBarState extends State<SpeechInputBar>
   }
 
   Future<void> _initStt() async {
-    final available = await _stt.initialize(
-      onError: (e) {
-        debugPrint('STT error: ${e.errorMsg}');
-        if (mounted) _stopListening();
-      },
-      onStatus: (status) {
-        debugPrint('STT status: $status');
-        if (status == 'done' || status == 'notListening') {
-          if (mounted) _onSpeechDone();
-        }
-      },
-    );
-    if (mounted) setState(() => _sttAvailable = available);
+    if (!kIsWeb && Platform.isLinux) {
+      if (mounted) setState(() => _sttAvailable = false);
+      return;
+    }
+    try {
+      final available = await _stt.initialize(
+        onError: (e) {
+          debugPrint('STT error: ${e.errorMsg}');
+          if (mounted) _stopListening();
+        },
+        onStatus: (status) {
+          debugPrint('STT status: $status');
+          if (status == 'done' || status == 'notListening') {
+            if (mounted) _onSpeechDone();
+          }
+        },
+      );
+      if (mounted) setState(() => _sttAvailable = available);
+    } catch (e) {
+      debugPrint('STT indisponible sur cette plateforme : $e');
+      if (mounted) setState(() => _sttAvailable = false);
+    }
   }
 
   Future<void> _startListening() async {
@@ -186,26 +198,44 @@ class _SpeechInputBarState extends State<SpeechInputBar>
                 width: 1,
               ),
             ),
-            child: TextField(
-              controller: widget.controller,
-              maxLines: widget.maxLines,
-              textCapitalization: TextCapitalization.sentences,
-              style: TextStyle(
-                color: widget.isDark ? Colors.white : Colors.black87,
-                fontSize: 15,
-              ),
-              decoration: InputDecoration(
-                hintText: widget.hintText,
-                hintStyle: TextStyle(
-                  color: widget.isDark ? Colors.grey[500] : Colors.grey[500],
+            child: Focus(
+              onKeyEvent: (node, event) {
+                final isDesktop = !kIsWeb &&
+                    (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
+                if (!isDesktop) return KeyEventResult.ignored;
+
+                if (event is KeyDownEvent &&
+                    (event.logicalKey == LogicalKeyboardKey.enter ||
+                        event.logicalKey == LogicalKeyboardKey.numpadEnter) &&
+                    !HardwareKeyboard.instance.isShiftPressed) {
+                  if (!widget.isLoading) {
+                    widget.onSend(widget.controller.text);
+                  }
+                  return KeyEventResult.handled;
+                }
+                return KeyEventResult.ignored;
+              },
+              child: TextField(
+                controller: widget.controller,
+                maxLines: widget.maxLines,
+                textCapitalization: TextCapitalization.sentences,
+                style: TextStyle(
+                  color: widget.isDark ? Colors.white : Colors.black87,
+                  fontSize: 15,
                 ),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 12,
+                decoration: InputDecoration(
+                  hintText: widget.hintText,
+                  hintStyle: TextStyle(
+                    color: widget.isDark ? Colors.grey[500] : Colors.grey[500],
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 12,
+                  ),
                 ),
+                onSubmitted: widget.isLoading ? null : widget.onSend,
               ),
-              onSubmitted: widget.isLoading ? null : widget.onSend,
             ),
           ),
         ),

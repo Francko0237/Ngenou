@@ -230,13 +230,19 @@ class DatabaseHelper {
 
   Future<void> _ensureProgressionColumns(Database db) async {
     try {
-      await db.execute('ALTER TABLE progression ADD COLUMN progression_lecture REAL DEFAULT 0.0');
+      await db.execute(
+        'ALTER TABLE progression ADD COLUMN progression_lecture REAL DEFAULT 0.0',
+      );
     } catch (_) {}
     try {
-      await db.execute('ALTER TABLE progression ADD COLUMN last_section_index INTEGER DEFAULT 0');
+      await db.execute(
+        'ALTER TABLE progression ADD COLUMN last_section_index INTEGER DEFAULT 0',
+      );
     } catch (_) {}
     try {
-      await db.execute('ALTER TABLE progression ADD COLUMN last_lesson_index INTEGER DEFAULT 0');
+      await db.execute(
+        'ALTER TABLE progression ADD COLUMN last_lesson_index INTEGER DEFAULT 0',
+      );
     } catch (_) {}
   }
 
@@ -572,9 +578,9 @@ class DatabaseHelper {
     );
   }
 
-  Future<void> insertCodeSauvegarde(String nom, String code) async {
+  Future<int> insertCodeSauvegarde(String nom, String code) async {
     final db = await instance.database;
-    await db.insert('codes_sauvegardes', {
+    final id = await db.insert('codes_sauvegardes', {
       'nom': nom,
       'code': code,
       'date_creation': DateTime.now().toIso8601String(),
@@ -582,6 +588,22 @@ class DatabaseHelper {
       'is_synced': 0,
       'is_deleted': 0,
     });
+    return id;
+  }
+
+  /// Met à jour le code d'un projet déjà sauvegardé (Ctrl+S silencieux).
+  Future<void> updateCodeSauvegarde(int id, String code) async {
+    final db = await instance.database;
+    await db.update(
+      'codes_sauvegardes',
+      {
+        'code': code,
+        'is_synced': 0,
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   Future<List<Map<String, dynamic>>> getCodesSauvegardes() async {
@@ -1199,7 +1221,9 @@ class DatabaseHelper {
         )
       ''');
       if (count > 0) {
-        debugPrint('Nettoyage tchat_ia_messages : $count doublon(s) supprimé(s).');
+        debugPrint(
+          'Nettoyage tchat_ia_messages : $count doublon(s) supprimé(s).',
+        );
       }
       return count;
     } catch (e) {

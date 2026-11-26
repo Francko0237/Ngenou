@@ -114,7 +114,7 @@ class OpenFileStmt extends Stmt {
   final Expr channelExpr;
   final String mode; // 'lecture', 'ecriture', 'ajout'
   OpenFileStmt(this.pathExpr, this.channelExpr, this.mode, int line)
-      : super(line);
+    : super(line);
 }
 
 class ReadFileStmt extends Stmt {
@@ -122,7 +122,7 @@ class ReadFileStmt extends Stmt {
   final String varName;
   final Expr? indexExpr;
   ReadFileStmt(this.channelExpr, this.varName, this.indexExpr, int line)
-      : super(line);
+    : super(line);
 }
 
 class WriteFileStmt extends Stmt {
@@ -346,8 +346,10 @@ class Parser {
       } else {
         consume('debut', "Le bloc principal doit commencer par 'Debut'");
       }
+      _rejectSemicolon('Debut');
       List<Stmt> mainBody = parseBlock({'fin'});
       consume('fin', "Le bloc principal doit se terminer par 'Fin'");
+      _rejectSemicolon('Fin');
 
       // Déclarations de haut niveau autorisées aussi APRÈS le programme
       while (match(TokenType.punctuation, ';')) {}
@@ -374,9 +376,7 @@ class Parser {
   ) {
     while (true) {
       final v = current.value.toLowerCase();
-      if (v == 'fonction' ||
-          v == 'procédure' ||
-          v == 'procedure') {
+      if (v == 'fonction' || v == 'procédure' || v == 'procedure') {
         functions.add(parseFuncDecl());
       } else if (v == 'type') {
         structTypes.add(parseStructDecl());
@@ -389,6 +389,16 @@ class Parser {
 
   List<VarDecl> parseVarDecls() {
     List<VarDecl> vars = [];
+    // ';' immédiatement après Var/Variables → erreur claire, on le consume et on continue
+    if (current.type == TokenType.punctuation && current.value == ';') {
+      debugger.reportError(
+        "Le point-virgule ';' ne doit pas être placé après 'Var' ou 'Variables'. "
+        "Écrivez vos déclarations directement après le mot-clé.",
+        current.line,
+        current.column,
+      );
+      while (match(TokenType.punctuation, ';')) {}
+    }
     while (current.type == TokenType.identifier &&
         current.value.toLowerCase() != 'type') {
       List<String> names = [];
@@ -419,9 +429,31 @@ class Parser {
 
       String type = current.value;
       advance(); // consume type
-      // ';' optionnel (style ligne-par-ligne)
-      match(TokenType.punctuation, ';');
-      while (match(TokenType.punctuation, ';')) {}
+      // ';' obligatoire après chaque déclaration de variable
+      if (current.type == TokenType.punctuation && current.value == ';') {
+        advance();
+        while (match(TokenType.punctuation, ';')) {}
+      } else {
+        // Tolère la fin de bloc comme terminateur implicite (Debut/Début/Fin/etc.)
+        final v = current.value.toLowerCase();
+        final isBlockEnd =
+            v == 'debut' ||
+            v == 'début' ||
+            v == 'fin' ||
+            v == 'finfonction' ||
+            v == 'finproc' ||
+            v == 'finprocédure' ||
+            v == 'finprocedure' ||
+            v == 'finstruct' ||
+            current.type == TokenType.eof;
+        if (!isBlockEnd) {
+          debugger.reportError(
+            "Le point-virgule ';' est obligatoire après la déclaration de variable.",
+            current.line,
+            current.column,
+          );
+        }
+      }
 
       for (var name in names) {
         vars.add(
@@ -476,6 +508,7 @@ class Parser {
     } else {
       consume('debut', "Attendu 'Debut' pour la fonction/procédure");
     }
+    _rejectSemicolon('Debut');
     List<Stmt> body = parseBlock({
       'fin',
       'finproc',
@@ -490,7 +523,9 @@ class Parser {
         term == 'finprocédure' ||
         term == 'finprocedure' ||
         term == 'finfonction') {
+      final termValue = current.value;
       advance();
+      _rejectSemicolon(termValue);
     } else {
       debugger.reportError(
         "Attendu 'Fin', 'FinProcédure', 'FinProc' ou 'FinFonction'",
@@ -651,21 +686,81 @@ class Parser {
         length = int.tryParse(current.value) ?? 0;
         advance();
       }
-      // ';' optionnel (style ligne-par-ligne)
-      match(TokenType.punctuation, ';');
+      // ';' obligatoire après chaque champ de structure
+      if (current.type == TokenType.punctuation && current.value == ';') {
+        advance();
+      } else {
+        final v = current.value.toLowerCase();
+        if (v != 'finstruct' && v != 'fin' && current.type != TokenType.eof) {
+          debugger.reportError(
+            "Le point-virgule ';' est obligatoire après la déclaration du champ '$fname'.",
+            current.line,
+            current.column,
+          );
+        }
+      }
       fields.add(StructField(fname, ftype, length));
     }
     final term = current.value.toLowerCase();
     if (term == 'finstruct' || term == 'fin') {
+      final termValue = current.value;
       advance();
+      _rejectSemicolon(termValue);
     } else {
+      debugger.reportError("Attendu 'FinStruct'", current.line, current.column);
+    }
+    return StructDecl(name, fields);
+  }
+
+  /// Signale une erreur si un ';' parasite suit un mot-clé structurel
+  /// (Debut, Fin, FinSi, FinPour, FinTantQue, FinFonction, FinProcédure…).
+  /// Le ';' est quand même consommé pour limiter la cascade d'erreurs.
+  void _rejectSemicolon(String keyword) {
+    if (current.type == TokenType.punctuation && current.value == ';') {
       debugger.reportError(
-        "Attendu 'FinStruct'",
+        "Le point-virgule ';' n'est pas autorisé après '$keyword'.",
         current.line,
         current.column,
       );
+      while (match(TokenType.punctuation, ';')) {}
     }
-    return StructDecl(name, fields);
+  }
+
+  /// Exige un point-virgule à la fin d'une instruction simple.
+  /// Le ';' est OBLIGATOIRE : sans lui, l'instruction est rejetée avec une
+  /// erreur claire (ligne/colonne) au lieu d'être acceptée silencieusement.
+  void expectSemicolon(int stmtLine) {
+    if (match(TokenType.punctuation, ';')) return;
+    // Ce qui suit doit être une fin de bloc légitime, sinon c'est une erreur.
+    final v = current.value.toLowerCase();
+    final isBlockEnd =
+        v == 'fin' ||
+        v == 'finsi' ||
+        v == 'finpour' ||
+        v == 'fintantque' ||
+        v == 'sinon' ||
+        v == 'finfonction' ||
+        v == 'finproc' ||
+        v == 'finprocédure' ||
+        v == 'finprocedure' ||
+        v == 'finstruct' ||
+        v == 'debut' ||
+        v == 'début' ||
+        current.type == TokenType.eof;
+    if (!isBlockEnd) {
+      debugger.reportError(
+        "Le point-virgule ';' est obligatoire à la fin de cette instruction (ligne $stmtLine). "
+        "Veuillez terminer l'instruction par ';'.",
+        stmtLine,
+        current.column,
+      );
+    } else {
+      debugger.reportError(
+        "Le point-virgule ';' est obligatoire à la fin de l'instruction de la ligne $stmtLine.",
+        stmtLine,
+        current.column,
+      );
+    }
   }
 
   List<Stmt> parseBlock(Set<String> endKeywords) {
@@ -675,8 +770,6 @@ class Parser {
         current.value.toLowerCase() != 'sinon') {
       if (match(TokenType.punctuation, ';')) continue;
       stmts.add(parseStmt());
-      // On accepte un point-virgule optionnel après les blocs (FinPour, FinSi, etc.)
-      match(TokenType.punctuation, ';');
     }
     return stmts;
   }
@@ -685,6 +778,7 @@ class Parser {
     if (match(TokenType.keyword, 'si')) {
       Expr cond = parseExpr();
       consume('alors', "Attendu 'Alors' après la condition");
+      _rejectSemicolon('Alors');
       List<Stmt> thenB = [];
       List<Stmt> elseB = [];
 
@@ -693,24 +787,26 @@ class Parser {
           current.value.toLowerCase() != 'finsi') {
         if (match(TokenType.punctuation, ';')) continue;
         thenB.add(parseStmt());
-        match(TokenType.punctuation, ';');
       }
 
       if (match(TokenType.keyword, 'sinon')) {
+        _rejectSemicolon('Sinon');
         while (current.type != TokenType.eof &&
             current.value.toLowerCase() != 'finsi') {
           if (match(TokenType.punctuation, ';')) continue;
           elseB.add(parseStmt());
-          match(TokenType.punctuation, ';');
         }
       }
       consume('finsi', "Attendu 'FinSi'");
+      _rejectSemicolon('FinSi');
       return IfStmt(cond, thenB, elseB, previous.line);
     } else if (match(TokenType.keyword, 'tant que')) {
       Expr cond = parseExpr();
       consume('faire', "Attendu 'Faire'");
+      _rejectSemicolon('Faire');
       List<Stmt> body = parseBlock({'fintantque'});
       consume('fintantque', "Attendu 'FinTantQue'");
+      _rejectSemicolon('FinTantQue');
       return WhileStmt(cond, body, previous.line);
     } else if (match(TokenType.keyword, 'pour')) {
       String id = current.value;
@@ -727,19 +823,20 @@ class Parser {
       }
       Expr end = parseExpr();
 
-      // On rend le 'faire' optionnel pour supporter "pour i de 1 a n"
       if (current.value.toLowerCase() == 'faire') {
         advance();
+        _rejectSemicolon('Faire');
       }
 
       List<Stmt> body = parseBlock({'finpour'});
       consume('finpour', "Attendu 'FinPour'");
+      _rejectSemicolon('FinPour');
       return ForStmt(id, start, end, body, previous.line);
     } else if (match(TokenType.keyword, 'répéter')) {
       List<Stmt> body = parseBlock({"jusqu'à"});
       consume("jusqu'à", "Attendu 'Jusqu''à'");
       Expr cond = parseExpr();
-      // On tolère 'jusqu'a' comme fin de bloc, mais ce n'est pas une instruction simple, donc on ne force pas ';' ici
+      expectSemicolon(previous.line);
       return RepeatStmt(body, cond, previous.line);
     } else if (match(TokenType.keyword, 'lire')) {
       consume('(', "Attendu '('");
@@ -765,8 +862,7 @@ class Parser {
         reads.add(ReadStmt(nextId, nextIdx, current.line));
       }
       consume(')', "Attendu ')'");
-      // ';' optionnel (style ligne-par-ligne)
-      match(TokenType.punctuation, ';');
+      expectSemicolon(previous.line);
       if (reads.length == 1) return reads.first;
       return MultiReadStmt(reads, previous.line);
     } else if (match(TokenType.keyword, 'ecrire')) {
@@ -777,8 +873,7 @@ class Parser {
         args.add(parseExpr());
       }
       consume(')', "Attendu ')'");
-      // ';' optionnel (style ligne-par-ligne)
-      match(TokenType.punctuation, ';');
+      expectSemicolon(previous.line);
       return WriteStmt(args, previous.line);
     } else if (match(TokenType.keyword, 'retourner')) {
       Expr? e;
@@ -793,8 +888,7 @@ class Parser {
           !(current.type == TokenType.punctuation && current.value == ';')) {
         e = parseExpr();
       }
-      // ';' optionnel (style ligne-par-ligne)
-      match(TokenType.punctuation, ';');
+      expectSemicolon(previous.line);
       return ReturnStmt(e, previous.line);
     } else if (match(TokenType.keyword, 'ouvrir')) {
       final lineNum = previous.line;
@@ -831,7 +925,7 @@ class Parser {
           current.column,
         );
       }
-      match(TokenType.punctuation, ';');
+      expectSemicolon(lineNum);
       return OpenFileStmt(pathExpr, channelExpr, mode, lineNum);
     } else if (match(TokenType.keyword, 'lirefichier')) {
       final lineNum = previous.line;
@@ -855,7 +949,7 @@ class Parser {
       if (hasParens) {
         consume(')', "Attendu ')'");
       }
-      match(TokenType.punctuation, ';');
+      expectSemicolon(lineNum);
       return ReadFileStmt(channelExpr, varName, idx, lineNum);
     } else if (match(TokenType.keyword, 'ecrirefichier')) {
       final lineNum = previous.line;
@@ -866,18 +960,21 @@ class Parser {
       if (hasParens) {
         consume(')', "Attendu ')'");
       }
-      match(TokenType.punctuation, ';');
+      expectSemicolon(lineNum);
       return WriteFileStmt(channelExpr, valueExpr, lineNum);
     } else if (match(TokenType.keyword, 'positionnerfichier')) {
       final lineNum = previous.line;
       final hasParens = match(TokenType.punctuation, '(');
       final channelExpr = parseExpr();
-      consume(',', "Attendu ',' après le numéro de canal dans PositionnerFichier");
+      consume(
+        ',',
+        "Attendu ',' après le numéro de canal dans PositionnerFichier",
+      );
       final targetLineExpr = parseExpr();
       if (hasParens) {
         consume(')', "Attendu ')'");
       }
-      match(TokenType.punctuation, ';');
+      expectSemicolon(lineNum);
       return SeekFileStmt(channelExpr, targetLineExpr, lineNum);
     } else if (match(TokenType.keyword, 'fermer')) {
       final lineNum = previous.line;
@@ -886,7 +983,7 @@ class Parser {
       if (hasParens) {
         consume(')', "Attendu ')'");
       }
-      match(TokenType.punctuation, ';');
+      expectSemicolon(lineNum);
       return CloseFileStmt(channelExpr, lineNum);
     } else if (current.type == TokenType.identifier) {
       String id = current.value;
@@ -901,8 +998,7 @@ class Parser {
           }
           consume(')', "Attendu ')'");
         }
-        // ';' optionnel (style ligne-par-ligne)
-        match(TokenType.punctuation, ';');
+        expectSemicolon(previous.line);
         return CallStmt(CallExpr(id, args, previous.line), previous.line);
       }
 
@@ -915,11 +1011,9 @@ class Parser {
       if (match(TokenType.punctuation, '.')) {
         String field = current.value;
         advance();
-        if (match(TokenType.operator, '←') ||
-            match(TokenType.operator, '<-')) {
+        if (match(TokenType.operator, '←') || match(TokenType.operator, '<-')) {
           Expr val = parseExpr();
-          // ';' optionnel (style ligne-par-ligne)
-          match(TokenType.punctuation, ';');
+          expectSemicolon(previous.line);
           return FieldAssignStmt(
             VarExpr(id, idx, previous.line),
             field,
@@ -935,8 +1029,7 @@ class Parser {
       }
       if (match(TokenType.operator, '←') || match(TokenType.operator, '<-')) {
         Expr val = parseExpr();
-        // ';' optionnel (style ligne-par-ligne)
-        match(TokenType.punctuation, ';');
+        expectSemicolon(previous.line);
         return AssignStmt(id, idx, val, previous.line);
       }
     }

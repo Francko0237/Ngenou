@@ -63,12 +63,14 @@ class AlgoCodeEditor extends StatefulWidget {
   final AlgoSyntaxController controller;
   final String hintText;
   final VoidCallback? onRun;
+  final VoidCallback? onSave;
 
   const AlgoCodeEditor({
     super.key,
     required this.controller,
     this.hintText = "",
     this.onRun,
+    this.onSave,
   });
 
   @override
@@ -153,6 +155,13 @@ class AlgoCodeEditorState extends State<AlgoCodeEditor> {
             return KeyEventResult.handled;
           }
         }
+        if (event.logicalKey == LogicalKeyboardKey.keyS &&
+            HardwareKeyboard.instance.isControlPressed) {
+          if (widget.onSave != null) {
+            widget.onSave!();
+            return KeyEventResult.handled;
+          }
+        }
         if (event.logicalKey == LogicalKeyboardKey.tab) {
           if (_activeSuggestions.isNotEmpty && _currentWord.isNotEmpty) {
             _insertSuggestion(_activeSuggestions.first);
@@ -191,7 +200,8 @@ class AlgoCodeEditorState extends State<AlgoCodeEditor> {
     for (int i = 0; i < targetIdx; i++) {
       offset += lines[i].length + 1;
     }
-    final lineEnd = offset + (targetIdx < lines.length ? lines[targetIdx].length : 0);
+    final lineEnd =
+        offset + (targetIdx < lines.length ? lines[targetIdx].length : 0);
     widget.controller.selection = TextSelection(
       baseOffset: offset,
       extentOffset: lineEnd,

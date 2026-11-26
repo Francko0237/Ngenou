@@ -1,12 +1,23 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../core/config/ai_config.dart';
 import '../../core/services/ai_tutor_history_service.dart';
 import '../../core/services/ai_tutor_service.dart';
+import '../../core/services/ocr_service.dart';
 import '../../core/models/deep_seek_model.dart';
 import '../../core/services/quota_guard.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/providers/projets_provider.dart';
 import '../../core/providers/defis_provider.dart';
 import '../../core/providers/custom_courses_provider.dart';
@@ -41,6 +52,13 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
   /// True si le dernier message envoyé vient de la saisie vocale
   bool _lastInputWasVoice = false;
 
+  /// Pièce jointe en cours de préparation / prête / en erreur
+  _PendingAttachment? _pendingAttachment;
+
+  /// Chemins locaux persistés des fichiers envoyés (timestampMs -> filePath)
+  Map<String, String> _savedAttachmentPaths = {};
+  static const _attachmentPathsPrefKey = 'chat_attachment_paths_v1';
+
   // Stocke tous les historiques chargés : key -> messages
   Map<String, List<TutorMessage>> _allHistories = {};
   bool _isLoadingHistories = true;
@@ -69,6 +87,16 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
   }
 
   Future<void> _loadGlobalChatHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final rawMap = prefs.getString(_attachmentPathsPrefKey);
+    if (rawMap != null && rawMap.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawMap) as Map<String, dynamic>;
+        _savedAttachmentPaths =
+            decoded.map((k, v) => MapEntry(k, v.toString()));
+      } catch (_) {}
+    }
+
     final loaded = await AiTutorHistoryService.loadHistory('global_chat');
     if (mounted) {
       setState(() {
@@ -286,18 +314,106 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
   }
 
   Future<void> _send(String text) async {
-    final question = text.trim();
-    if (question.isEmpty || _isLoading) return;
+    if (_isLoading) return;
+
+    final att = _pendingAttachment;
+    final rawQuestion = text.trim();
+    if (rawQuestion.isEmpty && att == null) return;
+
+    // Si une pièce jointe est encore en cours d'extraction en arrière-plan,
+    // on attend la tâche déjà lancée sans relancer l'OCR.
+    if (att != null && att.status == _AttachmentStatus.extracting) {
+      setState(() => _isLoading = true);
+      if (att.inFlightTask != null) {
+        await att.inFlightTask;
+      }
+      if (!mounted) return;
+    }
+
+    final currentAtt = _pendingAttachment;
+    if (currentAtt != null && currentAtt.status == _AttachmentStatus.error) {
+      setState(() => _isLoading = false);
+      _showAttachmentErrorSnack(
+        currentAtt.errorMessage ??
+            'Impossible d\'envoyer cette pièce jointe. Veuillez la retirer.',
+      );
+      return;
+    }
+
+    String displayContent = rawQuestion;
+    String? attachmentPayload;
+    TutorAttachmentPreview? attachmentPreview;
+
+    if (currentAtt != null &&
+        currentAtt.status == _AttachmentStatus.ready &&
+        currentAtt.extractedText != null) {
+      final effectiveQuestion = rawQuestion.isNotEmpty
+          ? rawQuestion
+          : 'Analyse ce document et explique-moi les points essentiels.';
+      final metaParts = <String>[
+        if (currentAtt.pageCount != null)
+          '${currentAtt.pageCount} page${currentAtt.pageCount! > 1 ? 's' : ''}',
+        if (currentAtt.kind == _AttachmentKind.text && currentAtt.lineCount > 0)
+          '${currentAtt.lineCount} ligne${currentAtt.lineCount > 1 ? 's' : ''}'
+        else
+          '${currentAtt.wordCount} mot${currentAtt.wordCount > 1 ? 's' : ''}',
+      ];
+      final metaLabel = metaParts.join(' · ');
+      displayContent =
+          '[Pièce jointe : ${currentAtt.fileName} ($metaLabel)]\n$effectiveQuestion';
+      final prepared = OcrService.prepareForPrompt(currentAtt.extractedText!);
+      attachmentPayload =
+          '--- DOCUMENT JOINT (${currentAtt.fileName}) ---\n'
+          '$prepared\n'
+          '--- FIN DU DOCUMENT JOINT ---';
+      attachmentPreview = TutorAttachmentPreview(
+        fileName: currentAtt.fileName,
+        extensionLabel: currentAtt.extensionLabel,
+        metaLabel: metaLabel,
+        isImage: currentAtt.kind == _AttachmentKind.image,
+        filePath: currentAtt.filePath,
+        extractedText: currentAtt.extractedText,
+      );
+    }
+
+    if (displayContent.trim().isEmpty) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    final msgTimestamp = DateTime.now();
+    String? persistedFilePath;
+    if (currentAtt != null && currentAtt.status == _AttachmentStatus.ready) {
+      persistedFilePath = await _persistLocalAttachmentCopy(
+        currentAtt.filePath,
+        currentAtt.fileName,
+        msgTimestamp,
+      );
+      if (attachmentPreview != null && persistedFilePath != null) {
+        attachmentPreview = TutorAttachmentPreview(
+          fileName: attachmentPreview.fileName,
+          extensionLabel: attachmentPreview.extensionLabel,
+          metaLabel: attachmentPreview.metaLabel,
+          isImage: attachmentPreview.isImage,
+          filePath: persistedFilePath,
+          extractedText: attachmentPreview.extractedText,
+        );
+      }
+    }
+
     _input.clear();
     FocusScope.of(context).unfocus();
 
     final userMsg = TutorMessage(
       role: 'user',
-      content: question,
-      timestamp: DateTime.now(),
+      content: displayContent,
+      timestamp: msgTimestamp,
+      attachmentPayload: attachmentPayload,
+      attachmentPreview: attachmentPreview,
     );
 
     setState(() {
+      _pendingAttachment = null;
       _globalMessages.add(userMsg);
       _isLoading = true;
     });
@@ -490,8 +606,183 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
     });
   }
 
+  Future<String?> _persistLocalAttachmentCopy(
+    String sourcePath,
+    String fileName,
+    DateTime timestamp,
+  ) async {
+    try {
+      final src = File(sourcePath);
+      if (!await src.exists()) return sourcePath;
+      final supportDir = await getApplicationSupportDirectory();
+      final attDir = Directory('${supportDir.path}${Platform.pathSeparator}chat_attachments');
+      if (!await attDir.exists()) {
+        await attDir.create(recursive: true);
+      }
+      final tsKey = timestamp.millisecondsSinceEpoch.toString();
+      final safeName = fileName.replaceAll(RegExp(r'[^\w.\- ]'), '_');
+      final destPath = '${attDir.path}${Platform.pathSeparator}${tsKey}_$safeName';
+      await src.copy(destPath);
+
+      _savedAttachmentPaths[tsKey] = destPath;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _attachmentPathsPrefKey,
+        jsonEncode(_savedAttachmentPaths),
+      );
+      return destPath;
+    } catch (_) {
+      return sourcePath;
+    }
+  }
+
+  void _showAttachmentErrorSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor: AppColors.error,
+        duration: const Duration(seconds: 5),
+        content: Row(
+          children: [
+            const Icon(
+              Icons.error_outline_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImageAttachment({ImageSource? mobileSource}) async {
+    try {
+      File? pickedFile;
+      if ((Platform.isAndroid || Platform.isIOS) && mobileSource != null) {
+        final picked = await ImagePicker().pickImage(
+          source: mobileSource,
+          imageQuality: 88,
+          maxWidth: 1800,
+          maxHeight: 1800,
+        );
+        if (picked != null) pickedFile = File(picked.path);
+      } else {
+        final result = await FilePicker.pickFiles(
+          type: FileType.image,
+          allowMultiple: false,
+        );
+        if (result != null && result.files.single.path != null) {
+          pickedFile = File(result.files.single.path!);
+        }
+      }
+      if (pickedFile == null || !mounted) return;
+      _startBackgroundExtraction(pickedFile, isImage: true);
+    } catch (e) {
+      _showAttachmentErrorSnack(
+        'Impossible de sélectionner cette image : ${formatUserError(e)}',
+      );
+    }
+  }
+
+  Future<void> _pickDocumentAttachment() async {
+    try {
+      // On laisse l'utilisateur sélectionner librement puis on valide au retour
+      // dans l'application (ex: limite à 5 pages pour les PDF, formats valides).
+      final result = await FilePicker.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+      );
+      if (result == null || result.files.single.path == null || !mounted) {
+        return;
+      }
+      final file = File(result.files.single.path!);
+      _startBackgroundExtraction(file, isImage: false);
+    } catch (e) {
+      _showAttachmentErrorSnack(
+        'Impossible de sélectionner ce fichier : ${formatUserError(e)}',
+      );
+    }
+  }
+
+  void _startBackgroundExtraction(File file, {required bool isImage}) {
+    final fileName = file.uri.pathSegments.isNotEmpty
+        ? file.uri.pathSegments.last
+        : file.path;
+    final lowerName = fileName.toLowerCase();
+    final dotIdx = lowerName.lastIndexOf('.');
+    final ext = (dotIdx >= 0 && dotIdx < lowerName.length - 1)
+        ? lowerName.substring(dotIdx + 1)
+        : '';
+
+    final kind = (isImage || OcrService.imageExtensions.contains(ext))
+        ? _AttachmentKind.image
+        : (ext == 'pdf' ? _AttachmentKind.pdf : _AttachmentKind.text);
+
+    final extLabel = ext.isNotEmpty
+        ? ext.toUpperCase()
+        : (kind == _AttachmentKind.image ? 'IMG' : 'TXT');
+
+    final pending = _PendingAttachment(
+      fileName: fileName,
+      filePath: file.path,
+      extensionLabel: extLabel,
+      kind: kind,
+      status: _AttachmentStatus.extracting,
+    );
+
+    final task = () async {
+      try {
+        final result = isImage
+            ? OcrExtractionResult(
+                text: await OcrService.extractTextFromImage(file),
+              )
+            : await OcrService.extractFromAnyFile(
+                file,
+                maxPdfPages: AiConfig.maxPdfPages,
+              );
+
+        if (!mounted || _pendingAttachment != pending) return;
+        setState(() {
+          pending.extractedText = result.text;
+          pending.pageCount = result.pageCount;
+          pending.wordCount = OcrService.countWords(result.text);
+          pending.lineCount = OcrService.countLines(result.text);
+          pending.wasTruncated =
+              result.text.length > AiConfig.maxAttachmentChars;
+          pending.status = _AttachmentStatus.ready;
+        });
+      } catch (e) {
+        if (!mounted || _pendingAttachment != pending) return;
+        final rawMsg = e.toString();
+        final cleanMsg = rawMsg.startsWith('Exception: ')
+            ? rawMsg.substring('Exception: '.length)
+            : rawMsg;
+        setState(() {
+          pending.errorMessage = cleanMsg;
+          pending.status = _AttachmentStatus.error;
+        });
+        _showAttachmentErrorSnack(cleanMsg);
+      }
+    }();
+
+    pending.inFlightTask = task;
+    setState(() => _pendingAttachment = pending);
+  }
+
   void _showAttachmentOptions() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isMobile = Platform.isAndroid || Platform.isIOS;
+    final primary = Theme.of(context).primaryColor;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
@@ -511,29 +802,45 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: Icon(
-                Icons.image_rounded,
-                color: Theme.of(context).primaryColor,
+            const SizedBox(height: 14),
+            if (isMobile) ...[
+              ListTile(
+                leading: Icon(Icons.photo_camera_rounded, color: primary),
+                title: const Text('Prendre une photo'),
+                subtitle: const Text('Photo de cours ou exercice (OCR auto)'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImageAttachment(mobileSource: ImageSource.camera);
+                },
               ),
-              title: const Text('Photo / Image'),
-              subtitle: const Text('Depuis la galerie'),
+              ListTile(
+                leading: Icon(Icons.image_rounded, color: primary),
+                title: const Text('Photo depuis la galerie'),
+                subtitle: const Text('Extraction du texte en arrière-plan'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImageAttachment(mobileSource: ImageSource.gallery);
+                },
+              ),
+            ] else
+              ListTile(
+                leading: Icon(Icons.image_rounded, color: primary),
+                title: const Text('Photo / Image de cours'),
+                subtitle: const Text('Extraction locale du texte en arrière-plan'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImageAttachment();
+                },
+              ),
+            ListTile(
+              leading: Icon(Icons.attach_file_rounded, color: primary),
+              title: const Text('Fichier (PDF, texte, code)'),
+              subtitle: const Text(
+                'PDF limité à ${AiConfig.maxPdfPages} pages max · .txt, .algo, .py…',
+              ),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: implémenter la sélection d'image
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.attach_file_rounded,
-                color: Theme.of(context).primaryColor,
-              ),
-              title: const Text('Fichier'),
-              subtitle: const Text('PDF, document…'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: implémenter la sélection de fichier
+                _pickDocumentAttachment();
               },
             ),
             const SizedBox(height: 8),
@@ -844,7 +1151,7 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
             ],
           ),
         ),
-        // Champ de saisie
+        // Champ de saisie + aperçu pièce jointe
         Container(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
           decoration: BoxDecoration(
@@ -856,47 +1163,60 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
               ),
             ),
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // Bouton pièce jointe
-              GestureDetector(
-                onTap: _showAttachmentOptions,
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  margin: const EdgeInsets.only(bottom: 4, right: 8),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E2638) : const Color(0xFFF1F5F9),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isDark ? const Color(0xFF2B374E) : const Color(0xFFE2E8F0),
-                      width: 1,
+              if (_pendingAttachment != null)
+                _buildAttachmentBanner(isDark, primary),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  // Bouton pièce jointe
+                  GestureDetector(
+                    onTap: _isLoading ? null : _showAttachmentOptions,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      margin: const EdgeInsets.only(bottom: 4, right: 8),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xFF1E2638)
+                            : const Color(0xFFF1F5F9),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isDark
+                              ? const Color(0xFF2B374E)
+                              : const Color(0xFFE2E8F0),
+                          width: 1,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.add_rounded,
+                        color: isDark ? Colors.grey[300] : Colors.grey[700],
+                        size: 22,
+                      ),
                     ),
                   ),
-                  child: Icon(
-                    Icons.add_rounded,
-                    color: isDark ? Colors.grey[300] : Colors.grey[700],
-                    size: 22,
+                  // Barre de saisie avec STT
+                  Expanded(
+                    child: SpeechInputBar(
+                      controller: _input,
+                      isDark: isDark,
+                      primary: primary,
+                      isLoading: _isLoading,
+                      onSend: _send,
+                      onSendVoice: (text) {
+                        _lastInputWasVoice = true;
+                        _send(text);
+                      },
+                      onStop: _stop,
+                      hintText: _pendingAttachment != null
+                          ? 'Pose ta question sur ce document…'
+                          : 'Demande quelque chose à Ngenou…',
+                      maxLines: null,
+                    ),
                   ),
-                ),
-              ),
-              // Barre de saisie avec STT
-              Expanded(
-                child: SpeechInputBar(
-                  controller: _input,
-                  isDark: isDark,
-                  primary: primary,
-                  isLoading: _isLoading,
-                  onSend: _send,
-                  onSendVoice: (text) {
-                    _lastInputWasVoice = true;
-                    _send(text);
-                  },
-                  onStop: _stop,
-                  hintText: 'Demande quelque chose à Ngenou…',
-                  maxLines: null,
-                ),
+                ],
               ),
             ],
           ),
@@ -1282,6 +1602,10 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
 
     // ── MESSAGE DE L'UTILISATEUR ──────────────────────────────────────
     if (isUser) {
+      final parsed = _extractAttachmentFromMessage(msg);
+      final preview = parsed.preview;
+      final cleanText = parsed.bodyText;
+
       return GestureDetector(
         onLongPress: () =>
             _showUserMessageOptions(context, msg, msgIndex, isDark, primary),
@@ -1292,65 +1616,75 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Flexible(
-                child: Container(
-                  constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width * 0.82,
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 11,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        primary,
-                        Color.lerp(primary, const Color(0xFF0F1A33), 0.18) ??
-                            primary,
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(18),
-                      topRight: Radius.circular(18),
-                      bottomLeft: Radius.circular(18),
-                      bottomRight: Radius.circular(4),
-                    ),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.12),
-                      width: 1,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: primary.withValues(alpha: 0.22),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (preview != null) ...[
+                      _buildSentAttachmentPreview(preview, isDark, primary),
+                      const SizedBox(height: 6),
                     ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        msg.content,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14.5,
-                          height: 1.45,
-                          fontWeight: FontWeight.w500,
+                    if (cleanText.isNotEmpty)
+                      Container(
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.82,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 11,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              primary,
+                              Color.lerp(primary, const Color(0xFF0F1A33), 0.18) ??
+                                  primary,
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(18),
+                            topRight: Radius.circular(18),
+                            bottomLeft: Radius.circular(18),
+                            bottomRight: Radius.circular(4),
+                          ),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.12),
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: primary.withValues(alpha: 0.22),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              cleanText,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14.5,
+                                height: 1.45,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _formatTime(msg.timestamp),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.white.withValues(alpha: 0.65),
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _formatTime(msg.timestamp),
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.white.withValues(alpha: 0.65),
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                    ],
-                  ),
+                  ],
                 ),
               ),
             ],
@@ -1595,6 +1929,708 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
     );
   }
 
+  /// Carte d'aperçu presque carrée affichée au-dessus de la barre de saisie.
+  Widget _buildAttachmentBanner(bool isDark, Color primary) {
+    final att = _pendingAttachment!;
+    final isDesktop = MediaQuery.of(context).size.width >= 700;
+    final cardWidth = isDesktop ? 144.0 : 128.0;
+    final cardHeight = isDesktop ? 150.0 : 134.0;
+
+    final cardBg = isDark ? const Color(0xFF1A2235) : const Color(0xFFF8FAFC);
+    final borderColor = att.status == _AttachmentStatus.error
+        ? AppColors.error.withValues(alpha: 0.7)
+        : (isDark ? const Color(0xFF2B3D5C) : const Color(0xFFE2E8F0));
+
+    String subtitleText;
+    Color subtitleColor;
+    switch (att.status) {
+      case _AttachmentStatus.extracting:
+        subtitleText = 'Extraction…';
+        subtitleColor = isDark ? Colors.grey[400]! : Colors.grey[600]!;
+        break;
+      case _AttachmentStatus.ready:
+        if (att.pageCount != null) {
+          subtitleText = '${att.pageCount} p.';
+        } else if (att.kind == _AttachmentKind.text && att.lineCount > 0) {
+          subtitleText = '${att.lineCount} l.';
+        } else {
+          subtitleText = '${att.wordCount} mots';
+        }
+        subtitleColor = isDark ? Colors.grey[400]! : Colors.grey[600]!;
+        break;
+      case _AttachmentStatus.error:
+        subtitleText = 'Erreur';
+        subtitleColor = AppColors.error;
+        break;
+    }
+
+    final hasImageFile =
+        att.kind == _AttachmentKind.image && File(att.filePath).existsSync();
+    final isPdf = att.kind == _AttachmentKind.pdf;
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 10, top: 2),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            GestureDetector(
+              onTap: att.status == _AttachmentStatus.ready
+                  ? () => _showAttachmentPreviewDialog(
+                        TutorAttachmentPreview(
+                          fileName: att.fileName,
+                          extensionLabel: att.extensionLabel,
+                          metaLabel: subtitleText,
+                          isImage: att.kind == _AttachmentKind.image,
+                          filePath: att.filePath,
+                          extractedText: att.extractedText,
+                        ),
+                        isDark,
+                        primary,
+                      )
+                  : null,
+              child: Container(
+                width: cardWidth,
+                height: cardHeight,
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: cardBg,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: borderColor, width: 1.2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: hasImageFile
+                    ? Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.file(
+                            File(att.filePath),
+                            fit: BoxFit.cover,
+                          ),
+                          Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.transparent,
+                                  Colors.black.withValues(alpha: 0.72),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            left: 8,
+                            right: 8,
+                            bottom: 8,
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    att.fileName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                if (att.status == _AttachmentStatus.extracting)
+                                  const SizedBox(
+                                    width: 12,
+                                    height: 12,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 1.8,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                else if (att.status == _AttachmentStatus.ready)
+                                  const Icon(
+                                    Icons.check_circle_rounded,
+                                    size: 14,
+                                    color: Color(0xFF4ADE80),
+                                  )
+                                else
+                                  const Icon(
+                                    Icons.error_outline_rounded,
+                                    size: 14,
+                                    color: Color(0xFFFCA5A5),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      )
+                    : Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // Badge statut en haut à gauche
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isPdf
+                                        ? const Color(0xFFE53935)
+                                            .withValues(alpha: 0.14)
+                                        : primary.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    att.extensionLabel,
+                                    style: TextStyle(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: isPdf
+                                          ? const Color(0xFFE53935)
+                                          : primary,
+                                    ),
+                                  ),
+                                ),
+                                switch (att.status) {
+                                  _AttachmentStatus.extracting => SizedBox(
+                                      width: 13,
+                                      height: 13,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 1.8,
+                                        color: primary,
+                                      ),
+                                    ),
+                                  _AttachmentStatus.ready => const Icon(
+                                      Icons.check_circle_rounded,
+                                      size: 15,
+                                      color: Color(0xFF22C55E),
+                                    ),
+                                  _AttachmentStatus.error => const Icon(
+                                      Icons.error_outline_rounded,
+                                      size: 15,
+                                      color: AppColors.error,
+                                    ),
+                                },
+                              ],
+                            ),
+                            // Icône centrale (PDF en rouge au milieu)
+                            Container(
+                              width: isDesktop ? 52 : 46,
+                              height: isDesktop ? 52 : 46,
+                              decoration: BoxDecoration(
+                                color: isPdf
+                                    ? const Color(0xFFE53935)
+                                        .withValues(alpha: 0.12)
+                                    : primary.withValues(alpha: 0.10),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Icon(
+                                isPdf
+                                    ? Icons.picture_as_pdf_rounded
+                                    : Icons.description_rounded,
+                                size: isDesktop ? 30 : 26,
+                                color: isPdf
+                                    ? const Color(0xFFE53935)
+                                    : primary,
+                              ),
+                            ),
+                            // Nom + méta en bas
+                            Column(
+                              children: [
+                                Text(
+                                  att.fileName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark
+                                        ? const Color(0xFFF1F5F9)
+                                        : const Color(0xFF0F172A),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  subtitleText,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: subtitleColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+              ),
+            ),
+            // Bouton circulaire × flottant en haut à droite
+            Positioned(
+              top: -7,
+              right: -7,
+              child: GestureDetector(
+                onTap: () => setState(() => _pendingAttachment = null),
+                child: Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF2B374E) : Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF3E4E6E)
+                          : const Color(0xFFCBD5E1),
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.14),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 13,
+                    color: isDark ? Colors.grey[200] : const Color(0xFF475569),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Extrait l'aperçu de pièce jointe et le texte propre d'un message utilisateur.
+  ({TutorAttachmentPreview? preview, String bodyText})
+      _extractAttachmentFromMessage(TutorMessage msg) {
+    final regex = RegExp(r'^\[Pièce jointe : (.+?) \(([^)]+)\)\]\n?');
+    final match = regex.firstMatch(msg.content);
+    final tsKey = msg.timestamp.millisecondsSinceEpoch.toString();
+    final persistedPath = _savedAttachmentPaths[tsKey];
+
+    if (msg.attachmentPreview != null) {
+      final cleanBody = match != null
+          ? msg.content.substring(match.end).trim()
+          : msg.content.trim();
+      final p = msg.attachmentPreview!;
+      if (p.filePath == null && persistedPath != null) {
+        return (
+          preview: TutorAttachmentPreview(
+            fileName: p.fileName,
+            extensionLabel: p.extensionLabel,
+            metaLabel: p.metaLabel,
+            isImage: p.isImage,
+            filePath: persistedPath,
+            extractedText: p.extractedText,
+          ),
+          bodyText: cleanBody,
+        );
+      }
+      return (preview: p, bodyText: cleanBody);
+    }
+
+    if (match != null) {
+      final fileName = match.group(1) ?? 'Document';
+      final metaLabel = match.group(2) ?? '';
+      final dotIdx = fileName.lastIndexOf('.');
+      final ext = (dotIdx >= 0 && dotIdx < fileName.length - 1)
+          ? fileName.substring(dotIdx + 1).toLowerCase()
+          : '';
+      final isImg = OcrService.imageExtensions.contains(ext);
+      final cleanBody = msg.content.substring(match.end).trim();
+      return (
+        preview: TutorAttachmentPreview(
+          fileName: fileName,
+          extensionLabel: ext.isNotEmpty ? ext.toUpperCase() : 'FILE',
+          metaLabel: metaLabel,
+          isImage: isImg,
+          filePath: persistedPath,
+        ),
+        bodyText: cleanBody,
+      );
+    }
+
+    return (preview: null, bodyText: msg.content);
+  }
+
+  /// Carte d'aperçu presque carrée et cliquable sur le message envoyé.
+  Widget _buildSentAttachmentPreview(
+    TutorAttachmentPreview preview,
+    bool isDark,
+    Color primary,
+  ) {
+    final isDesktop = MediaQuery.of(context).size.width >= 700;
+    final cardWidth = isDesktop ? 148.0 : 132.0;
+    final cardHeight = isDesktop ? 154.0 : 138.0;
+    final hasImageFile = preview.isImage &&
+        preview.filePath != null &&
+        File(preview.filePath!).existsSync();
+    final isPdf = preview.extensionLabel.toUpperCase() == 'PDF';
+
+    if (hasImageFile) {
+      return GestureDetector(
+        onTap: () => _showAttachmentPreviewDialog(preview, isDark, primary),
+        child: Container(
+          width: cardWidth,
+          height: cardHeight,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark ? const Color(0xFF2B3D5C) : const Color(0xFFCBD5E1),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.08),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.file(File(preview.filePath!), fit: BoxFit.cover),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.78),
+                      ],
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          preview.fileName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.open_in_full_rounded,
+                        size: 12,
+                        color: Colors.white70,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final cardBg = isDark ? const Color(0xFF1A2235) : Colors.white;
+    final borderColor =
+        isDark ? const Color(0xFF2B3D5C) : const Color(0xFFE2E8F0);
+
+    return GestureDetector(
+      onTap: () => _showAttachmentPreviewDialog(preview, isDark, primary),
+      child: Container(
+        width: cardWidth,
+        height: cardHeight,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isPdf
+                        ? const Color(0xFFE53935).withValues(alpha: 0.14)
+                        : primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    preview.extensionLabel,
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w800,
+                      color: isPdf ? const Color(0xFFE53935) : primary,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.open_in_new_rounded,
+                  size: 13,
+                  color: isDark ? Colors.grey[400] : Colors.grey[500],
+                ),
+              ],
+            ),
+            // Icône centrale : PDF rouge au milieu ou icône image/fichier
+            Container(
+              width: isDesktop ? 54 : 48,
+              height: isDesktop ? 54 : 48,
+              decoration: BoxDecoration(
+                color: isPdf
+                    ? const Color(0xFFE53935).withValues(alpha: 0.12)
+                    : primary.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(
+                isPdf
+                    ? Icons.picture_as_pdf_rounded
+                    : (preview.isImage
+                        ? Icons.image_rounded
+                        : Icons.description_rounded),
+                size: isDesktop ? 32 : 28,
+                color: isPdf ? const Color(0xFFE53935) : primary,
+              ),
+            ),
+            Column(
+              children: [
+                Text(
+                  preview.fileName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: isDark
+                        ? const Color(0xFFF1F5F9)
+                        : const Color(0xFF0F172A),
+                  ),
+                ),
+                if (preview.metaLabel.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    preview.metaLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Affiche directement le FICHIER BRUT lors d'un clic sur la pièce jointe.
+  Future<void> _showAttachmentPreviewDialog(
+    TutorAttachmentPreview preview,
+    bool isDark,
+    Color primary,
+  ) async {
+    final filePath = preview.filePath;
+    final fileExists = filePath != null && File(filePath).existsSync();
+    final isPdf = preview.extensionLabel.toUpperCase() == 'PDF';
+    final isDesktop = MediaQuery.of(context).size.width >= 700;
+
+    if (!fileExists &&
+        (preview.extractedText == null || preview.extractedText!.isEmpty)) {
+      _showAttachmentErrorSnack('Le fichier local n\'est plus disponible sur cet appareil.');
+      return;
+    }
+
+    String? rawTextContent;
+    if (fileExists && !preview.isImage && !isPdf) {
+      try {
+        rawTextContent = await File(filePath).readAsString();
+      } catch (_) {
+        rawTextContent = preview.extractedText;
+      }
+    }
+
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: isDark ? const Color(0xFF161D2D) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        insetPadding: EdgeInsets.symmetric(
+          horizontal: isDesktop ? 64 : 14,
+          vertical: 24,
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: isDesktop ? 760 : double.infinity,
+            maxHeight: MediaQuery.of(context).size.height * 0.86,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 8, 10),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isPdf
+                            ? const Color(0xFFE53935).withValues(alpha: 0.14)
+                            : primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        preview.extensionLabel,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: isPdf ? const Color(0xFFE53935) : primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            preview.fileName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w700,
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
+                            ),
+                          ),
+                          if (preview.metaLabel.isNotEmpty)
+                            Text(
+                              preview.metaLabel,
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: isDark
+                                    ? Colors.grey[400]
+                                    : Colors.grey[600],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    if (fileExists &&
+                        (Platform.isWindows ||
+                            Platform.isLinux ||
+                            Platform.isMacOS))
+                      IconButton(
+                        tooltip: 'Ouvrir dans l\'application par défaut',
+                        icon: const Icon(Icons.open_in_new_rounded, size: 20),
+                        onPressed: () async {
+                          await launchUrl(Uri.file(filePath));
+                        },
+                      ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Flexible(
+                child: preview.isImage && fileExists
+                    ? Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: InteractiveViewer(
+                            minScale: 0.5,
+                            maxScale: 5.0,
+                            child: Image.file(
+                              File(filePath),
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                      )
+                    : (isPdf && fileExists)
+                        ? _PdfRawPagesViewer(
+                            file: File(filePath),
+                            isDark: isDark,
+                          )
+                        : SingleChildScrollView(
+                            padding: const EdgeInsets.all(16),
+                            child: SelectableText(
+                              rawTextContent ?? preview.extractedText ?? '',
+                              style: TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 12.5,
+                                height: 1.5,
+                                color: isDark
+                                    ? const Color(0xFFE2E8F0)
+                                    : const Color(0xFF1E293B),
+                              ),
+                            ),
+                          ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildTypingIndicator(bool isDark, Color primary) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
@@ -1657,6 +2693,168 @@ class _AiGlobalChatPageState extends State<AiGlobalChatPage>
     );
   }
 }
+
+/// Affiche les pages brutes d'un PDF via [Printing.raster].
+class _PdfRawPagesViewer extends StatefulWidget {
+  final File file;
+  final bool isDark;
+
+  const _PdfRawPagesViewer({required this.file, required this.isDark});
+
+  @override
+  State<_PdfRawPagesViewer> createState() => _PdfRawPagesViewerState();
+}
+
+class _PdfRawPagesViewerState extends State<_PdfRawPagesViewer> {
+  List<PdfRaster>? _pages;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPages();
+  }
+
+  Future<void> _loadPages() async {
+    try {
+      final bytes = await widget.file.readAsBytes();
+      final list = <PdfRaster>[];
+      await for (final page in Printing.raster(bytes, dpi: 150)) {
+        list.add(page);
+      }
+      if (mounted) {
+        setState(() => _pages = list);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = 'Impossible d\'afficher ce PDF : $e');
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_error != null) {
+      return Padding(
+        padding: const EdgeInsets.all(24),
+        child: Center(
+          child: Text(
+            _error!,
+            style: const TextStyle(color: AppColors.error),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+    if (_pages == null) {
+      return const Padding(
+        padding: EdgeInsets.all(36),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.all(14),
+      itemCount: _pages!.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final raster = _pages![index];
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: widget.isDark
+                      ? const Color(0xFF2B3D5C)
+                      : const Color(0xFFE2E8F0),
+                ),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Image(
+                image: PdfRasterImage(raster),
+                fit: BoxFit.contain,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Page ${index + 1} / ${_pages!.length}',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11,
+                color: widget.isDark ? Colors.grey[400] : Colors.grey[600],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+// ── Enums et modèles pour la gestion des pièces jointes ─────────────────────
+
+/// Statut d'une pièce jointe en cours de traitement.
+enum _AttachmentStatus {
+  /// OCR / extraction en arrière-plan — pas encore disponible.
+  extracting,
+  /// Texte extrait et prêt à être envoyé dans le prompt.
+  ready,
+  /// Erreur d'extraction — la pièce jointe ne peut pas être envoyée.
+  error,
+}
+
+/// Type de pièce jointe pour choisir l'icône et le moteur d'extraction.
+enum _AttachmentKind {
+  /// Fichier image (JPEG, PNG, etc.) → OCR ML Kit / WinRT / Tesseract.
+  image,
+  /// Fichier PDF → Syncfusion + limite de pages.
+  pdf,
+  /// Fichier texte/code (txt, algo, py…) → lecture directe.
+  text,
+}
+
+/// Pièce jointe transitoire attachée au prochain message utilisateur.
+/// Elle n'est jamais sauvegardée en base de données — uniquement en mémoire.
+class _PendingAttachment {
+  final String fileName;
+  final String filePath;
+  final String extensionLabel;
+  final _AttachmentKind kind;
+  _AttachmentStatus status;
+
+  /// Texte extrait (OCR ou lecture directe), null si extraction non terminée.
+  String? extractedText;
+
+  /// Nombre de pages (PDF uniquement).
+  int? pageCount;
+
+  /// Nombre de mots dans le texte extrait.
+  int wordCount = 0;
+
+  /// Nombre de lignes (fichiers texte/code).
+  int lineCount = 0;
+
+  /// Vrai si le texte a été tronqué à [AiConfig.maxAttachmentChars].
+  bool wasTruncated = false;
+
+  /// Message d'erreur lisible si [status] == [_AttachmentStatus.error].
+  String? errorMessage;
+
+  /// Future de la tâche d'extraction en cours (permet d'attendre avant d'envoyer).
+  Future<void>? inFlightTask;
+
+  _PendingAttachment({
+    required this.fileName,
+    required this.filePath,
+    required this.extensionLabel,
+    required this.kind,
+    required this.status,
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 /// Bottom-sheet de sélection du modèle Ngenou pour le chat global.
 class _ChatModelPickerSheet extends StatelessWidget {

@@ -30,6 +30,23 @@ class AiConfig {
   /// Plafond de tokens de sortie pour la génération des défis.
   static const int maxOutputTokensChallenges = 4096;
 
+  // ── Pièces jointes & OCR (économie de tokens) ────────────────────────────
+  /// Nombre maximal de pages autorisé pour un fichier PDF envoyé à l'assistant.
+  static const int maxPdfPages = 5;
+
+  /// Nombre maximal de caractères extraits envoyés dans un tour de chat
+  /// (~2 500 tokens max, après nettoyage local des espaces/lignes vides).
+  static const int maxAttachmentChars = 10000;
+
+  /// Taille maximale autorisée pour une image (10 Mo).
+  static const int maxImageSizeBytes = 10 * 1024 * 1024;
+
+  /// Taille maximale autorisée pour un fichier texte/code (5 Mo).
+  static const int maxTextFileSizeBytes = 5 * 1024 * 1024;
+
+  /// Longueur minimale de texte utile pour valider un OCR image.
+  static const int minOcrUsefulChars = 12;
+
   // ── Quotas journaliers MODE PRO ──────────────────────────────────────────
   // Flash est TOTALEMENT ILLIMITÉ — ces quotas ne s'appliquent qu'au mode Pro.
 

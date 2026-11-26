@@ -8,19 +8,60 @@ import 'auth_service.dart';
 // L'appel réseau passe désormais par la Edge Function Supabase (ai-proxy).
 // La clé API DeepSeek est dans les secrets Deno, pas dans le binaire Flutter.
 
+/// Aperçu visuel d'une pièce jointe envoyée avec un message utilisateur.
+class TutorAttachmentPreview {
+  final String fileName;
+  final String extensionLabel;
+  final String metaLabel;
+  final bool isImage;
+  final String? filePath;
+  final String? extractedText;
+
+  const TutorAttachmentPreview({
+    required this.fileName,
+    required this.extensionLabel,
+    required this.metaLabel,
+    this.isImage = false,
+    this.filePath,
+    this.extractedText,
+  });
+}
+
 /// Message dans la conversation tuteur IA.
 class TutorMessage {
   final String role; // 'user' ou 'assistant'
   final String content;
   final DateTime timestamp;
 
+  /// Contenu extrait d'une pièce jointe (PDF / image OCR / fichier texte).
+  /// Non persisté dans SQLite et envoyé UNIQUEMENT au tour courant (Bloc 4)
+  /// pour ne pas consommer les tokens en boucle dans l'historique glissant.
+  final String? attachmentPayload;
+
+  /// Aperçu cliquable affiché sur la bulle utilisateur (style LLM).
+  final TutorAttachmentPreview? attachmentPreview;
+
   const TutorMessage({
     required this.role,
     required this.content,
     required this.timestamp,
+    this.attachmentPayload,
+    this.attachmentPreview,
   });
 
+  /// Représentation compacte pour l'historique (sans le texte brut de la pièce jointe).
   Map<String, String> toApiMap() => {'role': role, 'content': content};
+
+  /// Représentation complète utilisée uniquement pour le message du tour courant.
+  Map<String, String> toCurrentTurnApiMap() {
+    if (attachmentPayload == null || attachmentPayload!.trim().isEmpty) {
+      return toApiMap();
+    }
+    return {
+      'role': role,
+      'content': '$content\n\n$attachmentPayload',
+    };
+  }
 }
 
 /// Résultat de l'appel au tuteur IA.
@@ -199,8 +240,8 @@ class AiTutorService {
               'CONTEXT FRAIS — Apprenant : "$username". '
               'RAPPEL LANGUE : réponds dans la même langue que le prochain message.',
         },
-      // Bloc 4 — Question utilisateur
-      if (lastUserMessage != null) lastUserMessage.toApiMap(),
+      // Bloc 4 — Question utilisateur (+ pièce jointe sur le tour courant uniquement)
+      if (lastUserMessage != null) lastUserMessage.toCurrentTurnApiMap(),
     ];
 
     // ── Appel via la Edge Function (plus de clé API dans Flutter) ────────
