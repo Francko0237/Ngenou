@@ -85,6 +85,13 @@ flutter_launcher_icons:
   adaptive_icon_background: "#101B3A"
   adaptive_icon_foreground: "assets/images/launcher_icon.png"
   adaptive_icon_foreground_inset: 22
+  windows:
+    generate: true
+    image_path: "assets/images/launcher_icon.png"
+    icon_size: 48
+  linux:
+    generate: true
+    image_path: "assets/images/launcher_icon.png"
   web:
     generate: false
 

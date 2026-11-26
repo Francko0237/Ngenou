@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Ngenou
+Comment=Tuteur IA éducatif pour lycéens africains
+Exec=ngenou
+Icon=com.ngenou.app
+Terminal=false
+Type=Application
+Categories=Education;
+StartupWMClass=ngenou
+Keywords=education;ia;tuteur;apprentissage;Afrique;

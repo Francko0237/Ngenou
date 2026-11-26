@@ -126,3 +126,16 @@ if(NOT CMAKE_BUILD_TYPE MATCHES "Debug")
   install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
     COMPONENT Runtime)
 endif()
+
+# Install the Ngenou .desktop file and icon for system integration on Linux.
+# The .desktop file allows the app to appear in application menus with the
+# correct icon on GNOME, KDE, XFCE, etc.
+install(FILES "${CMAKE_SOURCE_DIR}/ngenou.desktop"
+  DESTINATION "share/applications"
+  COMPONENT Runtime
+  OPTIONAL)
+install(FILES "${CMAKE_SOURCE_DIR}/runner/resources/ngenou.png"
+  DESTINATION "share/icons/hicolor/1024x1024/apps"
+  RENAME "com.ngenou.app.png"
+  COMPONENT Runtime
+  OPTIONAL)

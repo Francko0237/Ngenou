@@ -26,8 +26,8 @@ DefaultGroupName={#AppName}
 AllowNoIcons=yes
 ; Contrat de licence à afficher lors de l'installation
 LicenseFile=..\LICENSE.txt
-; Icône de l'installateur (si disponible)
-; SetupIconFile=..\windows\runner\resources\app_icon.ico
+; Icône de l'installateur et des raccourcis (logo officiel Ngenou)
+SetupIconFile=..\windows\runner\resources\app_icon.ico
 OutputDir=..\installer\output
 OutputBaseFilename=NgenouSetup_{#AppVersion}_Windows_x64
 Compression=lzma2/ultra64

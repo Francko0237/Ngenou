@@ -19,6 +19,10 @@ apply_standard_settings(${BINARY_NAME})
 # Add preprocessor definitions for the application ID.
 add_definitions(-DAPPLICATION_ID="${APPLICATION_ID}")
 
+# Path to the Ngenou icon bundled next to the binary at runtime.
+# The icon is copied to the bundle directory by the top-level install rule.
+add_definitions(-DWINDOW_ICON_PATH="${CMAKE_INSTALL_PREFIX}/data/flutter_assets/assets/images/launcher_icon.png")
+
 # Add dependency libraries. Add any application-specific dependencies here.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter)
 target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK)
