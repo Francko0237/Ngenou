@@ -46,6 +46,12 @@ void main() async {
 
   await SupabaseCredentials.init();
 
+  // Initialiser SQLite FFI sur Desktop AVANT tout accès à DatabaseHelper
+  if (Platform.isWindows || Platform.isLinux) {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  }
+
   // ── Réinitialisation unique des badges (migration silencieuse supprimée) ──
   // Efface les badges qui ont été marqués silencieusement par l'ancienne
   // logique de migration. Ils seront re-débloqués correctement avec popup
@@ -115,13 +121,8 @@ void main() async {
     );
   }
 
-  // Desktop configuration for sql and focus mode window size
+  // Desktop configuration for focus mode window size
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-    if (Platform.isWindows || Platform.isLinux) {
-      sqfliteFfiInit();
-      databaseFactory = databaseFactoryFfi;
-    }
-
     await windowManager.ensureInitialized();
     WindowOptions windowOptions = const WindowOptions(
       size: Size(1280, 800),

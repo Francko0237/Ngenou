@@ -92,6 +92,7 @@ Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{localappdata}\{#AppName}"
+Type: filesandordirs; Name: "{userappdata}\com.ngenou"
 
 [Code]
 // Vérification que Windows 10 ou supérieur est installé

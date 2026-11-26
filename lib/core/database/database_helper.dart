@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/score.dart';
@@ -25,7 +27,18 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDB(String filePath) async {
-    final dbPath = await getDatabasesPath();
+    final String dbPath;
+    if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+      // Sur Desktop, utiliser le dossier Application Support de l'utilisateur
+      // (évite .dart_tool relatif au répertoire courant qui échoue en Release/installé).
+      final supportDir = await getApplicationSupportDirectory();
+      if (!await supportDir.exists()) {
+        await supportDir.create(recursive: true);
+      }
+      dbPath = supportDir.path;
+    } else {
+      dbPath = await getDatabasesPath();
+    }
     final path = join(dbPath, filePath);
 
     final db = await openDatabase(
