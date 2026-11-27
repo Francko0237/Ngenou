@@ -20,6 +20,23 @@ subprojects {
 }
 
 subprojects {
+    if (name == "file_picker") {
+        plugins.apply("org.jetbrains.kotlin.android")
+    }
+}
+
+subprojects {
+    if (name != "app") {
+        afterEvaluate {
+            val android = extensions.findByName("android")
+            if (android is com.android.build.gradle.BaseExtension) {
+                android.compileSdkVersion(36)
+            }
+        }
+    }
+}
+
+subprojects {
     val configureProject = Action<Project> {
         if (name == "flutter_local_notifications") {
             // Delete original ScheduledNotificationReceiver.class right after Java compilation is done.
