@@ -19,7 +19,7 @@ fun signingProp(key: String): String {
 
 android {
     namespace = "com.ngenou.app"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
