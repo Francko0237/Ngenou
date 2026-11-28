@@ -729,15 +729,21 @@ class AuthService {
           final query = uri.queryParameters;
           final error = query['error'];
           final code = query['code'];
+          final errorDescription = query['error_description'];
+
+          debugPrint('[AuthService] Callback reçu sur loopback: $query');
 
           // Cas A : Erreur ou annulation signalée par Google / Supabase
           if (error != null && error.isNotEmpty) {
+            debugPrint('[AuthService] ❌ Erreur OAuth: error=$error, desc=$errorDescription');
             request.response
               ..statusCode = HttpStatus.ok
               ..headers.contentType = ContentType.html
               ..write(_buildConfirmationHtml(
                 status: 'error',
-                message: 'L\'authentification a été annulée ou refusée.',
+                message: errorDescription != null && errorDescription.isNotEmpty
+                    ? 'Erreur: $errorDescription ($error)'
+                    : 'L\'authentification a été annulée ou refusée.',
               ));
             await request.response.close();
 
