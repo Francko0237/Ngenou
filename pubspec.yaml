@@ -34,35 +34,35 @@ dependencies:
   sqflite_common_ffi: ^2.3.0
   path: ^1.8.3
   provider: ^6.1.1
-  google_fonts: ^9.0.0
+  google_fonts: ^6.1.0
   shared_preferences: ^2.2.2
-  window_manager: ^0.7.1
+  window_manager: ^0.3.7
   flutter_highlight: ^0.7.0
-  fl_chart: ^1.3.2
-  confetti: ^0.8.0
-  go_router: ^18.1.4
-  file_picker: ^13.4.1
+  fl_chart: ^0.66.0
+  confetti: ^0.7.0
+  go_router: ^12.1.1
+  file_picker: ^11.0.2
   pdf: ^3.10.7
-  share_plus: ^13.3.1
-  screenshot: ^3.0.0
+  share_plus: ^7.2.2
+  screenshot: ^2.1.0
   printing: ^5.11.1
   http: ^1.2.0
   flutter_svg: ^2.0.17
   do_not_disturb: ^1.0.3
-  flutter_local_notifications: ^23.0.4
-  timezone: ^0.11.2
-  flutter_timezone: ^5.1.1
-  google_mlkit_text_recognition: ^1.0.3
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.10.0
+  flutter_timezone: ^4.1.0
+  google_mlkit_text_recognition: ^0.15.1
   image_picker: ^1.2.2
-  syncfusion_flutter_pdf: ^35.2.13
+  syncfusion_flutter_pdf: ^33.2.13
   audioplayers: ^6.8.1
-  audio_session: ^0.2.4
+  audio_session: ^0.1.25
   path_provider: ^2.1.6
   supabase_flutter: ^2.8.0
-  connectivity_plus: ^7.3.2
+  connectivity_plus: ^6.0.3
   app_links: ^7.0.0
   google_sign_in: ^7.2.0
-  home_widget: ^0.10.0
+  home_widget: ^0.6.0
   speech_to_text: ^7.4.0
   flutter_tts: ^4.2.5
   mailer: ^7.2.2
@@ -73,8 +73,8 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^6.0.0
-  flutter_launcher_icons: ^0.14.4
+  flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter_launcher_icons:
   android: true
