@@ -3,8 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseCredentials {
   // Remplacer par l'URL et la clé anonyme de votre projet Supabase
-  static const String url = "https://boarzpbrrztqjfnuckxq.supabase.co";
-  static const String anonKey = "sb_publishable_-705eJ--wBQYCGLFxgU1Vw_RMNgYM5K";
+  static const String url = "https://qfthojymggrpdxfhhzii.supabase.co";
+  static const String anonKey = "sb_publishable_eJiqM3WJki2ABQkvqxyq7A_daq6gfsB";
 
   static bool get isValid =>
       url.isNotEmpty &&

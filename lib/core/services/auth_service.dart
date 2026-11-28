@@ -818,7 +818,7 @@ class AuthService {
     String? message,
   }) {
     const logoUrl =
-        'https://boarzpbrrztqjfnuckxq.supabase.co/storage/v1/object/public/app-assets/logo.png';
+        'https://qfthojymggrpdxfhhzii.supabase.co/storage/v1/object/public/app-assets/logo.png';
 
     final isSuccess = status == 'success';
     final isError = status == 'error';

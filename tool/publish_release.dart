@@ -199,9 +199,9 @@ void main(List<String> args) async {
   }
 
   // 4. Publication sur Supabase
-  const supabaseUrl = 'https://boarzpbrrztqjfnuckxq.supabase.co';
+  const supabaseUrl = 'https://qfthojymggrpdxfhhzii.supabase.co';
   const serviceKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJvYXJ6cGJycnp0cWpmbnVja3hxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjgwNjU1NiwiZXhwIjoyMDk4MzgyNTU2fQ.l5CVRQ-m_q3DwhYkmYZQ6BLCLIGUQ8O1C3rxCZ0k44E';
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmdGhvanltZ2dycGR4ZmhoemlpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5NTgyMTQ3NCwiZXhwIjoyMTExMzk3NDc0fQ.q9P377tuxP3KPN0HinaVA-5H6xMRmwf-O9UYNig60T8';
 
   print('\n🌐 Enregistrement dans Supabase...');
 
